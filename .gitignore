@@ -1,0 +1,8 @@
+build/
+.gradle/
+out/
+.env
+application-local.yml
+*.log
+.backend-*.out
+.backend-*.err

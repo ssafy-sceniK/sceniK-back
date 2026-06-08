@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.scenik.mapper.AuthTokenMapper">
+  <resultMap id="AuthTokenResultMap" type="com.scenik.domain.AuthToken">
+    <id property="tokenId" column="token_id" />
+    <result property="userId" column="user_id" />
+    <result property="tokenHash" column="token_hash" />
+    <result property="createdAt" column="created_at" />
+    <result property="expiresAt" column="expires_at" />
+    <result property="revokedAt" column="revoked_at" />
+  </resultMap>
+
+  <insert id="insert" parameterType="com.scenik.domain.AuthToken" useGeneratedKeys="true" keyProperty="tokenId" keyColumn="token_id">
+    INSERT INTO auth_tokens (user_id, token_hash, expires_at)
+    VALUES (#{userId}, #{tokenHash}, #{expiresAt})
+  </insert>
+
+  <select id="findActiveByHash" resultMap="AuthTokenResultMap">
+    SELECT *
+    FROM auth_tokens
+    WHERE token_hash = #{tokenHash}
+      AND revoked_at IS NULL
+      AND expires_at > CURRENT_TIMESTAMP
+  </select>
+
+  <update id="revokeByHash">
+    UPDATE auth_tokens
+    SET revoked_at = CURRENT_TIMESTAMP
+    WHERE token_hash = #{tokenHash}
+      AND revoked_at IS NULL
+  </update>
+</mapper>

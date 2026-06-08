@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.scenik.mapper.LikeVisitMapper">
+  <resultMap id="VisitStatusResultMap" type="com.scenik.domain.VisitStatus">
+    <id property="userId" column="user_id" />
+    <id property="placeId" column="place_id" />
+    <result property="status" column="status" />
+    <result property="createdAt" column="created_at" />
+    <result property="updatedAt" column="updated_at" />
+  </resultMap>
+
+  <insert id="insertContentLike">
+    INSERT IGNORE INTO content_likes (user_id, content_id)
+    VALUES (#{userId}, #{contentId})
+  </insert>
+
+  <delete id="deleteContentLike">
+    DELETE FROM content_likes WHERE user_id = #{userId} AND content_id = #{contentId}
+  </delete>
+
+  <insert id="insertPlaceLike">
+    INSERT IGNORE INTO place_likes (user_id, place_id)
+    VALUES (#{userId}, #{placeId})
+  </insert>
+
+  <delete id="deletePlaceLike">
+    DELETE FROM place_likes WHERE user_id = #{userId} AND place_id = #{placeId}
+  </delete>
+
+  <select id="findLikedContentIds" resultType="string">
+    SELECT content_id FROM content_likes WHERE user_id = #{userId} ORDER BY created_at DESC
+  </select>
+
+  <select id="findLikedPlaceIds" resultType="string">
+    SELECT place_id FROM place_likes WHERE user_id = #{userId} ORDER BY created_at DESC
+  </select>
+
+  <insert id="upsertVisitStatus">
+    INSERT INTO visit_status (user_id, place_id, status)
+    VALUES (#{userId}, #{placeId}, #{status})
+    ON DUPLICATE KEY UPDATE status = VALUES(status)
+  </insert>
+
+  <delete id="deleteVisitStatus">
+    DELETE FROM visit_status WHERE user_id = #{userId} AND place_id = #{placeId}
+  </delete>
+
+  <select id="findVisitStatuses" resultMap="VisitStatusResultMap">
+    SELECT * FROM visit_status WHERE user_id = #{userId} ORDER BY updated_at DESC
+  </select>
+</mapper>

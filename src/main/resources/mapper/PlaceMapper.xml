@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.scenik.mapper.PlaceMapper">
+  <resultMap id="PlaceResultMap" type="com.scenik.domain.Place">
+    <id property="placeId" column="place_id" />
+    <result property="placeName" column="place_name" />
+    <result property="region" column="region" />
+    <result property="district" column="district" />
+    <result property="address" column="address" />
+    <result property="category" column="category" />
+    <result property="description" column="description" />
+    <result property="openingHours" column="opening_hours" />
+    <result property="closedDays" column="closed_days" />
+    <result property="phoneNumber" column="phone_number" />
+    <result property="imageUrl" column="image_url" />
+    <result property="indoorOutdoor" column="indoor_outdoor" />
+    <result property="parkingAvailable" column="parking_available" />
+    <result property="latitude" column="latitude" />
+    <result property="longitude" column="longitude" />
+    <result property="likeCount" column="like_count" />
+    <result property="liked" column="is_liked" />
+    <result property="visitStatus" column="visit_status" />
+  </resultMap>
+
+  <sql id="PlaceSelect">
+    SELECT p.*,
+           COALESCE((SELECT COUNT(*) FROM place_likes pl WHERE pl.place_id = p.place_id), 0) AS like_count,
+           CASE
+             WHEN #{userId} IS NULL THEN FALSE
+             ELSE EXISTS(
+               SELECT 1 FROM place_likes pl2
+               WHERE pl2.place_id = p.place_id AND pl2.user_id = #{userId}
+             )
+           END AS is_liked,
+           (
+             SELECT vs.status
+             FROM visit_status vs
+             WHERE vs.place_id = p.place_id
+               AND vs.user_id = #{userId}
+             LIMIT 1
+           ) AS visit_status
+    FROM places p
+  </sql>
+
+  <select id="findPlaces" resultMap="PlaceResultMap">
+    <include refid="PlaceSelect" />
+    <where>
+      <if test="region != null and region != '' and region != '전체'">
+        p.region = #{region}
+      </if>
+      <if test="district != null and district != ''">
+        AND p.district = #{district}
+      </if>
+      <if test="category != null and category != '' and category != '전체'">
+        AND p.category = #{category}
+      </if>
+      <if test="keyword != null and keyword != ''">
+        AND (
+          p.place_name LIKE CONCAT('%', #{keyword}, '%')
+          OR p.region LIKE CONCAT('%', #{keyword}, '%')
+          OR p.district LIKE CONCAT('%', #{keyword}, '%')
+          OR p.category LIKE CONCAT('%', #{keyword}, '%')
+          OR p.description LIKE CONCAT('%', #{keyword}, '%')
+        )
+      </if>
+    </where>
+    ORDER BY p.region ASC, p.place_name ASC
+  </select>
+
+  <select id="findNearby" resultMap="PlaceResultMap">
+    SELECT p.*,
+           COALESCE((SELECT COUNT(*) FROM place_likes pl WHERE pl.place_id = p.place_id), 0) AS like_count,
+           CASE
+             WHEN #{userId} IS NULL THEN FALSE
+             ELSE EXISTS(
+               SELECT 1 FROM place_likes pl2
+               WHERE pl2.place_id = p.place_id AND pl2.user_id = #{userId}
+             )
+           END AS is_liked,
+           (
+             SELECT vs.status
+             FROM visit_status vs
+             WHERE vs.place_id = p.place_id
+               AND vs.user_id = #{userId}
+             LIMIT 1
+           ) AS visit_status,
+           (6371 * ACOS(LEAST(1, GREATEST(-1,
+             COS(RADIANS(#{latitude})) * COS(RADIANS(p.latitude)) *
+             COS(RADIANS(p.longitude) - RADIANS(#{longitude})) +
+             SIN(RADIANS(#{latitude})) * SIN(RADIANS(p.latitude))
+           )))) AS distance_km
+    FROM places p
+    WHERE p.latitude IS NOT NULL
+      AND p.longitude IS NOT NULL
+    HAVING distance_km &lt;= #{radiusKm}
+    ORDER BY distance_km ASC, p.place_name ASC
+    LIMIT #{limit}
+  </select>
+
+  <select id="findById" resultMap="PlaceResultMap">
+    <include refid="PlaceSelect" />
+    WHERE p.place_id = #{placeId}
+  </select>
+
+  <select id="findByIdForWrite" resultMap="PlaceResultMap">
+    SELECT p.*,
+           0 AS like_count,
+           FALSE AS is_liked,
+           NULL AS visit_status
+    FROM places p
+    WHERE p.place_id = #{placeId}
+  </select>
+
+  <insert id="insert" parameterType="com.scenik.domain.Place">
+    INSERT INTO places (
+      place_id, place_name, region, district, address, category, description,
+      opening_hours, closed_days, phone_number, image_url, indoor_outdoor,
+      parking_available, latitude, longitude
+    )
+    VALUES (
+      #{placeId}, #{placeName}, #{region}, #{district}, #{address}, #{category}, #{description},
+      #{openingHours}, #{closedDays}, #{phoneNumber}, #{imageUrl}, #{indoorOutdoor},
+      #{parkingAvailable}, #{latitude}, #{longitude}
+    )
+  </insert>
+
+  <update id="update" parameterType="com.scenik.domain.Place">
+    UPDATE places
+    SET place_name = #{placeName},
+        region = #{region},
+        district = #{district},
+        address = #{address},
+        category = #{category},
+        description = #{description},
+        opening_hours = #{openingHours},
+        closed_days = #{closedDays},
+        phone_number = #{phoneNumber},
+        image_url = #{imageUrl},
+        indoor_outdoor = #{indoorOutdoor},
+        parking_available = #{parkingAvailable},
+        latitude = #{latitude},
+        longitude = #{longitude}
+    WHERE place_id = #{placeId}
+  </update>
+
+  <delete id="deleteRoutePlaceReferences">
+    DELETE FROM route_places WHERE place_id = #{placeId}
+  </delete>
+
+  <delete id="deletePlaceLikeReferences">
+    DELETE FROM place_likes WHERE place_id = #{placeId}
+  </delete>
+
+  <delete id="deleteVisitStatusReferences">
+    DELETE FROM visit_status WHERE place_id = #{placeId}
+  </delete>
+
+  <delete id="deleteContentPlaceReferences">
+    DELETE FROM content_places WHERE place_id = #{placeId}
+  </delete>
+
+  <delete id="deleteTagReferences">
+    DELETE FROM place_tags WHERE place_id = #{placeId}
+  </delete>
+
+  <delete id="delete">
+    DELETE FROM places WHERE place_id = #{placeId}
+  </delete>
+</mapper>

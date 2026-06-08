@@ -1,0 +1,11 @@
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/scenik?serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
+    username: ${DB_USERNAME:your_mysql_username}
+    password: ${DB_PASSWORD:your_mysql_password}
+
+kakao:
+  rest-api-key: ${KAKAO_REST_API_KEY:your_kakao_rest_api_key}
+
+# Copy this file to application-local.yml or provide environment variables.
+# Do not commit real credentials, API keys, or secrets.

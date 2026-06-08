@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.scenik.mapper.RouteMapper">
+  <resultMap id="TravelRouteResultMap" type="com.scenik.domain.TravelRoute">
+    <id property="routeId" column="route_id" />
+    <result property="userId" column="user_id" />
+    <result property="title" column="title" />
+    <result property="summary" column="summary" />
+    <result property="contentId" column="content_id" />
+    <result property="contentIds" column="content_ids" />
+    <result property="contentTitle" column="content_title" />
+    <result property="region" column="region" />
+    <result property="durationDays" column="duration_days" />
+    <result property="requestedDurationDays" column="requested_duration_days" />
+    <result property="startDate" column="start_date" />
+    <result property="endDate" column="end_date" />
+    <result property="dateRangeLabel" column="date_range_label" />
+    <result property="transport" column="transport" />
+    <result property="companion" column="companion" />
+    <result property="style" column="style" />
+    <result property="budgetMin" column="budget_min" />
+    <result property="budgetMax" column="budget_max" />
+    <result property="budget" column="budget" />
+    <result property="trustMessage" column="trust_message" />
+    <result property="createdAt" column="created_at" />
+    <result property="updatedAt" column="updated_at" />
+  </resultMap>
+
+  <select id="findByUserId" resultMap="TravelRouteResultMap">
+    SELECT * FROM travel_routes
+    WHERE user_id = #{userId}
+    ORDER BY updated_at DESC
+  </select>
+
+  <select id="findById" resultMap="TravelRouteResultMap">
+    SELECT * FROM travel_routes WHERE route_id = #{routeId}
+  </select>
+
+  <insert id="insert" parameterType="com.scenik.domain.TravelRoute">
+    INSERT INTO travel_routes (
+      route_id, user_id, title, summary, content_id, content_ids, content_title, region,
+      duration_days, requested_duration_days, start_date, end_date, date_range_label,
+      transport, companion, style, budget_min, budget_max, budget, trust_message
+    )
+    VALUES (
+      #{routeId}, #{userId}, #{title}, #{summary}, #{contentId}, #{contentIds}, #{contentTitle}, #{region},
+      #{durationDays}, #{requestedDurationDays}, #{startDate}, #{endDate}, #{dateRangeLabel},
+      #{transport}, #{companion}, #{style}, #{budgetMin}, #{budgetMax}, #{budget}, #{trustMessage}
+    )
+  </insert>
+
+  <update id="update" parameterType="com.scenik.domain.TravelRoute">
+    UPDATE travel_routes
+    SET title = #{title},
+        summary = #{summary},
+        content_id = #{contentId},
+        content_ids = #{contentIds},
+        content_title = #{contentTitle},
+        region = #{region},
+        duration_days = #{durationDays},
+        requested_duration_days = #{requestedDurationDays},
+        start_date = #{startDate},
+        end_date = #{endDate},
+        date_range_label = #{dateRangeLabel},
+        transport = #{transport},
+        companion = #{companion},
+        style = #{style},
+        budget_min = #{budgetMin},
+        budget_max = #{budgetMax},
+        budget = #{budget},
+        trust_message = #{trustMessage}
+    WHERE route_id = #{routeId}
+  </update>
+
+  <delete id="delete">
+    DELETE FROM travel_routes WHERE route_id = #{routeId}
+  </delete>
+</mapper>

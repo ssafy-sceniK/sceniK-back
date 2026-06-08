@@ -1,0 +1,160 @@
+@baseUrl = http://localhost:8080/api
+@accessToken = paste-access-token-here
+@contentId = C_DRAMA_001
+@placeId = P_0001
+@routeId = paste-route-id-here
+@postId = paste-post-id-here
+
+### 1. Contents should not 500
+GET {{baseUrl}}/contents
+
+### 2. Places should not 500
+GET {{baseUrl}}/places
+
+### 3. Signup demo user
+POST {{baseUrl}}/auth/signup
+Content-Type: application/json
+
+{
+  "email": "demo@scenik.com",
+  "password": "password123",
+  "nickname": "Demo User",
+  "preferences": ["DRAMA", "SEOUL"]
+}
+
+### 4. Login demo user
+# Copy accessToken from the response into @accessToken.
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "demo@scenik.com",
+  "password": "password123"
+}
+
+### 5. Current user
+GET {{baseUrl}}/users/me
+Authorization: Bearer {{accessToken}}
+
+### 6. AI route generation
+POST {{baseUrl}}/ai/routes
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "contentIds": ["{{contentId}}"],
+  "region": "서울",
+  "durationDays": 1,
+  "transport": "PUBLIC_TRANSIT",
+  "companion": "FRIENDS",
+  "style": "EMOTIONAL"
+}
+
+### 7. Save simple route payload
+# Copy routeId from the response into @routeId.
+POST {{baseUrl}}/routes
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "title": "Smoke test route",
+  "summary": "Simple route save contract.",
+  "region": "서울",
+  "durationDays": 1,
+  "sourceType": "AI",
+  "isPublic": false,
+  "places": [
+    {
+      "placeId": "{{placeId}}",
+      "dayNumber": 1,
+      "visitOrder": 1,
+      "memo": "Smoke test stop"
+    }
+  ]
+}
+
+### 8. My routes
+# Expect 200 with [] and X-Total-Count: 0 when empty.
+GET {{baseUrl}}/users/me/routes
+Authorization: Bearer {{accessToken}}
+
+### 9. Activity summary
+GET {{baseUrl}}/users/me/activity-summary
+Authorization: Bearer {{accessToken}}
+
+### 10. Notifications
+# Expect 200 with [] and X-Total-Count / X-Unread-Count headers when empty.
+GET {{baseUrl}}/notifications
+Authorization: Bearer {{accessToken}}
+
+### 11. Mark all notifications read
+PATCH {{baseUrl}}/notifications/read
+Authorization: Bearer {{accessToken}}
+
+### 12. Save full AI-compatible route payload
+POST {{baseUrl}}/routes
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "title": "Smoke full route",
+  "summary": "Full AI-compatible route save contract.",
+  "region": "서울",
+  "durationDays": 1,
+  "candidatePlaces": [
+    {
+      "placeId": "{{placeId}}",
+      "name": "Smoke place",
+      "region": "서울",
+      "category": "촬영지",
+      "address": "서울",
+      "verified": true
+    }
+  ],
+  "days": [
+    {
+      "dayNumber": 1,
+      "places": [
+        {
+          "placeId": "{{placeId}}",
+          "dayNumber": 1,
+          "visitOrder": 1,
+          "recommendedTime": "10:00",
+          "recommendReason": "Smoke test stop.",
+          "travelTip": "Smoke test tip."
+        }
+      ]
+    }
+  ]
+}
+
+### 13. Route detail
+GET {{baseUrl}}/routes/{{routeId}}
+Authorization: Bearer {{accessToken}}
+
+### 14. Posts should not 500
+# Expect 200 with [] and X-Total-Count: 0 when empty.
+GET {{baseUrl}}/posts
+Authorization: Bearer {{accessToken}}
+
+### 15. Create post
+# Copy postId from the response into @postId.
+POST {{baseUrl}}/posts
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "title": "Smoke test post",
+  "content": "Community backend smoke test.",
+  "region": "서울",
+  "tags": ["smoke"]
+}
+
+### 16. Add comment
+POST {{baseUrl}}/posts/{{postId}}/comments
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "content": "Smoke test comment."
+}

@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.scenik.mapper.ContentMapper">
+  <resultMap id="ContentResultMap" type="com.scenik.domain.Content">
+    <id property="contentId" column="content_id" />
+    <result property="title" column="title" />
+    <result property="category" column="category" />
+    <result property="subcategory" column="subcategory" />
+    <result property="releaseYear" column="release_year" />
+    <result property="status" column="status" />
+    <result property="description" column="description" />
+    <result property="castNames" column="cast_names" />
+    <result property="thumbnailUrl" column="thumbnail_url" />
+    <result property="popular" column="is_popular" />
+    <result property="country" column="country" />
+    <result property="ottPlatform" column="ott_platform" />
+    <result property="tags" column="tags" />
+    <result property="createdAt" column="created_at" />
+    <result property="likeCount" column="like_count" />
+    <result property="viewCount" column="view_count" />
+    <result property="relatedPlaceCount" column="related_place_count" />
+    <result property="liked" column="is_liked" />
+  </resultMap>
+
+  <sql id="ContentSelect">
+    SELECT c.*,
+           COALESCE((SELECT COUNT(*) FROM content_likes cl WHERE cl.content_id = c.content_id), 0) AS like_count,
+           0 AS view_count,
+           COALESCE((SELECT COUNT(*) FROM content_places cp WHERE cp.content_id = c.content_id), 0) AS related_place_count,
+           CASE
+             WHEN #{userId} IS NULL THEN FALSE
+             ELSE EXISTS(
+               SELECT 1 FROM content_likes cl2
+               WHERE cl2.content_id = c.content_id AND cl2.user_id = #{userId}
+             )
+           END AS is_liked
+    FROM contents c
+  </sql>
+
+  <select id="findContents" resultMap="ContentResultMap">
+    <include refid="ContentSelect" />
+    <where>
+      (c.status IS NULL OR c.status != 'DELETED')
+      <if test="category != null and category != '' and category != '전체'">
+        AND c.category = #{category}
+      </if>
+      <if test="popular != null">
+        AND c.is_popular = #{popular}
+      </if>
+      <if test="keyword != null and keyword != ''">
+        AND (
+          c.title LIKE CONCAT('%', #{keyword}, '%')
+          OR c.description LIKE CONCAT('%', #{keyword}, '%')
+          OR c.cast_names LIKE CONCAT('%', #{keyword}, '%')
+          OR c.tags LIKE CONCAT('%', #{keyword}, '%')
+        )
+      </if>
+    </where>
+    ORDER BY c.is_popular DESC, c.created_at DESC
+  </select>
+
+  <select id="findCategories" resultType="string">
+    SELECT DISTINCT category
+    FROM contents
+    WHERE category IS NOT NULL
+      AND category != ''
+      AND (status IS NULL OR status != 'DELETED')
+    ORDER BY category ASC
+  </select>
+
+  <select id="findById" resultMap="ContentResultMap">
+    <include refid="ContentSelect" />
+    WHERE c.content_id = #{contentId}
+      AND (c.status IS NULL OR c.status != 'DELETED')
+  </select>
+
+  <select id="findByIdForWrite" resultMap="ContentResultMap">
+    SELECT c.*,
+           0 AS like_count,
+           0 AS view_count,
+           COALESCE((SELECT COUNT(*) FROM content_places cp WHERE cp.content_id = c.content_id), 0) AS related_place_count,
+           FALSE AS is_liked
+    FROM contents c
+    WHERE c.content_id = #{contentId}
+  </select>
+
+  <select id="findPlacesByContentId" resultMap="com.scenik.mapper.PlaceMapper.PlaceResultMap">
+    SELECT p.*,
+           COALESCE((SELECT COUNT(*) FROM place_likes pl WHERE pl.place_id = p.place_id), 0) AS like_count,
+           FALSE AS is_liked,
+           NULL AS visit_status
+    FROM places p
+    JOIN content_places cp ON cp.place_id = p.place_id
+    WHERE cp.content_id = #{contentId}
+    ORDER BY cp.sort_order ASC, p.place_name ASC
+  </select>
+
+  <select id="findByPlaceId" resultMap="ContentResultMap">
+    <include refid="ContentSelect" />
+    JOIN content_places cp ON cp.content_id = c.content_id
+    WHERE cp.place_id = #{placeId}
+      AND (c.status IS NULL OR c.status != 'DELETED')
+    ORDER BY cp.sort_order ASC, c.title ASC
+  </select>
+
+  <insert id="insert" parameterType="com.scenik.domain.Content">
+    INSERT INTO contents (
+      content_id, title, category, subcategory, release_year, status, description,
+      cast_names, thumbnail_url, is_popular, country, ott_platform, tags
+    )
+    VALUES (
+      #{contentId}, #{title}, #{category}, #{subcategory}, #{releaseYear}, #{status}, #{description},
+      #{castNames}, #{thumbnailUrl}, #{popular}, #{country}, #{ottPlatform}, #{tags}
+    )
+  </insert>
+
+  <update id="update" parameterType="com.scenik.domain.Content">
+    UPDATE contents
+    SET title = #{title},
+        category = #{category},
+        subcategory = #{subcategory},
+        release_year = #{releaseYear},
+        status = #{status},
+        description = #{description},
+        cast_names = #{castNames},
+        thumbnail_url = #{thumbnailUrl},
+        is_popular = #{popular},
+        country = #{country},
+        ott_platform = #{ottPlatform},
+        tags = #{tags}
+    WHERE content_id = #{contentId}
+  </update>
+
+  <update id="softDelete">
+    UPDATE contents SET status = 'DELETED' WHERE content_id = #{contentId}
+  </update>
+</mapper>

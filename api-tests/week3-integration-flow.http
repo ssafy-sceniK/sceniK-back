@@ -1,0 +1,211 @@
+@baseUrl = http://localhost:8080
+@api = {{baseUrl}}/api
+@email = week3-demo@scenik.local
+@password = password123
+@nickname = 위크3데모
+@contentId = C_DRAMA_001
+@placeId = P_0001
+@routeId = replace-with-saved-route-id
+@postId = replace-with-post-id
+
+### 1. Signup
+# @name signup
+POST {{api}}/auth/signup
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}",
+  "nickname": "{{nickname}}",
+  "preferences": ["드라마", "서울"]
+}
+
+### 2. Login
+# @name login
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### 3. Users me
+GET {{api}}/users/me
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 4. Contents
+GET {{api}}/contents
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 5. Content detail
+GET {{api}}/contents/{{contentId}}
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 6. Related places
+GET {{api}}/contents/{{contentId}}/places
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 7. Places
+GET {{api}}/places
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 8. Place filters
+GET {{api}}/places?region=서울&keyword=촬영지&theme=드라마
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 9. Nearby fallback, should return stable empty list or results
+GET {{api}}/places/nearby
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 10. Place detail
+GET {{api}}/places/{{placeId}}
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 11. Content like
+POST {{api}}/contents/{{contentId}}/likes
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 12. Place like
+POST {{api}}/places/{{placeId}}/likes
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 13. Visit status WANT_TO_GO
+PUT {{api}}/places/{{placeId}}/visit-status
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "status": "WANT_TO_GO"
+}
+
+### 14. Visit status VISITED
+PUT {{api}}/places/{{placeId}}/visit-status
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "status": "VISITED"
+}
+
+### 15. Mypage liked contents
+GET {{api}}/users/me/liked-contents
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 16. Mypage liked places
+GET {{api}}/users/me/liked-places
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 17. Mypage visit status
+GET {{api}}/users/me/visit-status
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 18. Generate AI route
+# @name generateRoute
+POST {{api}}/ai/routes
+Content-Type: application/json
+
+{
+  "contentId": "{{contentId}}",
+  "contentIds": ["{{contentId}}"],
+  "region": "서울",
+  "durationDays": 2,
+  "transport": "대중교통",
+  "companion": "친구",
+  "style": "감성 여행",
+  "budgetMin": 100000,
+  "budgetMax": 300000
+}
+
+### 19. Save route
+# Copy the previous AI response into this body when doing a strict manual REST-client run.
+# The frontend sends the generated route DTO directly to POST /api/routes.
+POST {{api}}/routes
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "title": "Week 3 서울 검증 코스",
+  "summary": "Week 3 route-save smoke test",
+  "contentId": "{{contentId}}",
+  "contentIds": ["{{contentId}}"],
+  "region": "서울",
+  "durationDays": 1,
+  "transport": "대중교통",
+  "companion": "친구",
+  "style": "감성 여행",
+  "candidatePlaces": [
+    {
+      "placeId": "{{placeId}}",
+      "name": "검증 장소",
+      "region": "서울",
+      "category": "촬영지",
+      "address": "서울",
+      "latitude": 37.5665,
+      "longitude": 126.978,
+      "relatedContentId": "{{contentId}}",
+      "relatedContentTitle": "검증 콘텐츠",
+      "sceneDescription": "Week 3 저장 테스트 후보 장소",
+      "verified": true
+    }
+  ],
+  "days": [
+    {
+      "dayNumber": 1,
+      "estimatedTravelTime": "이동 약 30분",
+      "places": [
+        {
+          "placeId": "{{placeId}}",
+          "placeName": "검증 장소",
+          "dayNumber": 1,
+          "visitOrder": 1,
+          "recommendedTime": "10:00",
+          "reason": "Week 3 저장 테스트 경유지",
+          "travelTip": "방문 전 운영 시간을 확인해 주세요."
+        }
+      ]
+    }
+  ]
+}
+
+### 20. My routes
+GET {{api}}/users/me/routes
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 21. Route detail
+GET {{api}}/routes/{{routeId}}
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 22. Community posts
+GET {{api}}/posts
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 23. Create post
+POST {{api}}/posts
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "title": "Week 3 코스 후기",
+  "content": "AI 코스를 생성하고 저장한 뒤 커뮤니티에 공유하는 흐름을 확인합니다.",
+  "region": "서울",
+  "routeId": "{{routeId}}",
+  "tags": ["AI 코스", "서울"]
+}
+
+### 24. Post detail
+GET {{api}}/posts/{{postId}}
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 25. Create comment
+POST {{api}}/posts/{{postId}}/comments
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "content": "Week 3 댓글 작성 확인입니다."
+}
+
+### 26. Notifications
+GET {{api}}/notifications
+Authorization: Bearer {{login.response.body.accessToken}}

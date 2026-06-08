@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.scenik.mapper.SearchMapper">
+  <select id="searchContents" resultMap="com.scenik.mapper.ContentMapper.ContentResultMap">
+    SELECT c.*,
+           COALESCE((SELECT COUNT(*) FROM content_likes cl WHERE cl.content_id = c.content_id), 0) AS like_count,
+           0 AS view_count,
+           COALESCE((SELECT COUNT(*) FROM content_places cp WHERE cp.content_id = c.content_id), 0) AS related_place_count,
+           FALSE AS is_liked
+    FROM contents c
+    WHERE
+      #{keyword} = ''
+      OR c.title LIKE CONCAT('%', #{keyword}, '%')
+      OR c.description LIKE CONCAT('%', #{keyword}, '%')
+      OR c.cast_names LIKE CONCAT('%', #{keyword}, '%')
+      OR c.tags LIKE CONCAT('%', #{keyword}, '%')
+    ORDER BY c.is_popular DESC, c.created_at DESC
+    LIMIT 20
+  </select>
+
+  <select id="searchPlaces" resultMap="com.scenik.mapper.PlaceMapper.PlaceResultMap">
+    SELECT p.*,
+           COALESCE((SELECT COUNT(*) FROM place_likes pl WHERE pl.place_id = p.place_id), 0) AS like_count,
+           FALSE AS is_liked,
+           NULL AS visit_status
+    FROM places p
+    WHERE
+      #{keyword} = ''
+      OR p.place_name LIKE CONCAT('%', #{keyword}, '%')
+      OR p.region LIKE CONCAT('%', #{keyword}, '%')
+      OR p.district LIKE CONCAT('%', #{keyword}, '%')
+      OR p.category LIKE CONCAT('%', #{keyword}, '%')
+      OR p.description LIKE CONCAT('%', #{keyword}, '%')
+    ORDER BY p.region ASC, p.place_name ASC
+    LIMIT 20
+  </select>
+</mapper>

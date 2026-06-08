@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.scenik.mapper.CommunityMapper">
+  <resultMap id="CommunityPostResultMap" type="com.scenik.domain.CommunityPost">
+    <id property="postId" column="post_id" />
+    <result property="userId" column="user_id" />
+    <result property="userNickname" column="user_nickname" />
+    <result property="title" column="title" />
+    <result property="content" column="content" />
+    <result property="region" column="region" />
+    <result property="routeId" column="route_id" />
+    <result property="status" column="status" />
+    <result property="likeCount" column="like_count" />
+    <result property="liked" column="is_liked" />
+    <result property="commentCount" column="comment_count" />
+    <result property="createdAt" column="created_at" />
+    <result property="updatedAt" column="updated_at" />
+  </resultMap>
+
+  <resultMap id="CommunityCommentResultMap" type="com.scenik.domain.CommunityComment">
+    <id property="commentId" column="comment_id" />
+    <result property="postId" column="post_id" />
+    <result property="userId" column="user_id" />
+    <result property="userNickname" column="user_nickname" />
+    <result property="parentCommentId" column="parent_comment_id" />
+    <result property="content" column="content" />
+    <result property="status" column="status" />
+    <result property="createdAt" column="created_at" />
+    <result property="updatedAt" column="updated_at" />
+  </resultMap>
+
+  <resultMap id="NotificationResultMap" type="com.scenik.domain.Notification">
+    <id property="notificationId" column="notification_id" />
+    <result property="userId" column="user_id" />
+    <result property="title" column="title" />
+    <result property="message" column="message" />
+    <result property="readAt" column="read_at" />
+    <result property="createdAt" column="created_at" />
+  </resultMap>
+
+  <sql id="PostSelect">
+    SELECT cp.*,
+           u.nickname AS user_nickname,
+           COALESCE((SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = cp.post_id), 0) AS like_count,
+           COALESCE((SELECT COUNT(*) FROM comments c WHERE c.post_id = cp.post_id AND (c.status IS NULL OR c.status != 'DELETED')), 0) AS comment_count,
+           CASE
+             WHEN #{userId} IS NULL THEN FALSE
+             ELSE EXISTS(
+               SELECT 1 FROM post_likes pl2
+               WHERE pl2.post_id = cp.post_id AND pl2.user_id = #{userId}
+             )
+           END AS is_liked
+    FROM community_posts cp
+    JOIN users u ON u.user_id = cp.user_id
+  </sql>
+
+  <select id="findPosts" resultMap="CommunityPostResultMap">
+    <include refid="PostSelect" />
+    WHERE cp.status IS NULL OR cp.status != 'DELETED'
+    ORDER BY cp.updated_at DESC, cp.created_at DESC
+  </select>
+
+  <select id="findPostsByAuthorId" resultMap="CommunityPostResultMap">
+    <include refid="PostSelect" />
+    WHERE cp.user_id = #{authorId}
+      AND (cp.status IS NULL OR cp.status != 'DELETED')
+    ORDER BY cp.updated_at DESC, cp.created_at DESC
+  </select>
+
+  <select id="findPostById" resultMap="CommunityPostResultMap">
+    <include refid="PostSelect" />
+    WHERE cp.post_id = #{postId}
+      AND (cp.status IS NULL OR cp.status != 'DELETED')
+  </select>
+
+  <insert id="insertPost" parameterType="com.scenik.domain.CommunityPost">
+    INSERT INTO community_posts (post_id, user_id, title, content, region, route_id, status)
+    VALUES (#{postId}, #{userId}, #{title}, #{content}, #{region}, #{routeId}, #{status})
+  </insert>
+
+  <update id="updatePost" parameterType="com.scenik.domain.CommunityPost">
+    UPDATE community_posts
+    SET title = #{title},
+        content = #{content},
+        region = #{region},
+        route_id = #{routeId},
+        status = #{status}
+    WHERE post_id = #{postId}
+  </update>
+
+  <update id="softDeletePost">
+    UPDATE community_posts SET status = 'DELETED' WHERE post_id = #{postId}
+  </update>
+
+  <select id="findTagsByPostId" resultType="string">
+    SELECT tag FROM post_tags WHERE post_id = #{postId} ORDER BY tag ASC
+  </select>
+
+  <delete id="deleteTagsByPostId">
+    DELETE FROM post_tags WHERE post_id = #{postId}
+  </delete>
+
+  <insert id="insertTag">
+    INSERT IGNORE INTO post_tags (post_id, tag) VALUES (#{postId}, #{tag})
+  </insert>
+
+  <select id="findCommentsByPostId" resultMap="CommunityCommentResultMap">
+    SELECT c.*, u.nickname AS user_nickname
+    FROM comments c
+    JOIN users u ON u.user_id = c.user_id
+    WHERE c.post_id = #{postId}
+      AND (c.status IS NULL OR c.status != 'DELETED')
+    ORDER BY c.created_at ASC
+  </select>
+
+  <select id="findCommentById" resultMap="CommunityCommentResultMap">
+    SELECT c.*, u.nickname AS user_nickname
+    FROM comments c
+    JOIN users u ON u.user_id = c.user_id
+    WHERE c.comment_id = #{commentId}
+      AND (c.status IS NULL OR c.status != 'DELETED')
+  </select>
+
+  <insert id="insertComment" parameterType="com.scenik.domain.CommunityComment">
+    INSERT INTO comments (comment_id, post_id, user_id, parent_comment_id, content, status)
+    VALUES (#{commentId}, #{postId}, #{userId}, #{parentCommentId}, #{content}, #{status})
+  </insert>
+
+  <update id="updateComment" parameterType="com.scenik.domain.CommunityComment">
+    UPDATE comments
+    SET content = #{content}
+    WHERE comment_id = #{commentId}
+  </update>
+
+  <update id="softDeleteComment">
+    UPDATE comments SET status = 'DELETED' WHERE comment_id = #{commentId}
+  </update>
+
+  <insert id="insertPostLike">
+    INSERT IGNORE INTO post_likes (user_id, post_id) VALUES (#{userId}, #{postId})
+  </insert>
+
+  <delete id="deletePostLike">
+    DELETE FROM post_likes WHERE user_id = #{userId} AND post_id = #{postId}
+  </delete>
+
+  <select id="existsReport" resultType="int">
+    SELECT COUNT(*) FROM reports WHERE user_id = #{userId} AND post_id = #{postId}
+  </select>
+
+  <insert id="insertReport">
+    INSERT INTO reports (report_id, user_id, post_id, reason)
+    VALUES (#{reportId}, #{userId}, #{postId}, #{reason})
+  </insert>
+
+  <insert id="insertNotification">
+    INSERT INTO notifications (notification_id, user_id, title, message)
+    VALUES (#{notificationId}, #{userId}, #{title}, #{message})
+  </insert>
+
+  <select id="findNotificationsByUserId" resultMap="NotificationResultMap">
+    SELECT * FROM notifications
+    WHERE user_id = #{userId}
+    ORDER BY created_at DESC
+  </select>
+
+  <select id="findNotificationById" resultMap="NotificationResultMap">
+    SELECT * FROM notifications
+    WHERE user_id = #{userId}
+      AND notification_id = #{notificationId}
+  </select>
+
+  <select id="countNotificationsByUserId" resultType="int">
+    SELECT COUNT(*) FROM notifications WHERE user_id = #{userId}
+  </select>
+
+  <select id="countUnreadNotificationsByUserId" resultType="int">
+    SELECT COUNT(*) FROM notifications
+    WHERE user_id = #{userId}
+      AND read_at IS NULL
+  </select>
+
+  <update id="markNotificationRead">
+    UPDATE notifications
+    SET read_at = COALESCE(read_at, CURRENT_TIMESTAMP)
+    WHERE user_id = #{userId}
+      AND notification_id = #{notificationId}
+  </update>
+
+  <update id="markAllNotificationsRead">
+    UPDATE notifications
+    SET read_at = COALESCE(read_at, CURRENT_TIMESTAMP)
+    WHERE user_id = #{userId}
+      AND read_at IS NULL
+  </update>
+</mapper>

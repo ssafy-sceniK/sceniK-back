@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.scenik.mapper.RoutePlaceMapper">
+  <resultMap id="RoutePlaceResultMap" type="com.scenik.domain.RoutePlace">
+    <id property="routePlaceId" column="route_place_id" />
+    <result property="routeId" column="route_id" />
+    <result property="placeId" column="place_id" />
+    <result property="dayNumber" column="day_number" />
+    <result property="visitOrder" column="visit_order" />
+    <result property="recommendedTime" column="recommended_time" />
+    <result property="reason" column="reason" />
+    <result property="travelTip" column="travel_tip" />
+    <result property="createdAt" column="created_at" />
+    <result property="updatedAt" column="updated_at" />
+    <result property="placeName" column="place_name" />
+    <result property="region" column="region" />
+    <result property="category" column="category" />
+    <result property="address" column="address" />
+    <result property="latitude" column="latitude" />
+    <result property="longitude" column="longitude" />
+    <result property="imageUrl" column="image_url" />
+    <result property="relatedContentId" column="related_content_id" />
+    <result property="relatedContentTitle" column="related_content_title" />
+    <result property="sceneDescription" column="scene_description" />
+  </resultMap>
+
+  <sql id="RoutePlaceJoin">
+    SELECT rp.*,
+           p.place_name,
+           p.region,
+           p.category,
+           p.address,
+           p.latitude,
+           p.longitude,
+           p.image_url,
+           COALESCE(tr.content_id, (
+             SELECT cp2.content_id
+             FROM content_places cp2
+             WHERE cp2.place_id = rp.place_id
+             ORDER BY cp2.sort_order ASC
+             LIMIT 1
+           )) AS related_content_id,
+           (
+             SELECT c2.title
+             FROM contents c2
+             WHERE c2.content_id = COALESCE(tr.content_id, (
+               SELECT cp3.content_id
+               FROM content_places cp3
+               WHERE cp3.place_id = rp.place_id
+               ORDER BY cp3.sort_order ASC
+               LIMIT 1
+             ))
+           ) AS related_content_title,
+           COALESCE((
+             SELECT cp4.relation_description
+             FROM content_places cp4
+             WHERE cp4.place_id = rp.place_id
+               AND cp4.content_id = COALESCE(tr.content_id, (
+                 SELECT cp5.content_id
+                 FROM content_places cp5
+                 WHERE cp5.place_id = rp.place_id
+                 ORDER BY cp5.sort_order ASC
+                 LIMIT 1
+               ))
+             LIMIT 1
+           ), p.description) AS scene_description
+    FROM route_places rp
+    JOIN places p ON p.place_id = rp.place_id
+    LEFT JOIN travel_routes tr ON tr.route_id = rp.route_id
+  </sql>
+
+  <select id="findByRouteId" resultMap="RoutePlaceResultMap">
+    <include refid="RoutePlaceJoin" />
+    WHERE rp.route_id = #{routeId}
+    ORDER BY rp.day_number ASC, rp.visit_order ASC
+  </select>
+
+  <select id="findById" resultMap="RoutePlaceResultMap">
+    <include refid="RoutePlaceJoin" />
+    WHERE rp.route_place_id = #{routePlaceId}
+  </select>
+
+  <select id="existsByRouteAndPlace" resultType="int">
+    SELECT COUNT(*)
+    FROM route_places
+    WHERE route_id = #{routeId}
+      AND place_id = #{placeId}
+      <if test="excludeRoutePlaceId != null">
+        AND route_place_id != #{excludeRoutePlaceId}
+      </if>
+  </select>
+
+  <select id="existsByRouteDayOrder" resultType="int">
+    SELECT COUNT(*)
+    FROM route_places
+    WHERE route_id = #{routeId}
+      AND day_number = #{dayNumber}
+      AND visit_order = #{visitOrder}
+      <if test="excludeRoutePlaceId != null">
+        AND route_place_id != #{excludeRoutePlaceId}
+      </if>
+  </select>
+
+  <insert id="insert" parameterType="com.scenik.domain.RoutePlace">
+    INSERT INTO route_places (
+      route_place_id, route_id, place_id, day_number, visit_order, recommended_time, reason, travel_tip
+    )
+    VALUES (
+      #{routePlaceId}, #{routeId}, #{placeId}, #{dayNumber}, #{visitOrder}, #{recommendedTime}, #{reason}, #{travelTip}
+    )
+  </insert>
+
+  <update id="update" parameterType="com.scenik.domain.RoutePlace">
+    UPDATE route_places
+    SET place_id = #{placeId},
+        day_number = #{dayNumber},
+        visit_order = #{visitOrder},
+        recommended_time = #{recommendedTime},
+        reason = #{reason},
+        travel_tip = #{travelTip}
+    WHERE route_place_id = #{routePlaceId}
+  </update>
+
+  <update id="updateOrder">
+    UPDATE route_places
+    SET day_number = #{dayNumber},
+        visit_order = #{visitOrder}
+    WHERE route_place_id = #{routePlaceId}
+  </update>
+
+  <delete id="delete">
+    DELETE FROM route_places WHERE route_place_id = #{routePlaceId}
+  </delete>
+
+  <delete id="deleteByRouteId">
+    DELETE FROM route_places WHERE route_id = #{routeId}
+  </delete>
+</mapper>

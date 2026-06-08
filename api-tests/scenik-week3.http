@@ -1,0 +1,175 @@
+@baseUrl = http://localhost:8080
+@accessToken = replace-with-login-access-token
+@contentId = C_DRAMA_001
+@placeId = P_0001
+@routeId = replace-with-saved-route-id
+@postId = replace-with-post-id
+@commentId = replace-with-comment-id
+
+### Swagger UI
+# Open in browser: {{baseUrl}}/swagger-ui/index.html
+# OpenAPI JSON: {{baseUrl}}/v3/api-docs
+
+### Signup
+POST {{baseUrl}}/api/auth/signup
+Content-Type: application/json
+
+{
+  "email": "demo@scenik.com",
+  "password": "password123",
+  "nickname": "데모유저",
+  "preferences": ["DRAMA", "SEOUL"]
+}
+
+### Login
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "demo@scenik.com",
+  "password": "password123"
+}
+
+### Me
+GET {{baseUrl}}/api/users/me
+Authorization: Bearer {{accessToken}}
+
+### Contents
+GET {{baseUrl}}/api/contents
+Authorization: Bearer {{accessToken}}
+
+### Content Detail
+GET {{baseUrl}}/api/contents/{{contentId}}
+Authorization: Bearer {{accessToken}}
+
+### Content Related Places
+GET {{baseUrl}}/api/contents/{{contentId}}/places
+Authorization: Bearer {{accessToken}}
+
+### Places
+GET {{baseUrl}}/api/places
+Authorization: Bearer {{accessToken}}
+
+### Place Detail
+GET {{baseUrl}}/api/places/{{placeId}}
+Authorization: Bearer {{accessToken}}
+
+### Like Place
+POST {{baseUrl}}/api/places/{{placeId}}/likes
+Authorization: Bearer {{accessToken}}
+
+### Mark Place WANT_TO_GO
+PUT {{baseUrl}}/api/places/{{placeId}}/visit-status
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "status": "WANT_TO_GO"
+}
+
+### Generate AI Route
+POST {{baseUrl}}/api/ai/routes
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "contentIds": ["{{contentId}}"],
+  "region": "서울",
+  "durationDays": 2,
+  "transport": "PUBLIC_TRANSIT",
+  "companion": "FRIENDS",
+  "style": "SCENIC",
+  "budgetMin": 100000,
+  "budgetMax": 300000
+}
+
+### Save Route
+# Replace candidatePlaces/days with the previous AI route response if needed.
+POST {{baseUrl}}/api/routes
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "title": "데모 서울 2일 코스",
+  "summary": "Week 3 demo route",
+  "contentId": "{{contentId}}",
+  "contentIds": ["{{contentId}}"],
+  "region": "서울",
+  "durationDays": 2,
+  "transport": "PUBLIC_TRANSIT",
+  "companion": "FRIENDS",
+  "style": "SCENIC",
+  "candidatePlaces": [
+    {
+      "placeId": "{{placeId}}",
+      "name": "Demo place",
+      "region": "서울",
+      "category": "촬영지",
+      "address": "서울",
+      "latitude": 37.5665,
+      "longitude": 126.978,
+      "relatedContentId": "{{contentId}}",
+      "relatedContentTitle": "Demo content",
+      "sceneDescription": "Demo verified candidate place",
+      "verified": true
+    }
+  ],
+  "days": [
+    {
+      "dayNumber": 1,
+      "places": [
+        {
+          "placeId": "{{placeId}}",
+          "name": "Demo place",
+          "dayNumber": 1,
+          "visitOrder": 1,
+          "recommendedTime": "10:00",
+          "recommendReason": "Demo route stop",
+          "reason": "Demo route stop",
+          "travelTip": "Check opening hours."
+        }
+      ]
+    }
+  ]
+}
+
+### My Routes
+GET {{baseUrl}}/api/users/me/routes
+Authorization: Bearer {{accessToken}}
+
+### Route Detail
+GET {{baseUrl}}/api/routes/{{routeId}}
+Authorization: Bearer {{accessToken}}
+
+### Community Posts - Week 3 target, currently missing in backend if this returns 404
+GET {{baseUrl}}/api/posts
+Authorization: Bearer {{accessToken}}
+
+### Create Community Post - Week 3 target, currently missing in backend if this returns 404
+POST {{baseUrl}}/api/posts
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "title": "데모 코스 후기",
+  "content": "AI가 추천한 장소를 저장하고 공유합니다.",
+  "routeId": "{{routeId}}",
+  "tags": ["AI Course", "서울"]
+}
+
+### Community Post Detail
+GET {{baseUrl}}/api/posts/{{postId}}
+Authorization: Bearer {{accessToken}}
+
+### Add Comment
+POST {{baseUrl}}/api/posts/{{postId}}/comments
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "content": "좋은 코스예요."
+}
+
+### Community List
+GET {{baseUrl}}/api/posts
+Authorization: Bearer {{accessToken}}

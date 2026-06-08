@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.scenik.mapper.AiRouteMapper">
+  <resultMap id="CandidatePlaceResultMap" type="com.scenik.domain.CandidatePlace">
+    <id property="placeId" column="place_id" />
+    <result property="name" column="name" />
+    <result property="region" column="region" />
+    <result property="category" column="category" />
+    <result property="address" column="address" />
+    <result property="latitude" column="latitude" />
+    <result property="longitude" column="longitude" />
+    <result property="relatedContentId" column="related_content_id" />
+    <result property="relatedContentTitle" column="related_content_title" />
+    <result property="sceneDescription" column="scene_description" />
+    <result property="verified" column="verified" />
+    <result property="imageUrl" column="image_url" />
+  </resultMap>
+
+  <select id="findCandidatePlaces" resultMap="CandidatePlaceResultMap">
+    SELECT p.place_id,
+           p.place_name AS name,
+           p.region,
+           p.category,
+           p.address,
+           p.latitude,
+           p.longitude,
+           cp.content_id AS related_content_id,
+           c.title AS related_content_title,
+           COALESCE(cp.relation_description, p.description) AS scene_description,
+           TRUE AS verified,
+           p.image_url
+    FROM places p
+    JOIN content_places cp ON cp.place_id = p.place_id
+    JOIN contents c ON c.content_id = cp.content_id
+    <where>
+      <if test="contentIds != null and contentIds.size() > 0">
+        cp.content_id IN
+        <foreach collection="contentIds" item="contentId" open="(" separator="," close=")">
+          #{contentId}
+        </foreach>
+      </if>
+      <if test="region != null and region != ''">
+        AND p.region = #{region}
+      </if>
+    </where>
+    ORDER BY cp.sort_order ASC, p.region ASC, p.place_name ASC
+    LIMIT #{limit}
+  </select>
+</mapper>

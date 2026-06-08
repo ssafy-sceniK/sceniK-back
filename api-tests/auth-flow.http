@@ -1,0 +1,68 @@
+@baseUrl = http://localhost:8080/api
+@accessToken = paste-access-token-here
+@refreshToken = paste-refresh-token-here
+
+### Signup with valid password
+POST {{baseUrl}}/auth/signup
+Content-Type: application/json; charset=utf-8
+
+{
+  "email": "demo-auth@scenik.com",
+  "password": "password123",
+  "nickname": "Demo Auth"
+}
+
+### Expected 400: password shorter than 8 characters
+POST {{baseUrl}}/auth/signup
+Content-Type: application/json; charset=utf-8
+
+{
+  "email": "short-password@scenik.com",
+  "password": "short",
+  "nickname": "Short Password"
+}
+
+### Expected 409: duplicate email
+POST {{baseUrl}}/auth/signup
+Content-Type: application/json; charset=utf-8
+
+{
+  "email": "demo-auth@scenik.com",
+  "password": "password123",
+  "nickname": "Duplicate Demo"
+}
+
+### Login with valid credentials
+# Copy accessToken and refreshToken from the response.
+POST {{baseUrl}}/auth/login
+Content-Type: application/json; charset=utf-8
+
+{
+  "email": "demo-auth@scenik.com",
+  "password": "password123"
+}
+
+### Expected 401: invalid credentials
+POST {{baseUrl}}/auth/login
+Content-Type: application/json; charset=utf-8
+
+{
+  "email": "demo-auth@scenik.com",
+  "password": "wrong-password"
+}
+
+### Current user
+GET {{baseUrl}}/users/me
+Authorization: Bearer {{accessToken}}
+
+### Refresh token
+POST {{baseUrl}}/auth/token/refresh
+Content-Type: application/json; charset=utf-8
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### Logout
+POST {{baseUrl}}/auth/logout
+Authorization: Bearer {{accessToken}}

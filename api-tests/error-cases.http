@@ -1,0 +1,86 @@
+@baseUrl = http://localhost:8080
+@accessToken =
+@postId = 1
+
+### Signup validation: password shorter than 8
+POST {{baseUrl}}/api/auth/signup
+Content-Type: application/json
+
+{
+  "email": "short-password@example.com",
+  "password": "1234",
+  "nickname": "짧은비밀번호"
+}
+
+### Signup conflict: duplicate email
+POST {{baseUrl}}/api/auth/signup
+Content-Type: application/json
+
+{
+  "email": "demo@scenik.com",
+  "password": "password123",
+  "nickname": "중복이메일"
+}
+
+### Login validation: unregistered email
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "missing@example.com",
+  "password": "password123"
+}
+
+### Login validation: wrong password
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "demo@scenik.com",
+  "password": "wrongpassword"
+}
+
+### Community validation: empty post title/content
+POST {{baseUrl}}/api/posts
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "title": "",
+  "content": ""
+}
+
+### Community validation: empty comment content
+POST {{baseUrl}}/api/posts/{{postId}}/comments
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "content": ""
+}
+
+### Route save validation: empty places
+POST {{baseUrl}}/api/routes
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "title": "빈 코스",
+  "summary": "장소가 없는 저장 요청",
+  "region": "서울",
+  "durationDays": 1,
+  "sourceType": "AI",
+  "isPublic": false,
+  "places": []
+}
+
+### AI route validation: invalid durationDays
+POST {{baseUrl}}/api/ai/routes
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "contentIds": ["C_DRAMA_001"],
+  "region": "서울",
+  "durationDays": 0
+}

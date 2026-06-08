@@ -1,0 +1,122 @@
+@baseUrl = http://localhost:8080/api
+@accessToken = paste-access-token-here
+@contentId = C_DRAMA_001
+@placeId = P_0001
+@routeId = paste-route-id-here
+@postId = paste-post-id-here
+@commentId = paste-comment-id-here
+
+### 1. Signup
+POST {{baseUrl}}/auth/signup
+Content-Type: application/json; charset=utf-8
+
+{
+  "email": "demo-critical@scenik.com",
+  "password": "password123",
+  "nickname": "Critical Demo",
+  "preferences": ["DRAMA", "SEOUL"]
+}
+
+### 2. Login
+# Copy accessToken into @accessToken.
+POST {{baseUrl}}/auth/login
+Content-Type: application/json; charset=utf-8
+
+{
+  "email": "demo-critical@scenik.com",
+  "password": "password123"
+}
+
+### 3. Current user
+GET {{baseUrl}}/users/me
+Authorization: Bearer {{accessToken}}
+
+### 4. Contents
+GET {{baseUrl}}/contents
+
+### 5. Places
+GET {{baseUrl}}/places
+
+### 6. AI route generation
+POST {{baseUrl}}/ai/routes
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json; charset=utf-8
+
+{
+  "contentIds": ["{{contentId}}"],
+  "region": "서울",
+  "durationDays": 1,
+  "transport": "PUBLIC_TRANSIT",
+  "companion": "FRIENDS",
+  "style": "EMOTIONAL",
+  "themes": ["drama"]
+}
+
+### 7. Save simple route
+# Copy routeId into @routeId.
+POST {{baseUrl}}/routes
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json; charset=utf-8
+
+{
+  "title": "Critical smoke route",
+  "summary": "Simple save route payload.",
+  "region": "서울",
+  "durationDays": 1,
+  "sourceType": "AI",
+  "isPublic": false,
+  "places": [
+    {
+      "placeId": "{{placeId}}",
+      "dayNumber": 1,
+      "visitOrder": 1,
+      "memo": "Smoke test stop"
+    }
+  ]
+}
+
+### 8. My routes
+# Expect 200 and X-Total-Count header. Empty accounts should return [].
+GET {{baseUrl}}/users/me/routes
+Authorization: Bearer {{accessToken}}
+
+### 9. Activity summary
+GET {{baseUrl}}/users/me/activity-summary
+Authorization: Bearer {{accessToken}}
+
+### 10. Posts list
+# Expect 200 and X-Total-Count header. Empty communities should return [].
+GET {{baseUrl}}/posts
+Authorization: Bearer {{accessToken}}
+
+### 11. Notifications list
+# Expect 200, X-Total-Count, and X-Unread-Count headers. No notifications should return [].
+GET {{baseUrl}}/notifications
+Authorization: Bearer {{accessToken}}
+
+### 12. Mark all notifications read
+PATCH {{baseUrl}}/notifications/read
+Authorization: Bearer {{accessToken}}
+
+### 13. Create post
+# Copy postId into @postId.
+POST {{baseUrl}}/posts
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json; charset=utf-8
+
+{
+  "title": "Critical smoke post",
+  "content": "Community smoke post.",
+  "region": "서울",
+  "tags": ["smoke"]
+}
+
+### 14. Create comment
+# Copy commentId if needed.
+POST {{baseUrl}}/posts/{{postId}}/comments
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json; charset=utf-8
+
+{
+  "content": "Critical smoke comment."
+}

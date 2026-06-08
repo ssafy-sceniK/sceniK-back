@@ -5,8 +5,11 @@ import com.scenik.dto.RouteDtos.RoutePlaceReorderRequest;
 import com.scenik.dto.RouteDtos.RoutePlaceRequest;
 import com.scenik.service.AuthService;
 import com.scenik.service.RouteService;
+import com.scenik.util.ListQuerySupport;
 import jakarta.validation.Valid;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,6 +19,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -29,11 +33,20 @@ public class RouteController {
     }
 
     @GetMapping("/api/users/me/routes")
-    public ResponseEntity<List<AiRouteDto>> myRoutes(@RequestHeader(value = "Authorization", required = false) String authorization) {
-        List<AiRouteDto> routes = routeService.listMyRoutes(authService.requireUser(authorization));
+    public ResponseEntity<List<AiRouteDto>> myRoutes(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestParam(value = "page", required = false) Integer page,
+            @RequestParam(value = "size", required = false) Integer size,
+            @RequestParam(value = "sort", required = false) String sort
+    ) {
+        ListQuerySupport.validateSort(sort, Set.of("latest", "updated"));
+        List<AiRouteDto> routes = routeService.listMyRoutes(authService.requireUser(authorization)).stream()
+                .sorted(routeComparator(ListQuerySupport.normalizeSort(sort)))
+                .toList();
+        List<AiRouteDto> paged = ListQuerySupport.paginate(routes, page, size);
         return ResponseEntity.ok()
                 .header("X-Total-Count", String.valueOf(routes.size()))
-                .body(routes);
+                .body(paged);
     }
 
     @PostMapping("/api/routes")
@@ -105,5 +118,12 @@ public class RouteController {
             @Valid @RequestBody RoutePlaceReorderRequest request
     ) {
         return routeService.reorderPlaces(authService.requireUser(authorization), routeId, request);
+    }
+
+    private Comparator<AiRouteDto> routeComparator(String sort) {
+        if ("updated".equals(sort)) {
+            return Comparator.comparing(AiRouteDto::updatedAt, Comparator.nullsLast(Comparator.reverseOrder()));
+        }
+        return Comparator.comparing(AiRouteDto::createdAt, Comparator.nullsLast(Comparator.reverseOrder()));
     }
 }

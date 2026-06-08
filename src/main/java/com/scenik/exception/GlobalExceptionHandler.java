@@ -176,10 +176,17 @@ public class GlobalExceptionHandler {
             case "Post was not found." -> new ErrorDescriptor("NOT_FOUND", "존재하지 않는 게시글입니다.");
             case "Comment was not found." -> new ErrorDescriptor("NOT_FOUND", "존재하지 않는 댓글입니다.");
             case "Notification was not found." -> new ErrorDescriptor("NOT_FOUND", "존재하지 않는 알림입니다.");
+            case "Review was not found." -> new ErrorDescriptor("NOT_FOUND", "존재하지 않는 리뷰입니다.");
             case "Content already exists." -> new ErrorDescriptor("CONFLICT", "이미 등록된 콘텐츠입니다.");
             case "Place already exists." -> new ErrorDescriptor("CONFLICT", "이미 등록된 장소입니다.");
+            case "Place review already exists." -> new ErrorDescriptor("CONFLICT", "이미 이 장소에 리뷰를 작성했습니다.");
             case "Post was already reported." -> new ErrorDescriptor("CONFLICT", "이미 신고한 게시글입니다.");
-            case "Post owner does not match.", "Comment owner does not match.", "Route owner does not match." -> new ErrorDescriptor("FORBIDDEN", "권한이 없습니다.");
+            case "Post owner does not match.", "Comment owner does not match.", "Route owner does not match.", "Review owner does not match." -> new ErrorDescriptor("FORBIDDEN", "권한이 없습니다.");
+            case "Review content is required." -> new ErrorDescriptor("VALIDATION_ERROR", "리뷰 내용을 입력해 주세요.");
+            case "Review rating must be between 0 and 5." -> new ErrorDescriptor("VALIDATION_ERROR", "평점은 0점 이상 5점 이하로 입력해 주세요.");
+            case "Invalid page parameter." -> new ErrorDescriptor("VALIDATION_ERROR", "페이지 번호를 확인해 주세요.");
+            case "Invalid size parameter." -> new ErrorDescriptor("VALIDATION_ERROR", "페이지 크기를 확인해 주세요.");
+            case "Invalid sort parameter." -> new ErrorDescriptor("VALIDATION_ERROR", "정렬 기준을 확인해 주세요.");
             case "Visit status must be WANT_TO_GO or VISITED." -> new ErrorDescriptor("INVALID_REQUEST", "방문 상태 값이 올바르지 않습니다.");
             case "No verified candidate places were found." -> new ErrorDescriptor("NOT_FOUND", "조건에 맞는 장소를 찾지 못했습니다. 지역이나 콘텐츠 조건을 바꿔보세요.");
             case "durationDays must be positive." -> new ErrorDescriptor("INVALID_REQUEST", "여행 일수는 1일 이상이어야 합니다.");

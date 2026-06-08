@@ -20,6 +20,8 @@
     <result property="likeCount" column="like_count" />
     <result property="liked" column="is_liked" />
     <result property="visitStatus" column="visit_status" />
+    <result property="reviewCount" column="review_count" />
+    <result property="averageRating" column="average_rating" />
   </resultMap>
 
   <sql id="PlaceSelect">
@@ -38,7 +40,9 @@
              WHERE vs.place_id = p.place_id
                AND vs.user_id = #{userId}
              LIMIT 1
-           ) AS visit_status
+           ) AS visit_status,
+           COALESCE((SELECT COUNT(*) FROM place_reviews pr WHERE pr.place_id = p.place_id), 0) AS review_count,
+           COALESCE((SELECT ROUND(AVG(pr.rating), 1) FROM place_reviews pr WHERE pr.place_id = p.place_id), 0) AS average_rating
     FROM places p
   </sql>
 
@@ -84,6 +88,8 @@
                AND vs.user_id = #{userId}
              LIMIT 1
            ) AS visit_status,
+           COALESCE((SELECT COUNT(*) FROM place_reviews pr WHERE pr.place_id = p.place_id), 0) AS review_count,
+           COALESCE((SELECT ROUND(AVG(pr.rating), 1) FROM place_reviews pr WHERE pr.place_id = p.place_id), 0) AS average_rating,
            (6371 * ACOS(LEAST(1, GREATEST(-1,
              COS(RADIANS(#{latitude})) * COS(RADIANS(p.latitude)) *
              COS(RADIANS(p.longitude) - RADIANS(#{longitude})) +
@@ -106,7 +112,9 @@
     SELECT p.*,
            0 AS like_count,
            FALSE AS is_liked,
-           NULL AS visit_status
+           NULL AS visit_status,
+           0 AS review_count,
+           0 AS average_rating
     FROM places p
     WHERE p.place_id = #{placeId}
   </select>

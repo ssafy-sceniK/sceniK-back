@@ -24,6 +24,8 @@ public record PlaceDto(
         Integer likeCount,
         Boolean isLiked,
         String visitStatus,
+        Integer reviewCount,
+        Double averageRating,
         List<RelatedContentDto> relatedContents,
         Boolean verified
 ) {
@@ -53,6 +55,8 @@ public record PlaceDto(
                 place.getLikeCount() == null ? 0 : place.getLikeCount(),
                 Boolean.TRUE.equals(place.getLiked()),
                 place.getVisitStatus(),
+                place.getReviewCount() == null ? 0 : place.getReviewCount(),
+                place.getAverageRating() == null ? 0.0 : place.getAverageRating(),
                 relatedContents == null ? List.of() : relatedContents,
                 true
         );

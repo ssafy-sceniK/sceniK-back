@@ -5,6 +5,7 @@ import com.scenik.dto.LikeVisitDtos.VisitStatusDto;
 import com.scenik.dto.LikeVisitDtos.VisitStatusRequest;
 import com.scenik.service.AuthService;
 import com.scenik.service.LikeVisitService;
+import com.scenik.util.ListQuerySupport;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -69,19 +71,29 @@ public class LikeVisitController {
     }
 
     @GetMapping("/api/users/me/liked-contents")
-    public ResponseEntity<List<String>> myLikedContents(@RequestHeader(value = "Authorization", required = false) String authorization) {
+    public ResponseEntity<List<String>> myLikedContents(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestParam(value = "page", required = false) Integer page,
+            @RequestParam(value = "size", required = false) Integer size
+    ) {
         List<String> contentIds = likeVisitService.getLikedContentIds(authService.requireUser(authorization));
+        List<String> paged = ListQuerySupport.paginate(contentIds, page, size);
         return ResponseEntity.ok()
                 .header("X-Total-Count", String.valueOf(contentIds.size()))
-                .body(contentIds);
+                .body(paged);
     }
 
     @GetMapping("/api/users/me/liked-places")
-    public ResponseEntity<List<String>> myLikedPlaces(@RequestHeader(value = "Authorization", required = false) String authorization) {
+    public ResponseEntity<List<String>> myLikedPlaces(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestParam(value = "page", required = false) Integer page,
+            @RequestParam(value = "size", required = false) Integer size
+    ) {
         List<String> placeIds = likeVisitService.getLikedPlaceIds(authService.requireUser(authorization));
+        List<String> paged = ListQuerySupport.paginate(placeIds, page, size);
         return ResponseEntity.ok()
                 .header("X-Total-Count", String.valueOf(placeIds.size()))
-                .body(placeIds);
+                .body(paged);
     }
 
     @PostMapping("/api/places/{placeId}/visit-status")
@@ -112,10 +124,15 @@ public class LikeVisitController {
     }
 
     @GetMapping("/api/users/me/visit-status")
-    public ResponseEntity<List<VisitStatusDto>> myVisitStatus(@RequestHeader(value = "Authorization", required = false) String authorization) {
+    public ResponseEntity<List<VisitStatusDto>> myVisitStatus(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestParam(value = "page", required = false) Integer page,
+            @RequestParam(value = "size", required = false) Integer size
+    ) {
         List<VisitStatusDto> statuses = likeVisitService.getVisitStatuses(authService.requireUser(authorization));
+        List<VisitStatusDto> paged = ListQuerySupport.paginate(statuses, page, size);
         return ResponseEntity.ok()
                 .header("X-Total-Count", String.valueOf(statuses.size()))
-                .body(statuses);
+                .body(paged);
     }
 }

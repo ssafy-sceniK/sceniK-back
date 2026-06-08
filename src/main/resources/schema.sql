@@ -67,7 +67,8 @@ CREATE TABLE IF NOT EXISTS users (
   preferences TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uq_users_email (email)
+  UNIQUE KEY uq_users_email (email),
+  UNIQUE KEY uq_users_nickname (nickname)
 );
 
 CREATE TABLE IF NOT EXISTS auth_tokens (
@@ -156,6 +157,22 @@ CREATE TABLE IF NOT EXISTS visit_status (
   PRIMARY KEY (user_id, place_id),
   CONSTRAINT fk_visit_status_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
   CONSTRAINT fk_visit_status_place FOREIGN KEY (place_id) REFERENCES places(place_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS place_reviews (
+  review_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  place_id VARCHAR(64) NOT NULL,
+  user_id BIGINT NOT NULL,
+  rating DECIMAL(2, 1),
+  content TEXT NOT NULL,
+  status VARCHAR(20) DEFAULT 'ACTIVE',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_place_reviews_place_user (place_id, user_id),
+  KEY idx_place_reviews_place_id (place_id),
+  KEY idx_place_reviews_user_id (user_id),
+  CONSTRAINT fk_place_reviews_place FOREIGN KEY (place_id) REFERENCES places(place_id) ON DELETE CASCADE,
+  CONSTRAINT fk_place_reviews_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS community_posts (

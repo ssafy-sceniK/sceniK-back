@@ -3,8 +3,12 @@ package com.scenik.controller;
 import com.scenik.dto.PlaceDto;
 import com.scenik.service.AuthService;
 import com.scenik.service.PlaceService;
+import com.scenik.util.ListQuerySupport;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,15 +29,24 @@ public class PlaceController {
     }
 
     @GetMapping
-    public List<PlaceDto> list(
+    public ResponseEntity<List<PlaceDto>> list(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @RequestParam(value = "region", required = false) String region,
             @RequestParam(value = "district", required = false) String district,
             @RequestParam(value = "category", required = false) String category,
             @RequestParam(value = "theme", required = false) String theme,
-            @RequestParam(value = "keyword", required = false) String keyword
+            @RequestParam(value = "keyword", required = false) String keyword,
+            @RequestParam(value = "sort", required = false) String sort,
+            @RequestParam(value = "page", required = false) Integer page,
+            @RequestParam(value = "size", required = false) Integer size
     ) {
-        return placeService.getPlaces(region, district, firstText(category, theme), keyword, authService.optionalUserId(authorization));
+        ListQuerySupport.validateSort(sort, Set.of("popular", "name", "region"));
+        List<PlaceDto> places = placeService.getPlaces(region, district, firstText(category, theme), keyword, authService.optionalUserId(authorization));
+        places = sortPlaces(places, ListQuerySupport.normalizeSort(sort));
+        List<PlaceDto> paged = ListQuerySupport.paginate(places, page, size);
+        return ResponseEntity.ok()
+                .header("X-Total-Count", String.valueOf(places.size()))
+                .body(paged);
     }
 
     @GetMapping("/nearby")
@@ -67,5 +80,23 @@ public class PlaceController {
             return fallback.trim();
         }
         return null;
+    }
+
+    private List<PlaceDto> sortPlaces(List<PlaceDto> places, String sort) {
+        Comparator<PlaceDto> byName = Comparator.comparing(PlaceDto::placeName, Comparator.nullsLast(String::compareToIgnoreCase));
+        return switch (sort) {
+            case "popular" -> places.stream()
+                    .sorted(Comparator.comparingInt((PlaceDto place) -> place.likeCount() == null ? 0 : place.likeCount()).reversed()
+                            .thenComparing(byName))
+                    .toList();
+            case "name" -> places.stream()
+                    .sorted(byName)
+                    .toList();
+            case "region" -> places.stream()
+                    .sorted(Comparator.comparing(PlaceDto::region, Comparator.nullsLast(String::compareToIgnoreCase))
+                            .thenComparing(byName))
+                    .toList();
+            default -> places;
+        };
     }
 }

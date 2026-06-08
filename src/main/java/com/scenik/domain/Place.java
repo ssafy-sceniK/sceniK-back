@@ -20,6 +20,8 @@ public class Place {
     private Integer likeCount;
     private Boolean liked;
     private String visitStatus;
+    private Integer reviewCount;
+    private Double averageRating;
 
     public String getPlaceId() { return placeId; }
     public void setPlaceId(String placeId) { this.placeId = placeId; }
@@ -59,4 +61,8 @@ public class Place {
     public void setLiked(Boolean liked) { this.liked = liked; }
     public String getVisitStatus() { return visitStatus; }
     public void setVisitStatus(String visitStatus) { this.visitStatus = visitStatus; }
+    public Integer getReviewCount() { return reviewCount; }
+    public void setReviewCount(Integer reviewCount) { this.reviewCount = reviewCount; }
+    public Double getAverageRating() { return averageRating; }
+    public void setAverageRating(Double averageRating) { this.averageRating = averageRating; }
 }

@@ -10,9 +10,12 @@ import com.scenik.dto.CommunityDtos.ReportRequest;
 import com.scenik.domain.User;
 import com.scenik.service.AuthService;
 import com.scenik.service.CommunityService;
+import com.scenik.util.ListQuerySupport;
 import jakarta.validation.Valid;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,6 +25,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -36,11 +40,23 @@ public class CommunityController {
     }
 
     @GetMapping("/posts")
-    public ResponseEntity<List<PostDto>> posts(@RequestHeader(value = "Authorization", required = false) String authorization) {
-        List<PostDto> posts = communityService.listPosts(authorization);
+    public ResponseEntity<List<PostDto>> posts(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestParam(value = "page", required = false) Integer page,
+            @RequestParam(value = "size", required = false) Integer size,
+            @RequestParam(value = "sort", required = false) String sort,
+            @RequestParam(value = "keyword", required = false) String keyword,
+            @RequestParam(value = "region", required = false) String region
+    ) {
+        ListQuerySupport.validateSort(sort, Set.of("latest", "popular"));
+        List<PostDto> posts = communityService.listPosts(authorization).stream()
+                .filter(post -> matchesPost(post, keyword, region))
+                .sorted(postComparator(ListQuerySupport.normalizeSort(sort)))
+                .toList();
+        List<PostDto> paged = ListQuerySupport.paginate(posts, page, size);
         return ResponseEntity.ok()
                 .header("X-Total-Count", String.valueOf(posts.size()))
-                .body(posts);
+                .body(paged);
     }
 
     @GetMapping("/posts/{postId}")
@@ -78,11 +94,16 @@ public class CommunityController {
     }
 
     @GetMapping("/posts/{postId}/comments")
-    public ResponseEntity<List<CommentDto>> comments(@PathVariable("postId") String postId) {
+    public ResponseEntity<List<CommentDto>> comments(
+            @PathVariable("postId") String postId,
+            @RequestParam(value = "page", required = false) Integer page,
+            @RequestParam(value = "size", required = false) Integer size
+    ) {
         List<CommentDto> comments = communityService.listComments(postId);
+        List<CommentDto> paged = ListQuerySupport.paginate(comments, page, size);
         return ResponseEntity.ok()
                 .header("X-Total-Count", String.valueOf(comments.size()))
-                .body(comments);
+                .body(paged);
     }
 
     @PostMapping("/posts/{postId}/comments")
@@ -140,13 +161,22 @@ public class CommunityController {
     }
 
     @GetMapping("/notifications")
-    public ResponseEntity<List<NotificationDto>> notifications(@RequestHeader(value = "Authorization", required = false) String authorization) {
+    public ResponseEntity<List<NotificationDto>> notifications(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestParam(value = "page", required = false) Integer page,
+            @RequestParam(value = "size", required = false) Integer size,
+            @RequestParam(value = "sort", required = false) String sort
+    ) {
+        ListQuerySupport.validateSort(sort, Set.of("latest"));
         User user = authService.requireUser(authorization);
-        List<NotificationDto> notifications = communityService.listNotifications(user);
+        List<NotificationDto> notifications = communityService.listNotifications(user).stream()
+                .sorted(notificationComparator(ListQuerySupport.normalizeSort(sort)))
+                .toList();
+        List<NotificationDto> paged = ListQuerySupport.paginate(notifications, page, size);
         return ResponseEntity.ok()
                 .header("X-Total-Count", String.valueOf(notifications.size()))
                 .header("X-Unread-Count", String.valueOf(communityService.countUnreadNotifications(user)))
-                .body(notifications);
+                .body(paged);
     }
 
     @PatchMapping("/notifications/read")
@@ -163,10 +193,38 @@ public class CommunityController {
     }
 
     @GetMapping("/users/me/posts")
-    public ResponseEntity<List<PostDto>> myPosts(@RequestHeader(value = "Authorization", required = false) String authorization) {
+    public ResponseEntity<List<PostDto>> myPosts(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestParam(value = "page", required = false) Integer page,
+            @RequestParam(value = "size", required = false) Integer size
+    ) {
         List<PostDto> posts = communityService.listMyPosts(authService.requireUser(authorization));
+        List<PostDto> paged = ListQuerySupport.paginate(posts, page, size);
         return ResponseEntity.ok()
                 .header("X-Total-Count", String.valueOf(posts.size()))
-                .body(posts);
+                .body(paged);
+    }
+
+    private boolean matchesPost(PostDto post, String keyword, String region) {
+        boolean regionMatch = region == null || region.isBlank() || ListQuerySupport.containsText(post.region(), region);
+        boolean keywordMatch = ListQuerySupport.containsText(post.title(), keyword)
+                || ListQuerySupport.containsText(post.content(), keyword)
+                || ListQuerySupport.containsText(post.body(), keyword)
+                || (post.tags() != null && post.tags().stream().anyMatch(tag -> ListQuerySupport.containsText(tag, keyword)));
+        return regionMatch && keywordMatch;
+    }
+
+    private Comparator<PostDto> postComparator(String sort) {
+        Comparator<PostDto> byCreatedDesc = Comparator.comparing(PostDto::createdAt, Comparator.nullsLast(Comparator.reverseOrder()));
+        if ("popular".equals(sort)) {
+            return Comparator.comparingInt((PostDto post) -> post.likeCount() == null ? 0 : post.likeCount())
+                    .reversed()
+                    .thenComparing(byCreatedDesc);
+        }
+        return byCreatedDesc;
+    }
+
+    private Comparator<NotificationDto> notificationComparator(String sort) {
+        return Comparator.comparing(NotificationDto::createdAt, Comparator.nullsLast(Comparator.reverseOrder()));
     }
 }

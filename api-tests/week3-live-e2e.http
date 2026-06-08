@@ -1,0 +1,309 @@
+@baseUrl = http://localhost:8080
+@api = {{baseUrl}}/api
+@email = week3-live-{{$timestamp}}@scenik.local
+@password = password123
+@nickname = 위크3실사용자
+@accessToken = replace-with-login-access-token
+@contentId = C_DRAMA_001
+@placeId = P_0001
+@routeId = replace-with-created-route-id
+@postId = replace-with-created-post-id
+@commentId = replace-with-created-comment-id
+@reviewId = replace-with-created-review-id
+
+# 사용 방법
+# 1. backend를 수동으로 실행합니다.
+#    cd backend
+#    $env:JAVA_HOME="C:\Program Files\Eclipse Adoptium\jdk-17.0.19.10-hotspot"
+#    $env:PATH="$env:JAVA_HOME\bin;$env:PATH"
+#    $env:DB_USERNAME="ssafy"
+#    $env:DB_PASSWORD="ssafy"
+#    .\gradlew.bat bootRun
+# 2. 이 파일을 REST Client에서 위에서부터 순서대로 실행합니다.
+# 3. login 응답의 accessToken을 @accessToken에 복사하거나, 아래 요청의
+#    {{login.response.body.accessToken}} 참조를 그대로 사용합니다.
+# 4. saveRoute/createPost/createComment/createReview 응답의 ID를 각각
+#    @routeId, @postId, @commentId, @reviewId에 복사해 상세/수정/삭제를 검증합니다.
+
+### 1. 회원가입
+# 예상 상태: 200 또는 201
+# 예상 응답: { accessToken, refreshToken, user: { userId, email, nickname } }
+# 예상 오류: 중복 email이면 409, message는 "이미 사용 중인 이메일입니다."
+# @name signup
+POST {{api}}/auth/signup
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}",
+  "nickname": "{{nickname}}",
+  "preferences": ["드라마", "서울", "촬영지"]
+}
+
+### 2. 로그인
+# 예상 상태: 200
+# 예상 응답: { accessToken, refreshToken, user }
+# 예상 오류: 잘못된 비밀번호이면 401, message는 "가입되지 않았거나 비밀번호가 올바르지 않습니다."
+# @name login
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### 3. 내 정보 조회
+# 예상 상태: 200
+# 예상 응답: { userId, email, nickname, preferences }
+# 예상 오류: token 누락이면 401, message는 "로그인이 필요합니다."
+GET {{api}}/users/me
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 4. 콘텐츠 목록
+# 예상 상태: 200
+# 예상 응답: ContentDto 배열, header X-Total-Count
+GET {{api}}/contents?page=0&size=10&sort=popular
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 5. 콘텐츠 상세
+# 예상 상태: 200
+# 예상 응답: { contentId, title, category, thumbnailUrl, likeCount, isLiked }
+# 예상 오류: 없는 contentId면 404, message는 "존재하지 않는 콘텐츠입니다."
+GET {{api}}/contents/{{contentId}}
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 6. 콘텐츠 관련 장소
+# 예상 상태: 200
+# 예상 응답: PlaceDto 배열
+GET {{api}}/contents/{{contentId}}/places
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 7. 장소 목록
+# 예상 상태: 200
+# 예상 응답: PlaceDto 배열, header X-Total-Count
+GET {{api}}/places?page=0&size=10&sort=popular
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 8. 장소 상세
+# 예상 상태: 200
+# 예상 응답: { placeId, placeName, address, region, latitude, longitude, isLiked, visitStatus }
+# 예상 오류: 없는 placeId면 404, message는 "존재하지 않는 장소입니다."
+GET {{api}}/places/{{placeId}}
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 9. 콘텐츠 좋아요
+# 예상 상태: 204
+# 예상 오류: token 누락이면 401, message는 "로그인이 필요합니다."
+POST {{api}}/contents/{{contentId}}/likes
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 10. 장소 좋아요
+# 예상 상태: 204
+# 예상 오류: token 누락이면 401, message는 "로그인이 필요합니다."
+POST {{api}}/places/{{placeId}}/likes
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 11. 방문 상태 WANT_TO_GO
+# 예상 상태: 200
+# 예상 응답: { placeId, status: "WANT_TO_GO" }
+# 예상 오류: status가 잘못되면 400, message는 "방문 상태 값이 올바르지 않습니다."
+PUT {{api}}/places/{{placeId}}/visit-status
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "status": "WANT_TO_GO"
+}
+
+### 12. 방문 상태 VISITED
+# 예상 상태: 200
+# 예상 응답: { placeId, status: "VISITED" }
+PUT {{api}}/places/{{placeId}}/visit-status
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "status": "VISITED"
+}
+
+### 13. 마이페이지 좋아요 콘텐츠
+# 예상 상태: 200
+# 예상 응답: contentId 문자열 배열, header X-Total-Count
+GET {{api}}/users/me/liked-contents?page=0&size=20
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 14. 마이페이지 좋아요 장소
+# 예상 상태: 200
+# 예상 응답: placeId 문자열 배열, header X-Total-Count
+GET {{api}}/users/me/liked-places?page=0&size=20
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 15. 마이페이지 방문 상태
+# 예상 상태: 200
+# 예상 응답: VisitStatusDto 배열, header X-Total-Count
+GET {{api}}/users/me/visit-status?page=0&size=20
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 16. AI 경로 생성
+# 예상 상태: 200
+# 예상 응답: { generationId, title, summary, candidatePlaces, days }
+# 예상 오류: 후보 장소가 없으면 404, message는 조건에 맞는 장소를 찾지 못했다는 한국어 안내
+# @name generateRoute
+POST {{api}}/ai/routes
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "contentId": "{{contentId}}",
+  "contentIds": ["{{contentId}}"],
+  "region": "서울",
+  "durationDays": 1,
+  "transport": "대중교통",
+  "companion": "친구",
+  "style": "감성 촬영지 투어",
+  "budgetMin": 50000,
+  "budgetMax": 150000
+}
+
+### 17. 경로 저장
+# 예상 상태: 200
+# 예상 응답: { routeId, title, region, durationDays, days }
+# @name saveRoute
+POST {{api}}/routes
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "title": "Week 3 서울 실사용 검증 코스",
+  "summary": "Week 3 E2E route save 검증",
+  "contentId": "{{contentId}}",
+  "contentIds": ["{{contentId}}"],
+  "region": "서울",
+  "durationDays": 1,
+  "transport": "대중교통",
+  "companion": "친구",
+  "style": "감성 촬영지 투어",
+  "candidatePlaces": [
+    {
+      "placeId": "{{placeId}}",
+      "name": "검증 장소",
+      "region": "서울",
+      "category": "촬영지",
+      "address": "서울",
+      "latitude": 37.5665,
+      "longitude": 126.978,
+      "relatedContentId": "{{contentId}}",
+      "relatedContentTitle": "검증 콘텐츠",
+      "sceneDescription": "Week 3 E2E 후보 장소",
+      "verified": true
+    }
+  ],
+  "days": [
+    {
+      "dayNumber": 1,
+      "estimatedTravelTime": "약 30분",
+      "places": [
+        {
+          "placeId": "{{placeId}}",
+          "placeName": "검증 장소",
+          "dayNumber": 1,
+          "visitOrder": 1,
+          "recommendedTime": "10:00",
+          "reason": "Week 3 E2E 검증 경유지",
+          "travelTip": "방문 전 운영 시간을 확인해 주세요."
+        }
+      ]
+    }
+  ]
+}
+
+### 18. 내 경로 목록
+# 예상 상태: 200
+# 예상 응답: AiRouteDto 배열, header X-Total-Count
+GET {{api}}/users/me/routes?page=0&size=20&sort=latest
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 19. 경로 상세
+# saveRoute 응답의 routeId를 @routeId에 복사한 뒤 실행합니다.
+# 예상 상태: 200
+# 예상 응답: { routeId, days, candidatePlaces }
+GET {{api}}/routes/{{routeId}}
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 20. 커뮤니티 게시글 목록
+# 예상 상태: 200
+# 예상 응답: PostDto 배열, header X-Total-Count
+GET {{api}}/posts?page=0&size=10&sort=latest
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 21. 게시글 작성
+# 예상 상태: 200
+# 예상 응답: { postId, title, content, region, routeId }
+# @name createPost
+POST {{api}}/posts
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "title": "Week 3 E2E 코스 후기",
+  "content": "AI 코스를 생성하고 저장한 뒤 커뮤니티에 공유하는 흐름을 검증합니다.",
+  "region": "서울",
+  "routeId": "{{routeId}}",
+  "tags": ["AI 코스", "서울", "E2E"]
+}
+
+### 22. 댓글 작성
+# createPost 응답의 postId를 @postId에 복사한 뒤 실행합니다.
+# 예상 상태: 200
+# 예상 응답: { commentId, postId, content, userId }
+# @name createComment
+POST {{api}}/posts/{{postId}}/comments
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "content": "Week 3 E2E 댓글 작성 검증입니다."
+}
+
+### 23. 알림 목록
+# 예상 상태: 200
+# 예상 응답: NotificationDto 배열, header X-Unread-Count
+GET {{api}}/notifications?page=0&size=20&sort=latest
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 24. 리뷰 목록
+# 예상 상태: 200
+# 예상 응답: ReviewDto 배열, header X-Total-Count
+GET {{api}}/places/{{placeId}}/reviews?page=0&size=20&sort=latest
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 25. 리뷰 작성
+# 예상 상태: 200
+# 예상 응답: { reviewId, placeId, userId, nickname, rating, content }
+# 예상 오류: 같은 사용자가 같은 장소에 이미 작성했으면 409, message는 "이미 이 장소에 리뷰를 작성했습니다."
+# @name createReview
+POST {{api}}/places/{{placeId}}/reviews
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "rating": 4.5,
+  "content": "촬영지 분위기와 이동 동선이 좋아서 다시 방문하고 싶은 장소입니다."
+}
+
+### 26. 잘못된 방문 상태 오류 확인
+# 예상 상태: 400
+# 예상 응답: { code: "INVALID_REQUEST", message: "방문 상태 값이 올바르지 않습니다." }
+PUT {{api}}/places/{{placeId}}/visit-status
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "status": "INVALID_STATUS"
+}
+
+### 27. 인증 누락 오류 확인
+# 예상 상태: 401
+# 예상 응답: { code: "UNAUTHORIZED", message: "로그인이 필요합니다." }
+GET {{api}}/users/me

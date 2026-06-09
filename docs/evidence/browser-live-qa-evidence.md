@@ -97,6 +97,16 @@ backend/docs/evidence/screenshots/browser-live-qa/
 | `community-reply-comment-like.png` | 답글/댓글 좋아요 |
 | `community-compact-sort.png` | 커뮤니티 정렬 UI |
 
+## 최종 제출 전 캡처 우선순위
+
+1. Follow two-account mutual badge
+2. Place detail review create/edit/delete
+3. Community post detail/comment action sheet
+4. Course create/save/edit/delete status
+5. Profile edit preview/preference chips
+6. Signup email duplicate check
+7. Login failure/retry/logout session panel
+
 ## 최종 판단
 
 현재 문서와 코드 기준으로 기능 구현 및 build/smoke 근거는 충분하지만, analyzer/evaluator가 직접 확인하기 쉬운 브라우저 캡처는 아직 비어 있습니다. 제출 전에는 위 캡처를 실제 실행 환경에서 생성하고 이 문서에 이미지 링크를 추가해야 합니다.

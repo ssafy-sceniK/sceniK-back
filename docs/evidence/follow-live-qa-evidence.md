@@ -95,6 +95,16 @@ backend/docs/evidence/screenshots/follow-two-account/
 
 현재 상태: 수동 캡처 필요.
 
+## 최종 제출 전 캡처 우선순위
+
+1. Follow two-account mutual badge
+2. Place detail review create/edit/delete
+3. Community post detail/comment action sheet
+4. Course create/save/edit/delete status
+5. Profile edit preview/preference chips
+6. Signup email duplicate check
+7. Login failure/retry/logout session panel
+
 ## 최종 상태 판단
 
 현재 코드와 build/smoke 근거로 기능 구현은 확인되었지만, analyzer가 요구한 live evidence 관점에서는 아직 `수동 캡처 필요` 상태입니다. Notion/API 상태는 `In progress`로 유지하는 것이 안전합니다.

@@ -37,7 +37,7 @@
 | `frontend/src/views/SignupView.vue` | 회원가입, 이메일 중복 확인, 비밀번호 정책 안내 |
 | `frontend/src/views/SettingsView.vue` | 세션 관리, 로그아웃 안내, 로그아웃 결과 상태 |
 | `frontend/src/views/MyPageView.vue` | 사용자 정보, 로그아웃 버튼, 활동 요약 |
-| `frontend/src/views/MyProfileEditView.vue` | 닉네임, 소개, 취향 수정, 이미지 업로드 보류 안내 |
+| `frontend/src/views/MyProfileEditView.vue` | 닉네임, 이메일 read-only, 소개, 취향 수정, 이미지 로컬 미리보기, 업로드 보류 안내 |
 
 ## QA 포인트
 
@@ -48,10 +48,19 @@
 - 비밀번호 정책은 backend와 동일하게 `8자 이상`을 안내해야 합니다.
 - 만료/누락 token이면 로그인 필요 메시지가 보여야 합니다.
 - 프로필 저장은 닉네임 2자 이상 검증 후 수행해야 합니다.
-- 이미지 업로드 버튼은 실제 업로드를 가장하지 않고 추후 지원 안내만 표시합니다.
+- 이미지 선택은 로컬 미리보기로만 동작하고 실제 업로드를 가장하지 않아야 합니다.
 
 ## 2026-06-09 보강 사항
 
 - `GET /api/auth/check-email?email=` endpoint를 추가해 회원가입 화면의 이메일 중복 확인이 실제 backend 상태를 사용하도록 했습니다.
 - 회원가입 화면에 이메일 확인 상태, 비밀번호 정책 checklist, 비밀번호 확인 일치 여부, 성공/실패 상태 영역을 추가했습니다.
 - Settings에 `세션 관리` 섹션을 추가해 로그아웃하면 이 기기에서 세션이 종료된다는 안내와 결과 상태를 표시합니다.
+
+## 2026-06-09 최종 targeted pass 보강 사항
+
+- `MyProfileEditView.vue`에 profile image preview panel과 `<input type="file" accept="image/*">`를 추가했습니다.
+- 선택한 이미지는 `URL.createObjectURL` 기반 로컬 미리보기로만 표시하고, `프로필 이미지 업로드는 추후 지원 예정입니다.` 문구로 서버 업로드가 아님을 명시했습니다.
+- 이메일은 read-only field로 표시하고, 저장 가능한 필드는 nickname, bio, preferences로 분리했습니다.
+- 콘텐츠/지역/테마 preference chips에 `aria-pressed`를 추가해 선택 상태를 명확히 했습니다.
+- `MyPageView.vue` profile header에 preference chip summary와 profile image 표시 경로를 추가했습니다.
+- 저장 성공/실패/검증 실패는 `FormStatusNotice`로 화면 안에 표시합니다.

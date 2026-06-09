@@ -73,11 +73,13 @@
 | 루브릭 응답 | [rubric-response.md](../submission/rubric-response.md) | 존재 |
 | 평가 증거 맵 | [evaluation-evidence-map.md](../submission/evaluation-evidence-map.md) | 존재 |
 | 제출 산출물 인덱스 | [submission-artifact-index.md](../submission/submission-artifact-index.md) | 존재 |
+| 최종 보고서 | [final-report.md](../submission/final-report.md) | Markdown final본, PDF export 필요 |
+| 발표자료 | [presentation.md](../submission/presentation.md) | Markdown final본, PPT/PDF export 필요 |
 | 데모 시나리오 | [demo-scenario.md](../submission/demo-scenario.md) | 존재 |
 | 데이터셋 요약 | [dataset-summary.md](../submission/dataset-summary.md) | 존재 |
 | 외부 API·AI 사용 | [external-api-ai-usage.md](../submission/external-api-ai-usage.md) | 존재 |
-| 발표 개요 | [presentation-outline.md](../submission/presentation-outline.md) | 존재 |
-| 최종 보고서 개요 | [final-report-outline.md](../submission/final-report-outline.md) | 존재 |
+| 발표 개요 | [presentation-outline.md](../submission/presentation-outline.md) | 초안/참고 |
+| 최종 보고서 개요 | [final-report-outline.md](../submission/final-report-outline.md) | 초안/참고 |
 | 제출 체크리스트 | [submission-checklist.md](../submission/submission-checklist.md) | 존재 |
 
 ## 제출 전 TODO
@@ -85,4 +87,5 @@
 - WBS 원본 문서 위치를 연결합니다.
 - ERD 이미지 또는 원본 파일 위치를 연결합니다.
 - 사용자 흐름 또는 use-case 다이어그램 위치를 연결합니다.
-- 최종 PPT와 최종 보고서 파일을 작성한 뒤 제출 섹션에 링크합니다.
+- `final-report.md`를 PDF로 export합니다.
+- `presentation.md`를 PPT 또는 PDF로 export합니다.

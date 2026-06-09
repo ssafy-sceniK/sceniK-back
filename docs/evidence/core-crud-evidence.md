@@ -39,6 +39,14 @@
 - 코스 상세 화면은 저장, 공유, 삭제 결과를 상태 영역으로 표시합니다.
 - 장소 리뷰 작성/수정/삭제는 각 결과를 `FormStatusNotice`로 표시합니다.
 
+## 2026-06-09 최종 targeted pass 보강 사항
+
+- `frontend/src/components/course/CourseCrudPanel.vue`를 추가해 코스 상세에서 `코스 관리` 섹션, routeId, 장소 수, 저장 상태, 수정/저장/공유/삭제 action을 한곳에 표시했습니다.
+- `frontend/src/components/course/CourseSaveStatusPanel.vue`를 추가해 AI 결과 화면에서 `생성된 AI 코스`, `저장 전 확인`, 저장 성공/실패 상태, 저장 후 내 코스에서 수정 가능 안내를 표시했습니다.
+- `frontend/src/components/course/CourseDeleteActionSheet.vue`를 추가해 저장 코스 삭제 confirmation과 삭제 중 상태를 명시했습니다.
+- `CourseEditView.vue`에 코스 제목 field, 저장 방식 안내, 장소 수 validation, `변경사항 저장`, `취소`, 저장 중/성공/실패 상태를 보강했습니다.
+- `CourseView.vue`에 생성한 코스가 저장 후 마이페이지에서 수정·공유·삭제 가능하다는 안내를 추가했습니다.
+
 ## 남은 한계
 
 - 콘텐츠/장소 원본 데이터 생성·수정·삭제는 admin backend endpoint만 있고 운영자용 UI는 아직 없습니다.

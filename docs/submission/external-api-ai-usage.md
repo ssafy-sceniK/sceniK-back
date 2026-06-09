@@ -1,12 +1,13 @@
 # 외부 API 및 AI 사용 정리
 
-생성일: 2026-06-08
+생성일: 2026-06-09
 
 ## Week 3 현재 사용 방식
 
 - frontend-facing AI route API는 Spring Boot의 `POST /api/ai/routes`입니다.
 - 현재 route generation은 Spring Boot backend의 deterministic DB-backed 방식입니다.
 - frontend는 `sceniK-ai`를 직접 호출하지 않습니다.
+- frontend는 `CourseConditionsView`, `AiLoadingView`, `AiResultView`에서 AI 참고 조건과 검증 장소 기반 추천 근거를 표시합니다.
 - 지도/geocode endpoint는 Spring Boot에 있으며, 외부 provider가 없을 때 fallback 응답을 유지합니다.
 
 ## 현재 AI 서비스 상태

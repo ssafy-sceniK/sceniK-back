@@ -1,6 +1,6 @@
 # 리뷰 기능 구현 증거
 
-생성일: 2026-06-08
+생성일: 2026-06-09
 
 루브릭 #04 리뷰 작성·조회 항목의 평가자가 구현 위치를 바로 확인할 수 있도록 backend, frontend, DB, QA 근거를 정리합니다.
 
@@ -37,7 +37,10 @@
 | --- | --- |
 | `frontend/src/api/reviewApi.js` | 리뷰 API adapter |
 | `frontend/src/views/PlaceDetailView.vue` | 리뷰 목록, 작성, 수정, 삭제 UI |
+| `frontend/src/views/MyPageView.vue` | “내 리뷰” 진입점과 리뷰 수 표시 |
+| `frontend/src/views/SimpleListView.vue` | 내가 작성한 리뷰 목록 표시 |
 | `frontend/src/styles/detail-map-panels.css` | 리뷰 카드와 액션 UI 스타일 |
+| `frontend/src/styles/profile-utility-overlays.css` | 마이페이지 리뷰 목록 카드 스타일 |
 
 ## Validation Rules
 
@@ -62,9 +65,10 @@
 8. 수정 저장 후 목록과 평균 평점이 갱신되는지 확인합니다.
 9. 내 리뷰의 `삭제` 버튼을 누르고 확인합니다.
 10. 삭제 후 작성 폼이 다시 표시되는지 확인합니다.
+11. 마이페이지에서 `내 리뷰` 메뉴를 눌러 `GET /api/users/me/reviews` 결과가 표시되는지 확인합니다.
 
 ## 평가자가 놓쳤을 가능성이 있는 이유
 
 - 리뷰 기능이 최근 Week 3 보강에서 추가되어 기존 평가 시점에는 코드에 없었거나 미추적 파일로 남아 있었을 수 있습니다.
 - `PlaceReviewController`와 `reviewApi.js`가 별도 기능명으로 분리되어 있어 기존 커뮤니티 댓글 기능과 다르게 보였을 수 있습니다.
-- 이번 문서에서 endpoint, table, UI 파일을 명시해 평가자가 쉽게 확인할 수 있도록 보강했습니다.
+- 장소 상세의 제목을 `방문 리뷰`로 변경하고 평균 평점/리뷰 수 요약 패널을 추가해 화면에서 기능이 더 잘 보이도록 보강했습니다.

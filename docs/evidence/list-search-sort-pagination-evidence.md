@@ -1,6 +1,6 @@
 # 목록 조회·검색·정렬·페이징 증거
 
-생성일: 2026-06-08
+생성일: 2026-06-09
 
 루브릭 #02 목록 조회·검색·정렬 항목의 구현 범위와 남은 한계를 정리합니다.
 
@@ -23,10 +23,10 @@
 
 | 화면 | 연결 상태 |
 | --- | --- |
-| `ContentListView.vue` | 콘텐츠 목록, keyword/category/sort 기반 store 연결 |
-| `PlaceListView.vue` | 장소 목록, keyword/category/region 기반 store 연결 |
+| `ContentListView.vue` | 콘텐츠 목록, keyword/category/sort select, 결과 수, “더 보기” UI |
+| `PlaceListView.vue` | 장소 목록, keyword/category/region, sort select, 결과 수, “더 보기” UI |
 | `MapView.vue` | 장소 좌표 기반 fallback map preview |
-| `CommunityView.vue` | 게시글 목록, 검색어, 게시판 필터, post detail 연결 |
+| `CommunityView.vue` | 게시글 목록, 검색어, 게시판 필터, sort select, 결과 수, “더 보기” UI, post detail 연결 |
 | `SimpleListView.vue` | 좋아요/방문 상태/저장 코스/내 게시글 목록 |
 
 ## Manual Test Examples
@@ -39,7 +39,7 @@ GET /api/users/me/routes?page=0&size=10&sort=updated
 GET /api/notifications?page=0&size=10&sort=latest
 ```
 
-## Known Limitations
+## 남은 한계
 
 - 모든 목록 화면에 명시적 페이지 번호 UI가 드러나지는 않습니다.
 - 일부 마이페이지 목록은 backend pagination을 지원하지만 모바일 UX에서는 간단 목록으로 표시합니다.
@@ -47,4 +47,4 @@ GET /api/notifications?page=0&size=10&sort=latest
 
 ## 보강 판단
 
-서버 페이징과 정렬은 backend 중심으로 구현되어 있으며, evaluator가 확인하기 쉽도록 HTTP 테스트 파일과 evidence 문서로 보강했습니다. UI는 큰 redesign 없이 기존 모바일 화면의 간결함을 유지합니다.
+서버 페이징과 정렬은 backend 중심으로 구현되어 있으며, evaluator가 확인하기 쉽도록 HTTP 테스트 파일과 evidence 문서로 보강했습니다. 이번 pass에서는 콘텐츠, 장소, 커뮤니티 화면에 sort와 incremental “더 보기” UI를 추가해 화면에서도 목록/정렬/페이지네이션 성격이 드러나게 했습니다.

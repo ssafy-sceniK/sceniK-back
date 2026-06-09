@@ -4,16 +4,21 @@
 
 이 문서는 Week 3 마감 기준 `Deferred`로 유지할 Notion API 행과 보류 사유를 정리합니다. Deferred 항목은 미완성 실패가 아니라 MVP 범위 밖으로 명시적으로 분리한 작업입니다.
 
+## Deferred에서 제외된 항목
+
+| 항목 | 현재 상태 | 변경 사유 |
+| --- | --- | --- |
+| 팔로우 | In progress | `POST /api/users/{userId}/follow`와 커뮤니티 작성자 버튼을 최소 구현했습니다. |
+| 언팔로우 | In progress | `DELETE /api/users/{userId}/follow`와 마이페이지 목록 액션을 최소 구현했습니다. |
+| 팔로워 목록 조회 | In progress | `GET /api/users/{userId}/followers`와 마이페이지 팔로워 목록을 연결했습니다. |
+| 팔로잉 목록 조회 | In progress | `GET /api/users/{userId}/following`, `GET /api/users/me/following`과 마이페이지 팔로잉 목록을 연결했습니다. |
+
 | 기능명 | 현재 상태 | 보류 이유 | 후속 구현 시점 | 현재 대체 흐름 |
 | --- | --- | --- | --- | --- |
 | 카카오 소셜 로그인 | Deferred | Week 3 MVP에서는 이메일/비밀번호 인증을 기준으로 완료했으며, OAuth provider 설정과 callback 검증이 필요합니다. | Week 5 이후 인증 확장 | `POST /api/auth/signup`, `POST /api/auth/login` |
 | 구글 소셜 로그인 | Deferred | OAuth consent, callback, provider token 검증이 필요해 Week 3 범위에서 제외했습니다. | Week 5 이후 인증 확장 | 이메일/비밀번호 로그인 |
 | 회원 탈퇴 | Deferred | 사용자 데이터 보존, 게시글/댓글 처리, soft delete 정책을 먼저 정해야 합니다. | 운영 정책 확정 후 | 로그아웃과 프로필 수정 |
 | 내 프로필 이미지 업로드 | Deferred | 파일 저장소, 확장자/용량 제한, 이미지 처리 정책이 필요합니다. | 프로필 고도화 단계 | 기본 아바타와 닉네임 표시 |
-| 팔로우 | Deferred | 소셜 관계 기능은 Week 3 여행 코스/커뮤니티 핵심 흐름 밖입니다. | 커뮤니티 소셜 확장 단계 | 게시글/댓글 기반 상호작용 |
-| 언팔로우 | Deferred | follow graph 설계가 필요합니다. | 커뮤니티 소셜 확장 단계 | 게시글/댓글 기반 상호작용 |
-| 팔로워 목록 조회 | Deferred | follow 데이터 모델과 privacy 정책이 필요합니다. | 커뮤니티 소셜 확장 단계 | 없음 |
-| 팔로잉 목록 조회 | Deferred | follow 데이터 모델과 privacy 정책이 필요합니다. | 커뮤니티 소셜 확장 단계 | 없음 |
 | 코스 공개 여부 변경 | Deferred | 공개 URL, 권한, 공유 범위, 검색 노출 정책이 필요합니다. | Route 공유 기능 고도화 단계 | 커뮤니티 게시글 작성으로 코스 경험 공유 |
 | 댓글 신고 | Deferred | 게시글 신고는 구현되어 있으나 댓글 moderation workflow는 아직 없습니다. | 커뮤니티 moderation 단계 | 게시글 신고 |
 | 알림 수신 설정 조회 | Deferred | Week 3 알림 범위는 목록 조회와 읽음 처리입니다. | 알림 개인화 단계 | 알림 목록 조회 |

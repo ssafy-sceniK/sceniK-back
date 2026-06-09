@@ -1,6 +1,6 @@
 # Notion API 행별 매핑
 
-생성일: 2026-06-08
+생성일: 2026-06-09
 
 이 문서는 기존 Notion API 테이블을 바로 수정할 수 있도록 Notion 행명을 기준으로 현재 canonical API와 구현 상태를 1:1로 정리한 문서입니다. 상태 판단 기준은 [scenik-api-inventory.md](./scenik-api-inventory.md), [scenik-api-status.md](./scenik-api-status.md), [notion-api-status-update.csv](./notion-api-status-update.csv), [notion-api-update-guide.md](./notion-api-update-guide.md)를 기준으로 했습니다.
 
@@ -24,11 +24,11 @@
 | 작성한 커뮤니티 게시글 목록 조회 | `GET /api/users/me/posts` | Done | 내가 작성한 게시글 목록 API가 구현되어 있으며 마이페이지에서 사용합니다. | `CommunityController` | `SimpleListView`, community store |
 | 여행 활동 히스토리 조회 | `GET /api/users/me/history` | Done | 최근 조회/활동 이력 API가 구현되어 있고 마이페이지에서 사용합니다. | `UserActivityController` | `MyPageView` |
 | 내 활동 요약 조회 | `GET /api/users/me/activity-summary` | Done | 좋아요, 방문 상태, 저장 경로 등 마이페이지 요약 카운트가 구현되어 있습니다. | `UserActivityController` | `MyPageView` |
-| 내가 작성한 리뷰 목록 조회 | `GET /api/users/me/reviews` | In progress | 백엔드와 API adapter는 있으나 별도 마이리뷰 화면이 없습니다. | `PlaceReviewController` | `reviewApi.fetchMyReviews` |
-| 팔로우 | `POST /api/users/{userId}/follow` | Deferred | 팔로우 기능은 Week 3 MVP 범위 밖으로 보류되었습니다. | 없음 | 없음 |
-| 언팔로우 | `DELETE /api/users/{userId}/follow` | Deferred | 소셜 관계 기능은 Week 3 MVP 범위 밖으로 보류되었습니다. | 없음 | 없음 |
-| 팔로워 목록 조회 | `GET /api/users/me/followers` | Deferred | 팔로워 목록은 Week 3 MVP 범위 밖으로 보류되었습니다. | 없음 | 없음 |
-| 팔로잉 목록 조회 | `GET /api/users/me/following` | Deferred | 팔로잉 목록은 Week 3 MVP 범위 밖으로 보류되었습니다. | 없음 | 없음 |
+| 내가 작성한 리뷰 목록 조회 | `GET /api/users/me/reviews` | In progress | 백엔드와 마이페이지 리뷰 목록 UI는 연결되었으나 live QA가 아직 필요합니다. | `PlaceReviewController` | `reviewApi.fetchMyReviews`, `SimpleListView` |
+| 팔로우 | `POST /api/users/{userId}/follow` | In progress | 백엔드와 커뮤니티 작성자 팔로우 버튼은 연결되었으나 live QA가 아직 필요합니다. | `FollowController`, `FollowService` | `followApi.followUser`, `CommunityView` |
+| 언팔로우 | `DELETE /api/users/{userId}/follow` | In progress | 백엔드와 팔로잉 목록/작성자 버튼의 언팔로우 UI는 연결되었으나 live QA가 아직 필요합니다. | `FollowController`, `FollowService` | `followApi.unfollowUser`, `SimpleListView` |
+| 팔로워 목록 조회 | `GET /api/users/{userId}/followers` | In progress | current user id로 팔로워 목록을 조회하는 마이페이지 UI가 연결되었으나 live QA가 아직 필요합니다. | `FollowController`, `FollowMapper.xml` | `followApi.fetchFollowers`, `SimpleListView` |
+| 팔로잉 목록 조회 | `GET /api/users/{userId}/following`, `GET /api/users/me/following` | In progress | 백엔드와 마이페이지 팔로잉 목록 UI는 연결되었으나 live QA가 아직 필요합니다. | `FollowController`, `FollowMapper.xml` | `followApi.fetchMyFollowing`, `SimpleListView` |
 | 콘텐츠 목록 조회 | `GET /api/contents` | Done | 목록 조회와 pagination이 구현되어 있습니다. | `ContentController` | `contentApi.fetchContents`, content/explore stores |
 | 콘텐츠 카테고리 목록 조회 | `GET /api/contents/categories` | Done | 현재 canonical 카테고리 endpoint가 구현되어 있습니다. | `ContentController` | content/explore stores |
 | 인기 콘텐츠 목록 조회 | `GET /api/contents/popular` | Done | 인기 콘텐츠 단축 조회 API가 구현되어 있습니다. | `ContentController` | `HomeView`, explore store |
@@ -110,8 +110,8 @@
 | 상태 | 개수 |
 | --- | ---: |
 | Done | 49 |
-| In progress | 20 |
-| Deferred | 15 |
+| In progress | 24 |
+| Deferred | 11 |
 | Deprecated | 14 |
 | Not progress | 0 |
 

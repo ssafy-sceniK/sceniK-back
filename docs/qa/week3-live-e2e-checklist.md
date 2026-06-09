@@ -1,6 +1,6 @@
 # Week 3 Live E2E 수동 QA 체크리스트
 
-생성일: 2026-06-08
+생성일: 2026-06-09
 
 ## 목적
 
@@ -73,10 +73,18 @@ REST Client에서 위 파일을 열고 1번부터 순서대로 실행합니다.
 | 21 | post create | 200, `postId` 반환 |
 | 22 | comment create | 200, `commentId` 반환 |
 | 23 | notifications | 200, NotificationDto 배열과 `X-Unread-Count` |
-| 24 | review list | 200, ReviewDto 배열 |
-| 25 | review create | 200, `reviewId`, `rating`, `content` 반환 |
-| 26 | invalid visit status | 400, 방문 상태 오류 메시지 |
-| 27 | unauthorized users/me | 401, 로그인 필요 메시지 |
+| 24 | comment reply create | 200, `parentCommentId`가 있는 CommentDto 반환 |
+| 25 | review list | 200, ReviewDto 배열 |
+| 26 | review create | 200, `reviewId`, `rating`, `content` 반환 |
+| 27 | my reviews | 200, 내가 작성한 ReviewDto 배열 |
+| 28 | review update | 200, 수정된 ReviewDto 반환 |
+| 29 | review delete | 204 |
+| 30 | follow | 200, `followedByMe: true` |
+| 31 | my following | 200, FollowUserDto 배열 |
+| 32 | target followers | 200, FollowUserDto 배열 |
+| 33 | unfollow | 200, `followedByMe: false` |
+| 34 | invalid visit status | 400, 방문 상태 오류 메시지 |
+| 35 | unauthorized users/me | 401, 로그인 필요 메시지 |
 
 ## 실패 시 기록할 내용
 
@@ -105,13 +113,14 @@ Week 3 live E2E를 완료로 판단하려면 다음이 모두 통과해야 합�
 - AI route generation
 - route save/my routes/route detail
 - 게시글 작성
-- 댓글 작성
+- 댓글 작성/답글 작성
 - 알림 목록
-- 리뷰 목록/작성
+- 리뷰 목록/작성/수정/삭제/내 리뷰 목록
+- 팔로우/언팔로우/팔로워/팔로잉 목록
 
 ## 현재 자동화 상태
 
-2026-06-08 기준 자동 QA:
+2026-06-09 기준 자동 QA:
 - Backend build: PASS
 - Frontend build/lint/smoke: PASS
 - AI pytest: PASS

@@ -1,6 +1,6 @@
 # Notion API 테이블 업데이트 가이드
 
-생성일: 2026-06-08
+생성일: 2026-06-09
 
 이 문서는 현재 백엔드/프론트 구현과 [scenik-api-inventory.md](./scenik-api-inventory.md)를 기준으로 Notion API 테이블을 최종 정리하기 위한 안내입니다. Notion 테이블의 대상 카테고리는 `Auth`, `User`, `Content`, `Place`, `AI`, `Route`, `Community`, `Notification`, `Admin`입니다.
 
@@ -9,8 +9,8 @@
 | 상태 | 개수 | 의미 |
 | --- | ---: | --- |
 | Done | 49 | 백엔드 구현이 있고 프론트 연결 또는 백엔드 전용 설계가 확인되었으며 build/smoke/static QA 근거가 있습니다. |
-| In progress | 20 | 백엔드는 있으나 UI가 불완전하거나 live QA가 필요합니다. Admin 백엔드 전용 endpoint도 여기에 둡니다. |
-| Deferred | 15 | Week 3 MVP 범위 밖으로 명시적으로 보류한 항목입니다. |
+| In progress | 24 | 백엔드는 있으나 UI가 불완전하거나 live QA가 필요합니다. Admin 백엔드 전용 endpoint와 follow live QA 전 항목도 여기에 둡니다. |
+| Deferred | 11 | Week 3 MVP 범위 밖으로 명시적으로 보류한 항목입니다. |
 | Deprecated | 14 | 구버전 경로이며 현재 canonical endpoint로 교체해야 합니다. |
 | Not progress | 0 | 현재 확인된 Notion 대상 행 중 Not progress로 유지할 항목은 없습니다. |
 
@@ -31,7 +31,8 @@
 
 | 카테고리 | 행 | 사유 |
 | --- | --- | --- |
-| User | 내 리뷰 목록 | 백엔드와 API adapter는 있으나 별도 마이리뷰 화면이 없습니다. |
+| User | 내 리뷰 목록 | 백엔드와 마이페이지 리뷰 목록 UI는 연결되었으나 live QA가 필요합니다. |
+| User | 팔로우, 언팔로우, 팔로워 목록, 팔로잉 목록 | 백엔드와 프론트 최소 UI는 연결되었으나 두 사용자 계정 기반 live QA가 필요합니다. |
 | Place | 장소 리뷰 목록, 장소 리뷰 작성 | 장소 상세 UI 연결은 있으나 live QA가 필요합니다. |
 | Place | 장소 리뷰 수정, 장소 리뷰 삭제 | 장소 상세 수정/삭제 UI는 연결되었으나 live QA가 필요합니다. |
 | Place | 지도 주소 검색, 지도 역지오코딩, 지도 로컬 검색 | 백엔드 fallback은 있으나 외부 map provider live QA가 필요합니다. |
@@ -44,7 +45,6 @@
 | 카테고리 | 행 | 사유 |
 | --- | --- | --- |
 | Auth | 소셜 로그인 | Week 3 MVP는 이메일/비밀번호 인증 기준입니다. |
-| User | 사용자 팔로우, 사용자 언팔로우, 팔로워 목록, 팔로잉 목록 | 소셜 관계 기능은 Week 3 범위 밖입니다. |
 | AI | OpenAI/RAG 경로 품질 개선, 임베딩 전체 재생성, 장소 임베딩 갱신 | 실제 OpenAI/RAG/ChromaDB production 통합은 Week 4 범위입니다. |
 | Route | 경로 공개 공유 | 공개 공유 제품 플로우가 아직 완성되지 않았습니다. |
 | Community | 댓글 신고 | 현재 backend endpoint가 없으며 Week 3 MVP 범위 밖입니다. |
@@ -97,8 +97,8 @@
 1. [notion-api-status-update.csv](./notion-api-status-update.csv)를 Notion API 테이블에 import하거나 기존 테이블과 대조합니다.
 2. `URL`이 singular `like` 또는 `report`인 행은 plural canonical endpoint로 교체합니다.
 3. `/api/courses`, `/api/users/me/courses`, `/api/ai-routes`, `/api/notifications/read-all` 행은 `Deprecated`로 변경합니다.
-4. review edit/delete, comment edit/delete, map provider, route place edit, admin endpoint는 live QA 또는 admin UI가 완료될 때까지 `In progress`로 둡니다.
-5. social login, follow/following, notification settings, public route sharing, real RAG/OpenAI/ChromaDB 항목은 `Deferred`로 둡니다.
+4. review edit/delete, comment edit/delete/reply, follow/following, map provider, route place edit, admin endpoint는 live QA 또는 admin UI가 완료될 때까지 `In progress`로 둡니다.
+5. social login, notification settings, public route sharing, real RAG/OpenAI/ChromaDB 항목은 `Deferred`로 둡니다.
 6. 완료된 핵심 Week 3 행은 `Done`으로 변경합니다.
 
 ## QA 확인 결과

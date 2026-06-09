@@ -1,6 +1,6 @@
 # AI Prompt / Context 설계 문서
 
-생성일: 2026-06-08
+생성일: 2026-06-09
 
 이 문서는 루브릭 #13 생성형 AI 활용 기능의 프롬프트/컨텍스트 설계를 설명합니다. Week 3는 Spring Boot의 deterministic DB-backed route generation을 사용하며, Week 4에서 FastAPI, ChromaDB, embedding, RAG, OpenAI를 붙여 품질을 개선합니다.
 
@@ -11,6 +11,7 @@
 - Spring Boot는 MySQL에 저장된 검증 장소 후보만 사용합니다.
 - 현재는 OpenAI 호출 없이 deterministic ordering과 조건 기반 후보 선택으로 route를 생성합니다.
 - 생성 결과는 `POST /api/routes`로 저장할 수 있습니다.
+- Frontend는 조건 입력, 로딩, 결과 화면에서 AI가 참고하는 입력 조건과 검증 장소 기반 추천 근거를 사용자에게 표시합니다.
 
 ## Prompt Input Fields
 
@@ -25,6 +26,14 @@
 | `style` | 여행 스타일/테마 |
 | `budgetMin`, `budgetMax` | 예산 범위 |
 | `candidatePlaces` | backend DB에서 검증한 장소 후보 |
+
+## Frontend 표시 컨텍스트
+
+| 화면 | 표시 내용 |
+| --- | --- |
+| `CourseConditionsView.vue` | 선택 콘텐츠, 지역, 여행 기간, 이동 수단, 예산/테마 |
+| `AiLoadingView.vue` | 지역, 일수, 이동, 테마, 예산 |
+| `AiResultView.vue` | 검증된 장소 데이터 기반 추천, 추천 이유, 예상 체류 시간, 이동 팁 |
 
 ## Expected JSON Output
 

@@ -1,6 +1,6 @@
 # sceniK API 상태 보고서
 
-생성일: 2026-06-08
+생성일: 2026-06-09
 
 이 문서는 Week 3 마감 기준 API 구현 상태, QA 근거, Notion 업데이트 방향을 발표/제출용으로 정리한 문서입니다. 상세 Notion 반영 표는 [notion-api-status-update.csv](./notion-api-status-update.csv)를 기준으로 합니다.
 
@@ -9,8 +9,8 @@
 | 구분 | 완료율 | 근거 |
 | --- | ---: | --- |
 | Week 2 | 95% | 콘텐츠/장소/탐색/검색/상세 핵심 흐름은 백엔드와 프론트 연결이 완료되었습니다. 외부 map provider live QA는 남아 있습니다. |
-| Week 3 | 90% | 인증, 마이페이지, 좋아요, 방문 상태, AI 경로 생성, 경로 저장, 커뮤니티, 알림 주요 API가 구현되었고 build/smoke/AI pytest가 통과했습니다. 실제 live E2E는 수동 HTTP 파일로 준비되어 있으며 review 수정/삭제 UI와 map live QA는 부분 완료입니다. |
-| Week 4 준비도 | 55% | `sceniK-ai` FastAPI skeleton, venv, pytest, readiness 문서, backend-FastAPI 계약 초안이 준비되었습니다. ChromaDB, 실제 embedding, RAG, OpenAI orchestration, Spring Boot production 연동은 아직 구현 전입니다. |
+| Week 3 | 93% | 인증, 마이페이지, 좋아요, 방문 상태, AI 경로 생성, 경로 저장, 커뮤니티, 알림, 리뷰, 팔로우 최소 API가 구현되었습니다. 실제 live E2E와 map provider 검증은 수동 QA가 필요합니다. |
+| Week 4 준비도 | 58% | `sceniK-ai` FastAPI skeleton, pytest, readiness 문서, backend-FastAPI 계약 초안이 준비되었습니다. ChromaDB, 실제 embedding, RAG, OpenAI orchestration, Spring Boot production 연동은 아직 구현 전입니다. |
 
 ## Week 3 완료 감사
 
@@ -35,6 +35,7 @@
 | AI route generation | Done | `POST /api/ai/routes` 구현, 검증 장소 기반 deterministic 경로 생성 |
 | route save | Done | `POST /api/routes` 구현 및 저장 플로우 연결 |
 | saved routes | Done | `GET /api/users/me/routes`, route detail/manage 흐름 구현 |
+| follow/following | In progress | `POST/DELETE /api/users/{userId}/follow`, followers/following 목록 구현 및 프론트 진입점 연결, live QA 필요 |
 
 ## 새로 추가된 Review API 상태
 
@@ -44,7 +45,17 @@
 | `POST /api/places/{placeId}/reviews` | In progress | 장소 상세에서 작성 UI가 있으나 live QA가 필요합니다. |
 | `PATCH /api/places/{placeId}/reviews/{reviewId}` | In progress | 백엔드와 장소 상세 수정 UI는 연결되었으나 live QA가 필요합니다. |
 | `DELETE /api/places/{placeId}/reviews/{reviewId}` | In progress | 백엔드와 장소 상세 삭제 UI는 연결되었으나 live QA가 필요합니다. |
-| `GET /api/users/me/reviews` | In progress | 백엔드와 API adapter는 있으나 별도 마이리뷰 화면은 없습니다. |
+| `GET /api/users/me/reviews` | In progress | 백엔드와 마이페이지 리뷰 목록 UI는 연결되었으나 live QA가 필요합니다. |
+
+## 새로 추가된 Follow API 상태
+
+| API | 상태 | 설명 |
+| --- | --- | --- |
+| `POST /api/users/{userId}/follow` | In progress | backend와 커뮤니티 작성자 팔로우 버튼은 연결되었으나 live QA가 필요합니다. |
+| `DELETE /api/users/{userId}/follow` | In progress | backend와 언팔로우 UI는 연결되었으나 live QA가 필요합니다. |
+| `GET /api/users/{userId}/followers` | In progress | follower 목록 API와 마이페이지 목록 UI는 연결되었으나 live QA가 필요합니다. |
+| `GET /api/users/{userId}/following` | In progress | following 목록 API가 구현되었습니다. |
+| `GET /api/users/me/following` | In progress | 내 팔로잉 목록 단축 endpoint와 프론트 상태 복원이 연결되었습니다. |
 
 ## Partial / In progress로 남는 항목
 
@@ -53,7 +64,8 @@
 | Place | map provider live QA | `/api/maps/geocode`, `/api/maps/reverse-geocode`, `/api/maps/local-search`는 fallback이 있으나 외부 provider 환경 검증이 필요합니다. |
 | Place | review edit/delete UI | 장소 상세 수정/삭제 UI는 연결되었으나 live QA가 필요합니다. |
 | Route | route place 편집 | add/update/delete/reorder 백엔드는 있으나 편집 UI live QA가 필요합니다. |
-| Community | comment update/delete | 댓글 작성자 수정/삭제 UI는 연결되었으나 live QA가 필요합니다. |
+| Community | comment update/delete/reply | 댓글 작성자 수정/삭제와 1단계 답글 UI는 연결되었으나 live QA가 필요합니다. |
+| User | follow/following | 최소 vertical slice는 구현되었으나 두 사용자 계정 기반 live QA가 필요합니다. |
 | Admin | admin content/place endpoint | 백엔드 전용 endpoint는 있으나 admin UI가 없습니다. |
 
 ## Deferred 항목
@@ -61,7 +73,6 @@
 | 항목 | 상태 | 결정 |
 | --- | --- | --- |
 | Social login | Deferred | Week 3 MVP는 이메일/비밀번호 인증 기준입니다. |
-| Follow/following | Deferred | 소셜 관계 기능은 Week 3 범위 밖입니다. |
 | Notification settings | Deferred | Week 3 알림 범위는 목록/읽음 처리입니다. |
 | Route public sharing | Deferred | 공개 공유 제품 플로우가 아직 완성되지 않았습니다. |
 | Comment reports | Deferred | 댓글 신고는 현재 구현되지 않았으며 Week 3 MVP 범위 밖입니다. |
@@ -127,8 +138,8 @@
 | 상태 | 개수 |
 | --- | ---: |
 | Done | 49 |
-| In progress | 20 |
-| Deferred | 15 |
+| In progress | 24 |
+| Deferred | 11 |
 | Deprecated | 14 |
 | Missing / Not progress | 0 |
 
@@ -142,7 +153,7 @@
 | Critical | RAG가 검증된 DB 장소만 반환하도록 guardrail 구현 |
 | Recommended | AI 품질 평가 fixture 추가 |
 | Recommended | map provider live QA 수행 |
-| Optional | review edit/delete live QA와 my-reviews page 추가 |
+| Optional | review edit/delete, follow/following live QA 추가 |
 
 ## Commit 판단
 

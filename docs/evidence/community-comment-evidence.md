@@ -1,6 +1,6 @@
 # 커뮤니티 게시글·댓글 기능 증거
 
-생성일: 2026-06-08
+생성일: 2026-06-09
 
 루브릭 #10 게시판 CRUD와 #11 댓글 CRUD 항목의 구현 근거를 정리합니다.
 
@@ -22,6 +22,7 @@
 | --- | --- | --- | --- |
 | 댓글 목록 | `GET /api/posts/{postId}/comments` | `CommunityController.comments` | `CommunityView.vue`, `communityApi.getComments` |
 | 댓글 작성 | `POST /api/posts/{postId}/comments` | `CommunityController.createComment` | `CommunityView.vue`, `uiStore.addComment` |
+| 답글 작성 | `POST /api/posts/{postId}/comments` + `parentCommentId` | `CommunityService.createComment`, `CommentRequest.parentCommentId` | `CommunityView.vue` 답글 UI |
 | 댓글 수정 | `PATCH /api/posts/{postId}/comments/{commentId}` | `CommunityController.updateComment`, owner check | `CommunityView.vue`, `uiStore.editComment` |
 | 댓글 삭제 | `DELETE /api/posts/{postId}/comments/{commentId}` | `CommunityController.deleteComment`, owner check | `CommunityView.vue`, `uiStore.removeComment` |
 
@@ -38,9 +39,9 @@
 | `GET /api/posts` | `page`, `size`, `sort=latest/popular`, `keyword`, `region` |
 | `GET /api/posts/{postId}/comments` | `page`, `size` |
 
-## Reply Support
+## 답글 지원
 
-`CommentRequest`에는 `parentCommentId`가 있으나 현재 backend는 nested replies를 제한하고 `Nested replies are not supported.`를 한국어 오류로 변환합니다. 대댓글 UI는 이번 pass에서 과도한 UI 확장을 피하기 위해 `In progress`로 둡니다.
+`CommentRequest.parentCommentId`를 사용해 1단계 답글을 작성할 수 있습니다. backend는 답글의 답글을 막기 위해 `Nested replies are not supported.`를 반환하며, frontend는 최상위 댓글에만 `답글` 버튼을 표시합니다. live QA 전까지 댓글 수정/삭제/답글은 `In progress`로 유지합니다.
 
 ## Manual QA Steps
 
@@ -50,5 +51,7 @@
 4. 내 댓글의 수정 버튼을 눌러 내용을 변경합니다.
 5. 빈 댓글 저장 시 `댓글 내용을 입력해 주세요.` 메시지를 확인합니다.
 6. 내 댓글을 삭제하고 목록에서 제거되는지 확인합니다.
-7. 다른 사용자의 댓글에는 수정/삭제 버튼이 보이지 않는지 확인합니다.
-8. 게시글 목록에서 `sort=popular`, `keyword`, `region` query를 수동 API로 확인합니다.
+7. 최상위 댓글의 `답글` 버튼을 눌러 1단계 답글을 등록합니다.
+8. 답글에는 다시 `답글` 버튼이 보이지 않는지 확인합니다.
+9. 다른 사용자의 댓글에는 수정/삭제 버튼이 보이지 않는지 확인합니다.
+10. 게시글 목록에서 `sort=popular`, `keyword`, `region` query를 수동 API로 확인합니다.

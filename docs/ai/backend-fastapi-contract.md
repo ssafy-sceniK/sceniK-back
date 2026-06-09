@@ -1,6 +1,6 @@
 # Spring Boot - FastAPI 내부 계약
 
-생성일: 2026-06-08
+생성일: 2026-06-09
 
 이 문서는 Week 4에서 Spring Boot backend가 내부 FastAPI AI 서버를 호출할 때 사용할 계약 초안입니다. public API는 계속 Spring Boot가 소유하며, frontend는 `sceniK-ai`를 직접 호출하지 않습니다.
 
@@ -13,6 +13,7 @@
 | FastAPI는 내부 서비스 | `sceniK-ai`는 backend 내부 호출 대상이며 public API가 아닙니다. |
 | fallback 필수 | FastAPI/OpenAI/RAG가 실패해도 기존 deterministic DB route generation으로 대체합니다. |
 | secret commit 금지 | `Internal-Api-Key`, `OPENAI_API_KEY`는 환경 변수/secret으로만 주입합니다. |
+| frontend 설명 유지 | frontend는 AI 참고 조건과 검증 장소 기반 추천 근거만 표시하고 내부 prompt나 secret은 노출하지 않습니다. |
 
 ## Frontend에 노출되는 Spring Boot endpoint
 

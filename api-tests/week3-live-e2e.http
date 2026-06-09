@@ -10,6 +10,7 @@
 @postId = replace-with-created-post-id
 @commentId = replace-with-created-comment-id
 @reviewId = replace-with-created-review-id
+@targetUserId = replace-with-other-user-id
 
 # 사용 방법
 # 1. backend를 수동으로 실행합니다.
@@ -24,6 +25,7 @@
 #    {{login.response.body.accessToken}} 참조를 그대로 사용합니다.
 # 4. saveRoute/createPost/createComment/createReview 응답의 ID를 각각
 #    @routeId, @postId, @commentId, @reviewId에 복사해 상세/수정/삭제를 검증합니다.
+# 5. 팔로우 성공 검증은 @targetUserId에 다른 사용자의 userId를 넣고 실행합니다.
 
 ### 1. 회원가입
 # 예상 상태: 200 또는 201
@@ -272,13 +274,26 @@ Content-Type: application/json
 GET {{api}}/notifications?page=0&size=20&sort=latest
 Authorization: Bearer {{login.response.body.accessToken}}
 
-### 24. 리뷰 목록
+### 24. 댓글 답글 작성
+# createComment 응답의 commentId를 @commentId에 복사한 뒤 실행합니다.
+# 예상 상태: 200
+# 예상 응답: { commentId, parentCommentId, content, userId }
+POST {{api}}/posts/{{postId}}/comments
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "content": "Week 3 E2E 1단계 답글 작성 검증입니다.",
+  "parentCommentId": "{{commentId}}"
+}
+
+### 25. 리뷰 목록
 # 예상 상태: 200
 # 예상 응답: ReviewDto 배열, header X-Total-Count
 GET {{api}}/places/{{placeId}}/reviews?page=0&size=20&sort=latest
 Authorization: Bearer {{login.response.body.accessToken}}
 
-### 25. 리뷰 작성
+### 26. 리뷰 작성
 # 예상 상태: 200
 # 예상 응답: { reviewId, placeId, userId, nickname, rating, content }
 # 예상 오류: 같은 사용자가 같은 장소에 이미 작성했으면 409, message는 "이미 이 장소에 리뷰를 작성했습니다."
@@ -292,7 +307,57 @@ Content-Type: application/json
   "content": "촬영지 분위기와 이동 동선이 좋아서 다시 방문하고 싶은 장소입니다."
 }
 
-### 26. 잘못된 방문 상태 오류 확인
+### 27. 내 리뷰 목록
+# createReview 후 실행합니다.
+# 예상 상태: 200
+# 예상 응답: ReviewDto 배열
+GET {{api}}/users/me/reviews?page=0&size=20
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 28. 리뷰 수정
+# createReview 응답의 reviewId를 @reviewId에 복사한 뒤 실행합니다.
+# 예상 상태: 200
+# 예상 응답: 수정된 ReviewDto
+PATCH {{api}}/places/{{placeId}}/reviews/{{reviewId}}
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "rating": 5,
+  "content": "수정된 Week 3 E2E 리뷰입니다."
+}
+
+### 29. 리뷰 삭제
+# 예상 상태: 204
+DELETE {{api}}/places/{{placeId}}/reviews/{{reviewId}}
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 30. 팔로우
+# @targetUserId에 다른 사용자의 userId를 넣고 실행합니다.
+# 예상 상태: 200
+# 예상 응답: { userId, followedByMe: true, followerCount, followingCount }
+POST {{api}}/users/{{targetUserId}}/follow
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 31. 내 팔로잉 목록
+# 예상 상태: 200
+# 예상 응답: FollowUserDto 배열
+GET {{api}}/users/me/following
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 32. 대상 사용자 팔로워 목록
+# 예상 상태: 200
+# 예상 응답: FollowUserDto 배열
+GET {{api}}/users/{{targetUserId}}/followers
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 33. 언팔로우
+# 예상 상태: 200
+# 예상 응답: { userId, followedByMe: false, followerCount, followingCount }
+DELETE {{api}}/users/{{targetUserId}}/follow
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 34. 잘못된 방문 상태 오류 확인
 # 예상 상태: 400
 # 예상 응답: { code: "INVALID_REQUEST", message: "방문 상태 값이 올바르지 않습니다." }
 PUT {{api}}/places/{{placeId}}/visit-status
@@ -303,7 +368,7 @@ Content-Type: application/json
   "status": "INVALID_STATUS"
 }
 
-### 27. 인증 누락 오류 확인
+### 35. 인증 누락 오류 확인
 # 예상 상태: 401
 # 예상 응답: { code: "UNAUTHORIZED", message: "로그인이 필요합니다." }
 GET {{api}}/users/me

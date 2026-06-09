@@ -25,6 +25,8 @@
     <result property="parentCommentId" column="parent_comment_id" />
     <result property="content" column="content" />
     <result property="status" column="status" />
+    <result property="likeCount" column="like_count" />
+    <result property="liked" column="is_liked" />
     <result property="createdAt" column="created_at" />
     <result property="updatedAt" column="updated_at" />
   </resultMap>
@@ -104,19 +106,30 @@
     INSERT IGNORE INTO post_tags (post_id, tag) VALUES (#{postId}, #{tag})
   </insert>
 
-  <select id="findCommentsByPostId" resultMap="CommunityCommentResultMap">
-    SELECT c.*, u.nickname AS user_nickname
+  <sql id="CommentSelect">
+    SELECT c.*,
+           u.nickname AS user_nickname,
+           COALESCE((SELECT COUNT(*) FROM comment_likes cl WHERE cl.comment_id = c.comment_id), 0) AS like_count,
+           CASE
+             WHEN #{userId} IS NULL THEN FALSE
+             ELSE EXISTS(
+               SELECT 1 FROM comment_likes cl2
+               WHERE cl2.comment_id = c.comment_id AND cl2.user_id = #{userId}
+             )
+           END AS is_liked
     FROM comments c
     JOIN users u ON u.user_id = c.user_id
+  </sql>
+
+  <select id="findCommentsByPostId" resultMap="CommunityCommentResultMap">
+    <include refid="CommentSelect" />
     WHERE c.post_id = #{postId}
       AND (c.status IS NULL OR c.status != 'DELETED')
     ORDER BY c.created_at ASC
   </select>
 
   <select id="findCommentById" resultMap="CommunityCommentResultMap">
-    SELECT c.*, u.nickname AS user_nickname
-    FROM comments c
-    JOIN users u ON u.user_id = c.user_id
+    <include refid="CommentSelect" />
     WHERE c.comment_id = #{commentId}
       AND (c.status IS NULL OR c.status != 'DELETED')
   </select>
@@ -142,6 +155,14 @@
 
   <delete id="deletePostLike">
     DELETE FROM post_likes WHERE user_id = #{userId} AND post_id = #{postId}
+  </delete>
+
+  <insert id="insertCommentLike">
+    INSERT IGNORE INTO comment_likes (user_id, comment_id) VALUES (#{userId}, #{commentId})
+  </insert>
+
+  <delete id="deleteCommentLike">
+    DELETE FROM comment_likes WHERE user_id = #{userId} AND comment_id = #{commentId}
   </delete>
 
   <select id="existsReport" resultType="int">

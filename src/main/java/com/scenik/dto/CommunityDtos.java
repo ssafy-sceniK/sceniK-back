@@ -70,6 +70,10 @@ public final class CommunityDtos {
             String authorNickname,
             String content,
             String text,
+            Integer likeCount,
+            Integer likes,
+            Boolean likedByMe,
+            Boolean isLiked,
             String parentCommentId,
             LocalDateTime createdAt,
             LocalDateTime updatedAt

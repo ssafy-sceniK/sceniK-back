@@ -95,11 +95,12 @@ public class CommunityController {
 
     @GetMapping("/posts/{postId}/comments")
     public ResponseEntity<List<CommentDto>> comments(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
             @PathVariable("postId") String postId,
             @RequestParam(value = "page", required = false) Integer page,
             @RequestParam(value = "size", required = false) Integer size
     ) {
-        List<CommentDto> comments = communityService.listComments(postId);
+        List<CommentDto> comments = communityService.listComments(authorization, postId);
         List<CommentDto> paged = ListQuerySupport.paginate(comments, page, size);
         return ResponseEntity.ok()
                 .header("X-Total-Count", String.valueOf(comments.size()))
@@ -133,6 +134,22 @@ public class CommunityController {
     ) {
         communityService.deleteComment(authService.requireUser(authorization), postId, commentId);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/posts/comments/{commentId}/likes")
+    public CommentDto likeComment(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable("commentId") String commentId
+    ) {
+        return communityService.likeComment(authService.requireUser(authorization), commentId);
+    }
+
+    @DeleteMapping("/posts/comments/{commentId}/likes")
+    public CommentDto unlikeComment(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable("commentId") String commentId
+    ) {
+        return communityService.unlikeComment(authService.requireUser(authorization), commentId);
     }
 
     @PostMapping("/posts/{postId}/likes")

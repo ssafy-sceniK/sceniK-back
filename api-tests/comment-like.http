@@ -1,0 +1,39 @@
+@baseUrl = http://localhost:8080
+@api = {{baseUrl}}/api
+@accessToken = replace-with-login-access-token
+@postId = replace-with-post-id
+@commentId = replace-with-comment-id
+
+# 커뮤니티 댓글 좋아요 전용 수동 검증
+# 1. backend를 수동으로 실행합니다.
+# 2. 로그인 후 accessToken을 @accessToken에 복사합니다.
+# 3. 게시글과 댓글을 먼저 생성하고 postId/commentId를 각각 복사합니다.
+# 4. 아래 요청을 순서대로 실행해 likeCount와 likedByMe 변화를 확인합니다.
+
+### 댓글 목록: likeCount/likedByMe 확인
+GET {{api}}/posts/{{postId}}/comments
+Authorization: Bearer {{accessToken}}
+
+### 댓글 좋아요
+# 예상 응답: { commentId, likeCount: 1 이상, likedByMe: true, isLiked: true }
+POST {{api}}/posts/comments/{{commentId}}/likes
+Authorization: Bearer {{accessToken}}
+
+### 댓글 좋아요 중복 요청
+# 예상 응답: likeCount가 추가로 증가하지 않음
+POST {{api}}/posts/comments/{{commentId}}/likes
+Authorization: Bearer {{accessToken}}
+
+### 댓글 좋아요 취소
+# 예상 응답: { commentId, likedByMe: false, isLiked: false }
+DELETE {{api}}/posts/comments/{{commentId}}/likes
+Authorization: Bearer {{accessToken}}
+
+### 댓글 좋아요 취소 중복 요청
+# 예상 응답: likeCount가 0 미만으로 내려가지 않음
+DELETE {{api}}/posts/comments/{{commentId}}/likes
+Authorization: Bearer {{accessToken}}
+
+### 비로그인 좋아요 차단
+# 예상 상태: 401
+POST {{api}}/posts/comments/{{commentId}}/likes

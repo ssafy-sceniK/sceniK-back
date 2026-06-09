@@ -38,18 +38,18 @@ public class CommunityService {
 
     public List<PostDto> listPosts(String authorization) {
         Long userId = authService.optionalUserId(authorization);
-        return communityMapper.findPosts(userId).stream().map(post -> toPostDto(post, false)).toList();
+        return communityMapper.findPosts(userId).stream().map(post -> toPostDto(post, false, userId)).toList();
     }
 
     public List<PostDto> listMyPosts(User user) {
         return communityMapper.findPostsByAuthorId(user.getUserId(), user.getUserId()).stream()
-                .map(post -> toPostDto(post, false))
+                .map(post -> toPostDto(post, false, user.getUserId()))
                 .toList();
     }
 
     public PostDto getPost(String authorization, String postId) {
         Long userId = authService.optionalUserId(authorization);
-        return toPostDto(requirePost(postId, userId), true);
+        return toPostDto(requirePost(postId, userId), true, userId);
     }
 
     @Transactional
@@ -67,7 +67,7 @@ public class CommunityService {
         post.setStatus("ACTIVE");
         communityMapper.insertPost(post);
         replaceTags(post.getPostId(), request.tags());
-        return toPostDto(requirePost(post.getPostId(), user.getUserId()), true);
+        return toPostDto(requirePost(post.getPostId(), user.getUserId()), true, user.getUserId());
     }
 
     @Transactional
@@ -88,7 +88,7 @@ public class CommunityService {
         if (request.tags() != null) {
             replaceTags(postId, request.tags());
         }
-        return toPostDto(requirePost(postId, user.getUserId()), true);
+        return toPostDto(requirePost(postId, user.getUserId()), true, user.getUserId());
     }
 
     @Transactional
@@ -97,9 +97,10 @@ public class CommunityService {
         communityMapper.softDeletePost(postId);
     }
 
-    public List<CommentDto> listComments(String postId) {
-        requirePost(postId, null);
-        return communityMapper.findCommentsByPostId(postId).stream().map(this::toCommentDto).toList();
+    public List<CommentDto> listComments(String authorization, String postId) {
+        Long userId = authService.optionalUserId(authorization);
+        requirePost(postId, userId);
+        return communityMapper.findCommentsByPostId(postId, userId).stream().map(this::toCommentDto).toList();
     }
 
     @Transactional
@@ -110,7 +111,7 @@ public class CommunityService {
         }
         String parentCommentId = trimToNull(request.parentCommentId());
         if (parentCommentId != null) {
-            CommunityComment parent = requireComment(postId, parentCommentId);
+            CommunityComment parent = requireComment(postId, parentCommentId, user.getUserId());
             if (parent.getParentCommentId() != null && !parent.getParentCommentId().isBlank()) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Nested replies are not supported.");
             }
@@ -124,7 +125,7 @@ public class CommunityService {
         comment.setStatus("ACTIVE");
         communityMapper.insertComment(comment);
         notifyPostOwner(post, user, "새 댓글", user.getNickname() + "님이 게시글에 댓글을 남겼습니다.");
-        return toCommentDto(requireComment(postId, comment.getCommentId()));
+        return toCommentDto(requireComment(postId, comment.getCommentId(), user.getUserId()));
     }
 
     @Transactional
@@ -135,7 +136,7 @@ public class CommunityService {
         }
         existing.setContent(requireText(firstText(request.content(), request.text()), "content is required."));
         communityMapper.updateComment(existing);
-        return toCommentDto(requireComment(postId, commentId));
+        return toCommentDto(requireComment(postId, commentId, user.getUserId()));
     }
 
     @Transactional
@@ -145,18 +146,32 @@ public class CommunityService {
     }
 
     @Transactional
+    public CommentDto likeComment(User user, String commentId) {
+        CommunityComment comment = requireCommentById(commentId, user.getUserId());
+        communityMapper.insertCommentLike(user.getUserId(), commentId);
+        return toCommentDto(requireComment(comment.getPostId(), commentId, user.getUserId()));
+    }
+
+    @Transactional
+    public CommentDto unlikeComment(User user, String commentId) {
+        CommunityComment comment = requireCommentById(commentId, user.getUserId());
+        communityMapper.deleteCommentLike(user.getUserId(), commentId);
+        return toCommentDto(requireComment(comment.getPostId(), commentId, user.getUserId()));
+    }
+
+    @Transactional
     public PostDto likePost(User user, String postId) {
         CommunityPost post = requirePost(postId, user.getUserId());
         communityMapper.insertPostLike(user.getUserId(), postId);
         notifyPostOwner(post, user, "새 좋아요", user.getNickname() + "님이 게시글을 좋아합니다.");
-        return toPostDto(requirePost(postId, user.getUserId()), true);
+        return toPostDto(requirePost(postId, user.getUserId()), true, user.getUserId());
     }
 
     @Transactional
     public PostDto unlikePost(User user, String postId) {
         requirePost(postId, user.getUserId());
         communityMapper.deletePostLike(user.getUserId(), postId);
-        return toPostDto(requirePost(postId, user.getUserId()), true);
+        return toPostDto(requirePost(postId, user.getUserId()), true, user.getUserId());
     }
 
     @Transactional
@@ -232,8 +247,16 @@ public class CommunityService {
         return post;
     }
 
-    private CommunityComment requireComment(String postId, String commentId) {
-        CommunityComment comment = communityMapper.findCommentById(commentId);
+    private CommunityComment requireCommentById(String commentId, Long userId) {
+        CommunityComment comment = communityMapper.findCommentById(commentId, userId);
+        if (comment == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment was not found.");
+        }
+        return comment;
+    }
+
+    private CommunityComment requireComment(String postId, String commentId, Long userId) {
+        CommunityComment comment = requireCommentById(commentId, userId);
         if (comment == null || !postId.equals(comment.getPostId())) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment was not found.");
         }
@@ -241,7 +264,7 @@ public class CommunityService {
     }
 
     private CommunityComment requireOwnedComment(User user, String postId, String commentId) {
-        CommunityComment comment = requireComment(postId, commentId);
+        CommunityComment comment = requireComment(postId, commentId, user.getUserId());
         if (!comment.getUserId().equals(user.getUserId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Comment owner does not match.");
         }
@@ -283,10 +306,10 @@ public class CommunityService {
                 .forEach(tag -> communityMapper.insertTag(postId, tag));
     }
 
-    private PostDto toPostDto(CommunityPost post, boolean includeComments) {
+    private PostDto toPostDto(CommunityPost post, boolean includeComments, Long viewerUserId) {
         List<String> tags = communityMapper.findTagsByPostId(post.getPostId());
         List<CommentDto> comments = includeComments
-                ? communityMapper.findCommentsByPostId(post.getPostId()).stream().map(this::toCommentDto).toList()
+                ? communityMapper.findCommentsByPostId(post.getPostId(), viewerUserId).stream().map(this::toCommentDto).toList()
                 : List.of();
         Integer likeCount = post.getLikeCount() == null ? 0 : post.getLikeCount();
         String nickname = firstText(post.getUserNickname(), "sceniK user");
@@ -315,6 +338,8 @@ public class CommunityService {
 
     private CommentDto toCommentDto(CommunityComment comment) {
         String nickname = firstText(comment.getUserNickname(), "sceniK user");
+        Integer likeCount = comment.getLikeCount() == null ? 0 : comment.getLikeCount();
+        Boolean likedByMe = Boolean.TRUE.equals(comment.getLiked());
         return new CommentDto(
                 comment.getCommentId(),
                 comment.getCommentId(),
@@ -325,6 +350,10 @@ public class CommunityService {
                 nickname,
                 comment.getContent(),
                 comment.getContent(),
+                likeCount,
+                likeCount,
+                likedByMe,
+                likedByMe,
                 comment.getParentCommentId(),
                 comment.getCreatedAt(),
                 comment.getUpdatedAt()

@@ -20,14 +20,16 @@ public interface CommunityMapper {
     int deleteTagsByPostId(@Param("postId") String postId);
     int insertTag(@Param("postId") String postId, @Param("tag") String tag);
 
-    List<CommunityComment> findCommentsByPostId(@Param("postId") String postId);
-    CommunityComment findCommentById(@Param("commentId") String commentId);
+    List<CommunityComment> findCommentsByPostId(@Param("postId") String postId, @Param("userId") Long userId);
+    CommunityComment findCommentById(@Param("commentId") String commentId, @Param("userId") Long userId);
     int insertComment(CommunityComment comment);
     int updateComment(CommunityComment comment);
     int softDeleteComment(@Param("commentId") String commentId);
 
     int insertPostLike(@Param("userId") Long userId, @Param("postId") String postId);
     int deletePostLike(@Param("userId") Long userId, @Param("postId") String postId);
+    int insertCommentLike(@Param("userId") Long userId, @Param("commentId") String commentId);
+    int deleteCommentLike(@Param("userId") Long userId, @Param("commentId") String commentId);
 
     int existsReport(@Param("userId") Long userId, @Param("postId") String postId);
     int insertReport(@Param("reportId") String reportId, @Param("userId") Long userId, @Param("postId") String postId, @Param("reason") String reason);

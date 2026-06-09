@@ -235,6 +235,16 @@ CREATE TABLE IF NOT EXISTS post_likes (
   CONSTRAINT fk_post_likes_post FOREIGN KEY (post_id) REFERENCES community_posts(post_id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS comment_likes (
+  user_id BIGINT NOT NULL,
+  comment_id VARCHAR(64) NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, comment_id),
+  KEY idx_comment_likes_comment_id (comment_id),
+  CONSTRAINT fk_comment_likes_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+  CONSTRAINT fk_comment_likes_comment FOREIGN KEY (comment_id) REFERENCES comments(comment_id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS reports (
   report_id VARCHAR(64) PRIMARY KEY,
   user_id BIGINT NOT NULL,

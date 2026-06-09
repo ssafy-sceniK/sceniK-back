@@ -9,7 +9,7 @@
 | 구분 | 완료율 | 근거 |
 | --- | ---: | --- |
 | Week 2 | 95% | 콘텐츠/장소/탐색/검색/상세 핵심 흐름은 백엔드와 프론트 연결이 완료되었습니다. 외부 map provider live QA는 남아 있습니다. |
-| Week 3 | 93% | 인증, 마이페이지, 좋아요, 방문 상태, AI 경로 생성, 경로 저장, 커뮤니티, 알림, 리뷰, 팔로우 최소 API가 구현되었습니다. 실제 live E2E와 map provider 검증은 수동 QA가 필요합니다. |
+| Week 3 | 94% | 인증, 마이페이지, 좋아요, 방문 상태, AI 경로 생성, 경로 저장, 커뮤니티, 댓글 좋아요, 알림, 리뷰, 팔로우 최소 API가 구현되었습니다. 실제 live E2E와 map provider 검증은 수동 QA가 필요합니다. |
 | Week 4 준비도 | 58% | `sceniK-ai` FastAPI skeleton, pytest, readiness 문서, backend-FastAPI 계약 초안이 준비되었습니다. ChromaDB, 실제 embedding, RAG, OpenAI orchestration, Spring Boot production 연동은 아직 구현 전입니다. |
 
 ## Week 3 완료 감사
@@ -31,6 +31,7 @@
 | community list | Done | `GET /api/posts` 구현, 검색/지역/정렬/pagination 지원 |
 | post create | Done | `POST /api/posts` 및 프론트 작성 플로우 구현 |
 | comment create | Done | `POST /api/posts/{postId}/comments` 및 상세 화면 작성 플로우 구현 |
+| comment like | Done | `POST/DELETE /api/posts/comments/{commentId}/likes` 구현, `CommentDto.likeCount/likedByMe` 응답 및 프론트 pending UX 연결 |
 | notifications | Done | `GET /api/notifications`, `PATCH /api/notifications/read`, 단일 읽음 처리 구현 |
 | AI route generation | Done | `POST /api/ai/routes` 구현, 검증 장소 기반 deterministic 경로 생성 |
 | route save | Done | `POST /api/routes` 구현 및 저장 플로우 연결 |
@@ -57,6 +58,15 @@
 | `GET /api/users/{userId}/following` | In progress | following 목록 API가 구현되었습니다. |
 | `GET /api/users/me/following` | In progress | 내 팔로잉 목록 단축 endpoint와 프론트 상태 복원이 연결되었습니다. |
 
+## 새로 추가된 Comment Like API 상태
+
+| API | 상태 | 설명 |
+| --- | --- | --- |
+| `POST /api/posts/comments/{commentId}/likes` | Done | `comment_likes`에 `(user_id, comment_id)` 기준으로 저장하며 중복 요청은 `INSERT IGNORE`로 count를 손상하지 않습니다. |
+| `DELETE /api/posts/comments/{commentId}/likes` | Done | 좋아요가 없어도 삭제 요청은 idempotent하게 처리되며 최신 `CommentDto`를 반환합니다. |
+| `GET /api/posts/{postId}/comments` | Done | 댓글과 답글 응답에 `likeCount`, `likes`, `likedByMe`, `isLiked`를 포함합니다. |
+| `GET /api/posts/{postId}` | Done | 게시글 상세의 `comments` 배열에도 댓글 좋아요 상태를 포함합니다. |
+
 ## Partial / In progress로 남는 항목
 
 | 영역 | 항목 | 남은 이유 |
@@ -64,7 +74,7 @@
 | Place | map provider live QA | `/api/maps/geocode`, `/api/maps/reverse-geocode`, `/api/maps/local-search`는 fallback이 있으나 외부 provider 환경 검증이 필요합니다. |
 | Place | review edit/delete UI | 장소 상세 수정/삭제 UI는 연결되었으나 live QA가 필요합니다. |
 | Route | route place 편집 | add/update/delete/reorder 백엔드는 있으나 편집 UI live QA가 필요합니다. |
-| Community | comment update/delete/reply | 댓글 작성자 수정/삭제와 1단계 답글 UI는 연결되었으나 live QA가 필요합니다. |
+| Community | comment update/delete/reply/like | 댓글 작성자 수정/삭제, 1단계 답글, 댓글 좋아요 UI/API는 연결되었으나 live QA가 필요합니다. |
 | User | follow/following | 최소 vertical slice는 구현되었으나 두 사용자 계정 기반 live QA가 필요합니다. |
 | Admin | admin content/place endpoint | 백엔드 전용 endpoint는 있으나 admin UI가 없습니다. |
 
@@ -137,7 +147,7 @@
 
 | 상태 | 개수 |
 | --- | ---: |
-| Done | 49 |
+| Done | 50 |
 | In progress | 24 |
 | Deferred | 11 |
 | Deprecated | 14 |

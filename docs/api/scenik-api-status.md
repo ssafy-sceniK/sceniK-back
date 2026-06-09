@@ -9,7 +9,7 @@
 | 구분 | 완료율 | 근거 |
 | --- | ---: | --- |
 | Week 2 | 95% | 콘텐츠/장소/탐색/검색/상세 핵심 흐름은 백엔드와 프론트 연결이 완료되었습니다. 외부 map provider live QA는 남아 있습니다. |
-| Week 3 | 94% | 인증, 마이페이지, 좋아요, 방문 상태, AI 경로 생성, 경로 저장, 커뮤니티, 댓글 좋아요, 알림, 리뷰, 팔로우 최소 API가 구현되었습니다. 실제 live E2E와 map provider 검증은 수동 QA가 필요합니다. |
+| Week 3 | 95% | 인증, 이메일 중복 확인, 마이페이지, 좋아요, 방문 상태, AI 경로 생성, 경로 저장, 커뮤니티, 댓글 좋아요, 알림, 리뷰, 팔로우 최소 API가 구현되었습니다. 실제 live E2E와 map provider 검증은 수동 QA가 필요합니다. |
 | Week 4 준비도 | 58% | `sceniK-ai` FastAPI skeleton, pytest, readiness 문서, backend-FastAPI 계약 초안이 준비되었습니다. ChromaDB, 실제 embedding, RAG, OpenAI orchestration, Spring Boot production 연동은 아직 구현 전입니다. |
 
 ## Week 3 완료 감사
@@ -24,6 +24,7 @@
 | liked places page | Done | `GET /api/users/me/liked-places` 및 마이페이지 목록 연결 |
 | visit status page | Done | `GET /api/users/me/visit-status` 및 방문 예정/완료 목록 연결 |
 | mypage integration | Done | `/api/users/me`, 활동 요약, 이력, 좋아요, 방문 상태, 저장 경로, 내 게시글 연동 |
+| signup email duplicate check | Done | `GET /api/auth/check-email?email=` 구현 및 회원가입 화면 연결 |
 | content detail | Done | `GET /api/contents/{contentId}`, `GET /api/contents/{contentId}/places` 구현 |
 | place detail | Done | `GET /api/places/{placeId}`, 좋아요, 방문 상태, 리뷰 목록/작성 UI 연결 |
 | explore page | Done | 콘텐츠/장소 store가 백엔드 목록/검색 endpoint를 사용 |
@@ -37,6 +38,12 @@
 | route save | Done | `POST /api/routes` 구현 및 저장 플로우 연결 |
 | saved routes | Done | `GET /api/users/me/routes`, route detail/manage 흐름 구현 |
 | follow/following | In progress | `POST/DELETE /api/users/{userId}/follow`, followers/following 목록 구현 및 프론트 진입점 연결, live QA 필요 |
+
+## 새로 추가된 Auth 보강 API 상태
+
+| API | 상태 | 설명 |
+| --- | --- | --- |
+| `GET /api/auth/check-email?email=` | Done | 회원가입 전 이메일 사용 가능 여부를 backend 사용자 테이블 기준으로 확인합니다. frontend는 이메일 변경 시 이전 확인 상태를 무효화합니다. |
 
 ## 새로 추가된 Review API 상태
 

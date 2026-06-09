@@ -10,9 +10,9 @@
 | --- | --- | --- | --- | --- | --- |
 | 여행 경로 | `POST /api/routes` | `GET /api/users/me/routes`, `GET /api/routes/{routeId}` | `PATCH /api/routes/{routeId}` | `DELETE /api/routes/{routeId}` | `RouteController`, `AiResultView`, `CourseEditView` |
 | 코스 장소 | `POST /api/routes/{routeId}/places` | route detail | `PATCH /api/routes/{routeId}/places/{routePlaceId}`, reorder | `DELETE /api/routes/{routeId}/places/{routePlaceId}` | `RouteController`, `routeApi.js` |
-| 커뮤니티 게시글 | `POST /api/posts` | `GET /api/posts`, `GET /api/posts/{postId}` | `PATCH /api/posts/{postId}` | `DELETE /api/posts/{postId}` | `CommunityController`, community screens |
+| 커뮤니티 게시글 | `POST /api/posts` | `GET /api/posts`, `GET /api/posts/{postId}` | `PATCH /api/posts/{postId}` | `DELETE /api/posts/{postId}` | `CommunityController`, `CommunityWriteView`, `CommunityView`, `uiStore.editPost/removePost` |
 | 댓글 | `POST /api/posts/{postId}/comments` | `GET /api/posts/{postId}/comments` | `PATCH /api/posts/{postId}/comments/{commentId}` | `DELETE /api/posts/{postId}/comments/{commentId}` | `CommunityController`, `CommunityView` |
-| 장소 리뷰 | `POST /api/places/{placeId}/reviews` | `GET /api/places/{placeId}/reviews` | `PATCH /api/places/{placeId}/reviews/{reviewId}` | `DELETE /api/places/{placeId}/reviews/{reviewId}` | `PlaceReviewController`, `PlaceDetailView` |
+| 장소 리뷰 | `POST /api/places/{placeId}/reviews` | `GET /api/places/{placeId}/reviews` | `PATCH /api/places/{placeId}/reviews/{reviewId}` | `DELETE /api/places/{placeId}/reviews/{reviewId}` | `PlaceReviewController`, `PlaceDetailView`, `FormStatusNotice` |
 | 사용자 프로필 | signup | `GET /api/users/me` | `PATCH /api/users/me` | Deferred | `AuthController`, profile screens |
 
 ## Backend-only 관리 CRUD
@@ -29,3 +29,17 @@
 ## 판단
 
 일반 사용자 데모 흐름에서 필요한 CRUD는 경로, 게시글, 댓글, 리뷰, 프로필 중심으로 구현되어 있습니다. 콘텐츠/장소 원본 데이터 관리 화면은 관리자 권한 정책과 운영 UI가 필요하므로 Week 3에서는 backend-only `In progress`로 유지합니다.
+
+## 2026-06-09 보강 사항
+
+- `frontend/src/components/common/FormStatusNotice.vue`를 추가해 create/update/delete 결과가 toast에만 의존하지 않고 화면 안에 남도록 했습니다.
+- 커뮤니티 글 작성 화면은 작성 중, 작성 성공, 작성 실패, 입력 검증 실패 상태를 명시합니다.
+- 커뮤니티 게시글 상세는 작성자에게만 게시글 수정/삭제 UI를 보여주고 `PATCH /api/posts/{postId}`, `DELETE /api/posts/{postId}` 결과를 상태 영역으로 표시합니다.
+- 코스 편집 화면은 장소 추가/삭제, 코스 수정 저장 성공/실패 상태를 표시합니다.
+- 코스 상세 화면은 저장, 공유, 삭제 결과를 상태 영역으로 표시합니다.
+- 장소 리뷰 작성/수정/삭제는 각 결과를 `FormStatusNotice`로 표시합니다.
+
+## 남은 한계
+
+- 콘텐츠/장소 원본 데이터 생성·수정·삭제는 admin backend endpoint만 있고 운영자용 UI는 아직 없습니다.
+- 위 CRUD 상태는 build/smoke로 정적 검증되며, 실제 브라우저 live QA는 `final-rubric-live-qa-checklist.md` 절차에 따라 수동 확인이 필요합니다.

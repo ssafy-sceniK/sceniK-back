@@ -6,9 +6,9 @@
 
 | Notion Row | Actual Endpoint | Status | Reason | Backend Evidence | Frontend Evidence |
 |------------|----------------|---------|---------|------------------|-------------------|
-| 회원가입 | `POST /api/auth/signup` | Done | 백엔드 구현과 프론트 회원가입 플로우가 연결되어 있습니다. | `AuthController`, `AuthService` | signup view, auth store |
+| 회원가입 | `POST /api/auth/signup`, `GET /api/auth/check-email?email=` | Done | 백엔드 회원가입과 이메일 중복 확인 API가 구현되어 있고, 프론트 회원가입 화면에서 중복 확인과 비밀번호 정책 안내를 제공합니다. | `AuthController`, `AuthService.checkEmail`, `AuthService.signup` | `SignupView`, `authApi.checkEmailAvailability`, auth store |
 | 로그인 | `POST /api/auth/login` | Done | 이메일/비밀번호 로그인과 token 저장 흐름이 구현되어 있습니다. | `AuthController`, `AuthService` | login view, auth store |
-| 로그아웃 | `POST /api/auth/logout` | Done | Bearer token 기반 로그아웃 API가 구현되어 있습니다. | `AuthController`, `AuthService` | auth store |
+| 로그아웃 | `POST /api/auth/logout` | Done | Bearer token 기반 로그아웃 API가 구현되어 있고, 설정 화면에서 세션 종료 CTA와 결과 안내를 제공합니다. | `AuthController`, `AuthService` | `SettingsView`, auth store |
 | 토큰 재발급 | `POST /api/auth/token/refresh` | Done | refresh token 재발급 API가 구현되어 있습니다. | `AuthController`, `AuthService` | `authApi.refreshToken` |
 | 카카오 소셜 로그인 | `GET/POST /api/auth/social/kakao` | Deferred | Week 3 MVP는 이메일/비밀번호 인증 기준이며 소셜 로그인은 보류되었습니다. | 없음 | 없음 |
 | 구글 소셜 로그인 | `GET/POST /api/auth/social/google` | Deferred | Week 3 MVP는 이메일/비밀번호 인증 기준이며 소셜 로그인은 보류되었습니다. | 없음 | 없음 |
@@ -25,10 +25,10 @@
 | 여행 활동 히스토리 조회 | `GET /api/users/me/history` | Done | 최근 조회/활동 이력 API가 구현되어 있고 마이페이지에서 사용합니다. | `UserActivityController` | `MyPageView` |
 | 내 활동 요약 조회 | `GET /api/users/me/activity-summary` | Done | 좋아요, 방문 상태, 저장 경로 등 마이페이지 요약 카운트가 구현되어 있습니다. | `UserActivityController` | `MyPageView` |
 | 내가 작성한 리뷰 목록 조회 | `GET /api/users/me/reviews` | In progress | 백엔드와 마이페이지 리뷰 목록 UI는 연결되었으나 live QA가 아직 필요합니다. | `PlaceReviewController` | `reviewApi.fetchMyReviews`, `SimpleListView` |
-| 팔로우 | `POST /api/users/{userId}/follow` | In progress | 백엔드와 커뮤니티 작성자 팔로우 버튼은 연결되었으나 live QA가 아직 필요합니다. | `FollowController`, `FollowService` | `followApi.followUser`, `CommunityView` |
-| 언팔로우 | `DELETE /api/users/{userId}/follow` | In progress | 백엔드와 팔로잉 목록/작성자 버튼의 언팔로우 UI는 연결되었으나 live QA가 아직 필요합니다. | `FollowController`, `FollowService` | `followApi.unfollowUser`, `SimpleListView` |
-| 팔로워 목록 조회 | `GET /api/users/{userId}/followers` | In progress | current user id로 팔로워 목록을 조회하는 마이페이지 UI가 연결되었으나 live QA가 아직 필요합니다. | `FollowController`, `FollowMapper.xml` | `followApi.fetchFollowers`, `SimpleListView` |
-| 팔로잉 목록 조회 | `GET /api/users/{userId}/following`, `GET /api/users/me/following` | In progress | 백엔드와 마이페이지 팔로잉 목록 UI는 연결되었으나 live QA가 아직 필요합니다. | `FollowController`, `FollowMapper.xml` | `followApi.fetchMyFollowing`, `SimpleListView` |
+| 팔로우 | `POST /api/users/{userId}/follow` | In progress | 백엔드와 커뮤니티 작성자/팔로워 목록의 팔로우 버튼은 연결되었으나 두 계정 기반 live QA가 아직 필요합니다. | `FollowController`, `FollowService` | `followApi.followUser`, `CommunityView`, `SimpleListView` |
+| 언팔로우 | `DELETE /api/users/{userId}/follow` | In progress | 백엔드와 커뮤니티 작성자/팔로잉 목록의 언팔로우 UI는 연결되었으나 두 계정 기반 live QA가 아직 필요합니다. | `FollowController`, `FollowService` | `followApi.unfollowUser`, `CommunityView`, `SimpleListView` |
+| 팔로워 목록 조회 | `GET /api/users/{userId}/followers` | In progress | current user id로 팔로워 목록을 조회하고 맞팔 배지를 표시하는 UI가 연결되었으나 live QA가 아직 필요합니다. | `FollowController`, `FollowMapper.xml` | `followApi.fetchFollowers`, `SimpleListView` |
+| 팔로잉 목록 조회 | `GET /api/users/{userId}/following`, `GET /api/users/me/following` | In progress | 백엔드와 마이페이지 팔로잉 목록, 언팔로우 버튼, 맞팔 상태 계산 UI는 연결되었으나 live QA가 아직 필요합니다. | `FollowController`, `FollowMapper.xml` | `followApi.fetchMyFollowing`, `SimpleListView` |
 | 콘텐츠 목록 조회 | `GET /api/contents` | Done | 목록 조회와 pagination이 구현되어 있습니다. | `ContentController` | `contentApi.fetchContents`, content/explore stores |
 | 콘텐츠 카테고리 목록 조회 | `GET /api/contents/categories` | Done | 현재 canonical 카테고리 endpoint가 구현되어 있습니다. | `ContentController` | content/explore stores |
 | 인기 콘텐츠 목록 조회 | `GET /api/contents/popular` | Done | 인기 콘텐츠 단축 조회 API가 구현되어 있습니다. | `ContentController` | `HomeView`, explore store |
@@ -78,13 +78,13 @@
 | `/api/users/me/courses` | `GET /api/users/me/routes` | Deprecated | 구버전 내 코스 목록 path이며 현재는 `/api/users/me/routes`를 사용합니다. | canonical: `RouteController` | canonical: `routeApi.fetchMyRoutes` |
 | 커뮤니티 게시글 목록 조회 | `GET /api/posts` | Done | 게시글 목록, 검색, 지역 필터, 정렬, pagination이 구현되어 있습니다. | `CommunityController` | `CommunityView`, `communityApi.fetchPosts` |
 | 커뮤니티 게시글 상세 조회 | `GET /api/posts/{postId}` | Done | 게시글 상세 조회 API가 구현되어 있습니다. | `CommunityController` | community detail flow |
-| 커뮤니티 게시글 작성 | `POST /api/posts` | Done | 게시글 작성 API와 프론트 작성 플로우가 구현되어 있습니다. | `CommunityController` | write view, `communityApi.createPost` |
-| 커뮤니티 게시글 수정 | `PATCH /api/posts/{postId}` | Done | 게시글 소유자 기반 수정 API가 구현되어 있습니다. | `CommunityController` | edit flow, `communityApi.updatePost` |
-| 커뮤니티 게시글 삭제 | `DELETE /api/posts/{postId}` | Done | 게시글 소유자 기반 삭제 API가 구현되어 있습니다. | `CommunityController` | edit flow, `communityApi.deletePost` |
+| 커뮤니티 게시글 작성 | `POST /api/posts` | Done | 게시글 작성 API와 프론트 작성 플로우, 저장 상태 안내가 구현되어 있습니다. | `CommunityController` | `CommunityWriteView`, `communityApi.createPost`, `FormStatusNotice` |
+| 커뮤니티 게시글 수정 | `PATCH /api/posts/{postId}` | Done | 게시글 소유자 기반 수정 API와 상세 화면 수정 UI가 구현되어 있습니다. | `CommunityController` | `CommunityView`, `uiStore.editPost`, `communityApi.updatePost` |
+| 커뮤니티 게시글 삭제 | `DELETE /api/posts/{postId}` | Done | 게시글 소유자 기반 삭제 API와 상세 화면 삭제 확인 UI가 구현되어 있습니다. | `CommunityController` | `CommunityView`, `uiStore.removePost`, `communityApi.deletePost` |
 | 게시글 댓글 목록 조회 | `GET /api/posts/{postId}/comments` | Done | 댓글 목록 API와 pagination이 구현되어 있습니다. | `CommunityController` | community detail, `communityApi.fetchComments` |
-| 게시글 댓글 작성 | `POST /api/posts/{postId}/comments` | Done | 댓글 작성 API와 프론트 상세 플로우가 구현되어 있습니다. | `CommunityController` | community detail, `communityApi.createComment` |
-| 게시글 댓글 수정 | `PATCH /api/posts/{postId}/comments/{commentId}` | In progress | 백엔드와 댓글 작성자 수정 UI는 연결되었으나 live QA가 아직 필요합니다. | `CommunityController` | `CommunityView`, `uiStore.editComment`, `communityApi.updateComment` |
-| 게시글 댓글 삭제 | `DELETE /api/posts/{postId}/comments/{commentId}` | In progress | 백엔드와 댓글 작성자 삭제 UI는 연결되었으나 live QA가 아직 필요합니다. | `CommunityController` | `CommunityView`, `uiStore.removeComment`, `communityApi.deleteComment` |
+| 게시글 댓글 작성 | `POST /api/posts/{postId}/comments` | Done | 댓글 작성 API와 프론트 상세 플로우, 작성 상태 안내가 구현되어 있습니다. | `CommunityController` | `CommunityView`, `communityApi.createComment`, `FormStatusNotice` |
+| 게시글 댓글 수정 | `PATCH /api/posts/{postId}/comments/{commentId}` | In progress | 백엔드와 댓글 작성자 수정 action sheet UI는 연결되었으나 live QA가 아직 필요합니다. | `CommunityController` | `CommunityView`, `uiStore.editComment`, `communityApi.updateComment` |
+| 게시글 댓글 삭제 | `DELETE /api/posts/{postId}/comments/{commentId}` | In progress | 백엔드와 댓글 작성자 삭제 action sheet UI는 연결되었으나 live QA가 아직 필요합니다. | `CommunityController` | `CommunityView`, `uiStore.removeComment`, `communityApi.deleteComment` |
 | 게시글 좋아요 | `POST /api/posts/{postId}/likes` | Done | singular `/like`가 아니라 plural `/likes`가 현재 canonical endpoint입니다. | `CommunityController` | community UI, `communityApi.likePost` |
 | 게시글 좋아요 취소 | `DELETE /api/posts/{postId}/likes` | Done | 게시글 좋아요 취소 API가 구현되어 있습니다. | `CommunityController` | community UI, `communityApi.unlikePost` |
 | 게시글 신고 | `POST /api/posts/{postId}/reports` | Done | singular `/report`가 아니라 plural `/reports`가 현재 canonical endpoint입니다. | `CommunityController` | community UI, `communityApi.reportPost` |

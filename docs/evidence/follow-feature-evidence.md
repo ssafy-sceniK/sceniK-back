@@ -12,6 +12,8 @@
 | 언팔로우 | 구현, live QA 필요 | `DELETE /api/users/{userId}/follow` |
 | 팔로워 목록 | 구현, live QA 필요 | `GET /api/users/{userId}/followers` |
 | 팔로잉 목록 | 구현, live QA 필요 | `GET /api/users/{userId}/following`, `GET /api/users/me/following` |
+| 맞팔 표시 | 구현, live QA 필요 | frontend가 현재 사용자의 following/follower 목록을 비교해 파생 |
+| 목록 내 언팔로우 | 구현, live QA 필요 | `SimpleListView.vue`에서 pending guard와 상태 영역 표시 |
 | 자기 자신 팔로우 방지 | 구현 | `Cannot follow self.` → `자기 자신은 팔로우할 수 없습니다.` |
 | 중복 팔로우 방지 | 구현 | `Follow already exists.` → `이미 팔로우한 사용자입니다.` |
 
@@ -35,7 +37,7 @@
 | `frontend/src/stores/uiStore.js` | follow state, pending guard, follow/unfollow action |
 | `frontend/src/views/CommunityView.vue` | 게시글 상세 작성자 팔로우/언팔로우 버튼 |
 | `frontend/src/views/MyPageView.vue` | 팔로잉/팔로워 진입점과 카운트 표시 |
-| `frontend/src/views/SimpleListView.vue` | 팔로잉/팔로워 목록과 언팔로우 버튼 |
+| `frontend/src/views/SimpleListView.vue` | 팔로잉/팔로워 목록, 맞팔 badge, follow/unfollow 버튼, 결과 상태 |
 
 ## Manual QA Steps
 
@@ -45,7 +47,17 @@
 4. 버튼이 `팔로잉` 상태로 바뀌고 중복 클릭이 막히는지 확인합니다.
 5. 마이페이지 `팔로잉` 목록에서 사용자 B가 보이는지 확인합니다.
 6. 사용자 B로 로그인해 마이페이지 `팔로워` 목록에서 사용자 A가 보이는지 확인합니다.
-7. 사용자 A가 `팔로잉` 목록에서 언팔로우했을 때 목록에서 제거되는지 확인합니다.
+7. 사용자 B가 사용자 A를 팔로우해 양방향 관계를 만듭니다.
+8. 양쪽 목록에서 `맞팔` badge가 보이는지 확인합니다.
+9. 사용자 A가 `팔로잉` 목록에서 언팔로우했을 때 목록이 갱신되고 `팔로우를 취소했습니다.` 상태가 보이는지 확인합니다.
+10. 자기 자신에 대한 follow action이 숨겨지거나 backend에서 차단되는지 확인합니다.
+
+## 2026-06-09 보강 사항
+
+- follower/following 목록에서 `followingUsers`와 `followerUsers`를 비교해 `맞팔` badge를 표시합니다.
+- 팔로잉 목록에서도 직접 언팔로우할 수 있고, follower 목록에서는 현재 내가 팔로우 중인지에 따라 `팔로우`, `팔로잉`, `맞팔` 상태를 보여줍니다.
+- pending 상태는 `처리 중` label과 disabled button으로 표시해 중복 클릭을 막습니다.
+- 실제 두 계정 기반 live QA는 `follow-live-qa-evidence.md`에 별도 절차로 분리했습니다.
 
 ## 상태 판단
 

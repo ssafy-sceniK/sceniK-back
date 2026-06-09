@@ -4,6 +4,8 @@
 
 이 문서는 최신 프론트엔드/루브릭 피드백 이후 보강한 구현, 문서, QA 근거를 #01~#15 루브릭별로 정리한 제출용 답변입니다. 상태는 실제 구현과 검증 근거를 기준으로 보수적으로 표기합니다.
 
+최신 analyzer 결과는 89/100, Complete 14/15, Partial 1/15, Missing 0/15입니다. 이번 최종 pass는 새 기능을 늘리기보다 AI 코스 선택 화면의 시각 polish, follow live QA 절차, review/detail/notification/community 브라우저 QA 증거 계획, 제출 산출물 index를 보강했습니다.
+
 ## 전체 요약
 
 | 구분 | 완료율 | 설명 |
@@ -48,6 +50,9 @@
 - `backend/docs/api/notion-row-mapping.md`
 - `backend/docs/api/notion-api-status-update.csv`
 - `backend/docs/api/notion-api-update-guide.md`
+- `backend/docs/evidence/follow-live-qa-evidence.md`
+- `backend/docs/evidence/browser-live-qa-evidence.md`
+- `backend/docs/submission/submission-artifact-index.md`
 
 ## QA 결과
 
@@ -65,4 +70,4 @@
 
 ## 제출 코멘트
 
-Week 3 기준 핵심 사용자 플로우는 대부분 구현되어 있으며, 평가에서 누락되기 쉬운 이메일 중복 확인, 설정 화면 로그아웃, 리뷰 상태 안내, 팔로우/맞팔, 댓글 관리 action sheet, 게시글 수정/삭제, AI 컨텍스트 표시를 화면과 증거 문서로 보강했습니다. 남은 항목은 live QA, 외부 map provider 검증, Week 4 AI 품질 개선 범위로 분리했습니다.
+Week 3 기준 핵심 사용자 플로우는 대부분 구현되어 있으며, 평가에서 누락되기 쉬운 이메일 중복 확인, 설정 화면 로그아웃, 리뷰 상태 안내, 팔로우/맞팔, 댓글 관리 action sheet, 게시글 수정/삭제, AI 컨텍스트 표시를 화면과 증거 문서로 보강했습니다. 최종 pass에서는 팔로우 live QA 증거와 제출 산출물 연결성을 보강해 analyzer/evaluator가 확인하기 쉬워졌습니다. 남은 항목은 실제 브라우저 캡처, 외부 map provider 검증, Week 4 AI 품질 개선 범위로 분리했습니다.

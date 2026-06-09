@@ -16,6 +16,8 @@
 | demo scenario | 준비 완료 | `backend/docs/submission/demo-scenario.md` | 시연 순서 확인 |
 | external API / AI usage | 준비 완료 | `backend/docs/submission/external-api-ai-usage.md` | Kakao/OpenAI 범위 명시 |
 | test results | 준비 완료 | `backend/docs/qa/final-rubric-live-qa-checklist.md`, `backend/docs/qa`, 최종 보고 | build/smoke/pytest 결과 반영, live QA 항목 분리 |
+| live QA evidence | 수동 캡처 필요 | `backend/docs/evidence/follow-live-qa-evidence.md`, `backend/docs/evidence/browser-live-qa-evidence.md` | follow two-account, review/detail/notification/community 캡처 계획 |
+| submission artifact index | 준비 완료 | `backend/docs/submission/submission-artifact-index.md` | 산출물 위치와 제출 가능/outline/수동 캡처 필요 상태 구분 |
 | known limitations | 준비 완료 | `backend/docs/project/deferred-scope-decisions.md` | Deferred 항목 설명 |
 | future work | 준비 완료 | `sceniK-ai/docs/week4-task-plan.md` | Week 4 AI/RAG |
 
@@ -25,4 +27,6 @@
 - `.venv`, `node_modules`, `dist`, `build` output을 커밋하지 않습니다.
 - Notion API table은 `notion-row-mapping.md`와 `notion-api-status-update.csv` 기준으로 업데이트합니다.
 - 발표 자료에는 review 기능, AI guardrail, dataset 출처, QA 결과를 명확히 넣습니다.
+- `submission-artifact-index.md`에서 outline 상태인 최종 보고서/발표자료를 실제 제출 파일로 export합니다.
+- `follow-live-qa-evidence.md`와 `browser-live-qa-evidence.md`의 수동 캡처 필요 항목을 제출 전 실제 스크린샷으로 보강합니다.
 - 제출 직전 `final-rubric-live-qa-checklist.md`의 수동 확인 필요 항목을 실제 실행 환경에서 한 번 더 확인합니다.

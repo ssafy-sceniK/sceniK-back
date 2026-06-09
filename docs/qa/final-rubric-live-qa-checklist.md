@@ -2,7 +2,9 @@
 
 생성일: 2026-06-09
 
-이 문서는 루브릭 피드백 보강 이후 실제 실행 환경에서 마지막으로 확인해야 할 수동 QA 항목입니다. 이번 문서 정리 작업에서는 장기 실행 서버를 시작하지 않았으며, build/smoke/pytest와 정적 검색만 수행했습니다.
+이 문서는 루브릭 피드백 보강 이후 실제 실행 환경에서 마지막으로 확인해야 할 수동 QA 항목입니다. 이번 문서 정리 작업에서는 장기 실행 서버를 남기지 않았으며, frontend build/smoke, backend build, 정적 검색을 수행했습니다. `sceniK-ai`는 수정하지 않았고 이번 pass에서 pytest를 다시 실행하지 않았습니다.
+
+최신 analyzer 결과는 89/100, Complete 14/15, Partial 1/15이며, 남은 약점은 기능 미구현보다 follow two-account live QA와 browser-based verification evidence 부족에 가깝습니다.
 
 ## 자동 QA 결과
 
@@ -13,13 +15,24 @@
 | Frontend lint | PASS | `npm run lint` 통과 |
 | Course smoke | PASS | `npm run smoke:course` 통과 |
 | Error smoke | PASS | `npm run smoke:errors` 통과 |
-| AI pytest | PASS | `.\.venv\Scripts\python.exe -m pytest` 결과 4개 통과, warning 1개 |
+| AI pytest | 이번 pass 미실행 | `sceniK-ai`는 수정하지 않았습니다. 제출 전 AI repo 연결 후 별도 실행을 권장합니다. |
 | Frontend direct AI call scan | PASS | frontend에서 `sceniK-ai`, `localhost:8000`, `127.0.0.1:8000` 직접 호출 없음 |
 | Deprecated API source scan | PASS | 구버전 API 호출 없음. `/ai/courses/:routeId`, `/my/visit-*`는 화면 라우터 경로 false positive입니다. |
 | Korean text scan | PASS | replacement character 또는 명백한 mojibake 패턴 없음 |
 | Secret pattern scan | PASS | 실제 API key/token 패턴 없음. 테스트용 `password123`만 존재합니다. |
 | Build output tracking | PASS | `frontend/dist/`는 `.gitignore`로 무시되며 Git 추적 대상이 아닙니다. |
 | AI venv tracking | 확인 필요 | 현재 `sceniK-ai` 폴더는 이 workspace에서 Git 저장소가 아니므로 `.venv` 추적 여부는 remote 연결 후 확인해야 합니다. |
+
+## 최종 analyzer 이후 추가 확인
+
+| 항목 | 기대 결과 | 상태 |
+| --- | --- | --- |
+| AI 코스 콘텐츠 선택 화면 typography | `어떤 콘텐츠로 여행할까요?` 제목이 393px 기준 22~24px, 굵은 weight, 안정적인 line-height로 보입니다. | 코드 보강 완료, 시각 확인 필요 |
+| AI 코스 콘텐츠 선택 화면 spacing | progress, title/subtitle, 검색, chip, grid 사이 간격이 과도하게 벌어지지 않습니다. | 코드 보강 완료, 시각 확인 필요 |
+| 360px/393px/430px overflow | 콘텐츠 카드, chip, bottom CTA에 horizontal overflow가 없습니다. | 수동 확인 필요 |
+| follow two-account 캡처 | Account A/B follow, followers/following, 맞팔 badge, unfollow 장면이 캡처됩니다. | 수동 캡처 필요 |
+| review/detail/notification/community 캡처 | `browser-live-qa-evidence.md`의 권장 캡처 파일이 생성됩니다. | 수동 캡처 필요 |
+| 제출 산출물 위치 | `submission-artifact-index.md`에서 outline/제출 가능/수동 캡처 필요 상태가 구분됩니다. | 문서 보강 완료 |
 
 ## Live QA 실행 준비 명령
 

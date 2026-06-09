@@ -59,6 +59,13 @@
 - pending 상태는 `처리 중` label과 disabled button으로 표시해 중복 클릭을 막습니다.
 - 실제 두 계정 기반 live QA는 `follow-live-qa-evidence.md`에 별도 절차로 분리했습니다.
 
+## 2026-06-09 최종 analyzer 이후 증거 보강
+
+- analyzer 피드백의 핵심 약점은 구현 부재가 아니라 두 계정 live QA 증거 부족입니다.
+- `follow-live-qa-evidence.md`에 Account A/B 전제 조건, 10단계 시나리오, 권장 캡처 파일명, 저장 경로를 추가했습니다.
+- 실제 스크린샷은 아직 생성하지 않았으므로 `backend/docs/evidence/screenshots/follow-two-account/`는 수동 캡처 후 채워야 합니다.
+- evaluator에게는 구현 근거와 미완료 캡처 상태를 분리해 설명합니다.
+
 ## 상태 판단
 
 백엔드와 프론트 진입점은 구현되었지만 live E2E QA 전이므로 Notion 상태는 `In progress`로 표시합니다.

@@ -53,6 +53,8 @@
 | 인증·프로필 | [auth-profile-evidence.md](../evidence/auth-profile-evidence.md) |
 | 리뷰 | [review-feature-evidence.md](../evidence/review-feature-evidence.md) |
 | 팔로우 | [follow-feature-evidence.md](../evidence/follow-feature-evidence.md) |
+| 팔로우 live QA | [follow-live-qa-evidence.md](../evidence/follow-live-qa-evidence.md) |
+| 브라우저 live QA | [browser-live-qa-evidence.md](../evidence/browser-live-qa-evidence.md) |
 | 커뮤니티·댓글 | [community-comment-evidence.md](../evidence/community-comment-evidence.md) |
 | 목록·검색·정렬·페이징 | [list-search-sort-pagination-evidence.md](../evidence/list-search-sort-pagination-evidence.md) |
 
@@ -70,6 +72,7 @@
 | --- | --- | --- |
 | 루브릭 응답 | [rubric-response.md](../submission/rubric-response.md) | 존재 |
 | 평가 증거 맵 | [evaluation-evidence-map.md](../submission/evaluation-evidence-map.md) | 존재 |
+| 제출 산출물 인덱스 | [submission-artifact-index.md](../submission/submission-artifact-index.md) | 존재 |
 | 데모 시나리오 | [demo-scenario.md](../submission/demo-scenario.md) | 존재 |
 | 데이터셋 요약 | [dataset-summary.md](../submission/dataset-summary.md) | 존재 |
 | 외부 API·AI 사용 | [external-api-ai-usage.md](../submission/external-api-ai-usage.md) | 존재 |

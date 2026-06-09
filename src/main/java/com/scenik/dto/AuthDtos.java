@@ -43,6 +43,9 @@ public final class AuthDtos {
     ) {
     }
 
+    public record EmailAvailabilityResponse(String email, boolean available, String message) {
+    }
+
     public record AuthResponse(String accessToken, String refreshToken, UserDto user) {
     }
 }

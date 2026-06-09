@@ -3,6 +3,7 @@ package com.scenik.service;
 import com.scenik.domain.AuthToken;
 import com.scenik.domain.User;
 import com.scenik.dto.AuthDtos.AuthResponse;
+import com.scenik.dto.AuthDtos.EmailAvailabilityResponse;
 import com.scenik.dto.AuthDtos.LoginRequest;
 import com.scenik.dto.AuthDtos.RefreshTokenRequest;
 import com.scenik.dto.AuthDtos.SignupRequest;
@@ -66,6 +67,16 @@ public class AuthService {
         }
         String token = issueToken(user.getUserId());
         return new AuthResponse(token, token, UserDto.from(user));
+    }
+
+    public EmailAvailabilityResponse checkEmail(String email) {
+        String normalized = normalizeEmail(email);
+        boolean available = userMapper.findByEmail(normalized) == null;
+        return new EmailAvailabilityResponse(
+                normalized,
+                available,
+                available ? "사용 가능한 이메일입니다." : "이미 사용 중인 이메일입니다."
+        );
     }
 
     public User requireUser(String authorizationHeader) {

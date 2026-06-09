@@ -1,6 +1,7 @@
 package com.scenik.controller;
 
 import com.scenik.dto.AuthDtos.AuthResponse;
+import com.scenik.dto.AuthDtos.EmailAvailabilityResponse;
 import com.scenik.dto.AuthDtos.LoginRequest;
 import com.scenik.dto.AuthDtos.RefreshTokenRequest;
 import com.scenik.dto.AuthDtos.SignupRequest;
@@ -12,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -33,6 +35,11 @@ public class AuthController {
     @PostMapping("/api/auth/login")
     public AuthResponse login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request);
+    }
+
+    @GetMapping("/api/auth/check-email")
+    public EmailAvailabilityResponse checkEmail(@RequestParam("email") String email) {
+        return authService.checkEmail(email);
     }
 
     @PostMapping("/api/auth/logout")

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.scenik.mapper.FollowMapper">
+  <resultMap id="FollowUserResultMap" type="com.scenik.domain.User">
+    <id property="userId" column="user_id" />
+    <result property="email" column="email" />
+    <result property="nickname" column="nickname" />
+    <result property="preferences" column="preferences" />
+    <result property="createdAt" column="created_at" />
+    <result property="updatedAt" column="updated_at" />
+  </resultMap>
+
+  <insert id="insertFollow">
+    INSERT INTO follows (follower_id, following_id)
+    VALUES (#{followerId}, #{followingId})
+  </insert>
+
+  <delete id="deleteFollow">
+    DELETE FROM follows
+    WHERE follower_id = #{followerId}
+      AND following_id = #{followingId}
+  </delete>
+
+  <select id="existsFollow" resultType="int">
+    SELECT COUNT(*)
+    FROM follows
+    WHERE follower_id = #{followerId}
+      AND following_id = #{followingId}
+  </select>
+
+  <select id="countFollowers" resultType="int">
+    SELECT COUNT(*) FROM follows WHERE following_id = #{userId}
+  </select>
+
+  <select id="countFollowing" resultType="int">
+    SELECT COUNT(*) FROM follows WHERE follower_id = #{userId}
+  </select>
+
+  <select id="findFollowers" resultMap="FollowUserResultMap">
+    SELECT u.user_id, u.email, u.nickname, u.preferences, u.created_at, u.updated_at
+    FROM follows f
+    JOIN users u ON u.user_id = f.follower_id
+    WHERE f.following_id = #{userId}
+    ORDER BY f.created_at DESC
+  </select>
+
+  <select id="findFollowing" resultMap="FollowUserResultMap">
+    SELECT u.user_id, u.email, u.nickname, u.preferences, u.created_at, u.updated_at
+    FROM follows f
+    JOIN users u ON u.user_id = f.following_id
+    WHERE f.follower_id = #{userId}
+    ORDER BY f.created_at DESC
+  </select>
+</mapper>

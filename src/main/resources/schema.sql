@@ -83,6 +83,18 @@ CREATE TABLE IF NOT EXISTS auth_tokens (
   CONSTRAINT fk_auth_tokens_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS follows (
+  follow_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  follower_id BIGINT NOT NULL,
+  following_id BIGINT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_follows_pair (follower_id, following_id),
+  KEY idx_follows_follower_id (follower_id),
+  KEY idx_follows_following_id (following_id),
+  CONSTRAINT fk_follows_follower FOREIGN KEY (follower_id) REFERENCES users(user_id) ON DELETE CASCADE,
+  CONSTRAINT fk_follows_following FOREIGN KEY (following_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS travel_routes (
   route_id VARCHAR(64) PRIMARY KEY,
   user_id BIGINT NOT NULL,

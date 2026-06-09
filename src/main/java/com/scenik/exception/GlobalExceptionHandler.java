@@ -180,6 +180,9 @@ public class GlobalExceptionHandler {
             case "Content already exists." -> new ErrorDescriptor("CONFLICT", "이미 등록된 콘텐츠입니다.");
             case "Place already exists." -> new ErrorDescriptor("CONFLICT", "이미 등록된 장소입니다.");
             case "Place review already exists." -> new ErrorDescriptor("CONFLICT", "이미 이 장소에 리뷰를 작성했습니다.");
+            case "Cannot follow self." -> new ErrorDescriptor("VALIDATION_ERROR", "자기 자신은 팔로우할 수 없습니다.");
+            case "Follow already exists." -> new ErrorDescriptor("CONFLICT", "이미 팔로우한 사용자입니다.");
+            case "Target user was not found." -> new ErrorDescriptor("NOT_FOUND", "존재하지 않는 사용자입니다.");
             case "Post was already reported." -> new ErrorDescriptor("CONFLICT", "이미 신고한 게시글입니다.");
             case "Post owner does not match.", "Comment owner does not match.", "Route owner does not match.", "Review owner does not match." -> new ErrorDescriptor("FORBIDDEN", "권한이 없습니다.");
             case "Review content is required." -> new ErrorDescriptor("VALIDATION_ERROR", "리뷰 내용을 입력해 주세요.");

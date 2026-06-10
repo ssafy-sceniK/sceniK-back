@@ -35,6 +35,11 @@ public final class AuthDtos {
     public record RefreshTokenRequest(@NotBlank(message = "로그인이 필요합니다.") String refreshToken) {
     }
 
+    public record OAuthCodeExchangeRequest(
+            @NotBlank(message = "OAuth 로그인 코드가 필요합니다.") String code
+    ) {
+    }
+
     public record UpdateUserRequest(
             @NotBlank(message = "닉네임을 입력해 주세요.")
             @Size(max = 50, message = "닉네임은 50자 이하로 입력해 주세요.")

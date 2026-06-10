@@ -3,11 +3,13 @@ package com.scenik.controller;
 import com.scenik.dto.AuthDtos.AuthResponse;
 import com.scenik.dto.AuthDtos.EmailAvailabilityResponse;
 import com.scenik.dto.AuthDtos.LoginRequest;
+import com.scenik.dto.AuthDtos.OAuthCodeExchangeRequest;
 import com.scenik.dto.AuthDtos.RefreshTokenRequest;
 import com.scenik.dto.AuthDtos.SignupRequest;
 import com.scenik.dto.AuthDtos.UpdateUserRequest;
 import com.scenik.dto.UserDto;
 import com.scenik.service.AuthService;
+import com.scenik.service.OAuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,13 +20,16 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.view.RedirectView;
 
 @RestController
 public class AuthController {
     private final AuthService authService;
+    private final OAuthService oauthService;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, OAuthService oauthService) {
         this.authService = authService;
+        this.oauthService = oauthService;
     }
 
     @PostMapping("/api/auth/signup")
@@ -35,6 +40,16 @@ public class AuthController {
     @PostMapping("/api/auth/login")
     public AuthResponse login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request);
+    }
+
+    @GetMapping("/api/auth/oauth/google")
+    public RedirectView startGoogleOAuth() {
+        return new RedirectView("/api/auth/oauth/authorization/google");
+    }
+
+    @PostMapping("/api/auth/oauth/exchange")
+    public AuthResponse exchangeOAuthCode(@Valid @RequestBody OAuthCodeExchangeRequest request) {
+        return oauthService.exchangeCode(request.code());
     }
 
     @GetMapping("/api/auth/check-email")

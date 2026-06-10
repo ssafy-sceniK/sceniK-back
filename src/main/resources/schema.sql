@@ -83,6 +83,32 @@ CREATE TABLE IF NOT EXISTS auth_tokens (
   CONSTRAINT fk_auth_tokens_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS oauth_accounts (
+  oauth_account_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT NOT NULL,
+  provider VARCHAR(40) NOT NULL,
+  provider_user_id VARCHAR(255) NOT NULL,
+  provider_email VARCHAR(255),
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_oauth_accounts_provider_user (provider, provider_user_id),
+  UNIQUE KEY uq_oauth_accounts_user_provider (user_id, provider),
+  KEY idx_oauth_accounts_user_id (user_id),
+  CONSTRAINT fk_oauth_accounts_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS oauth_login_codes (
+  oauth_login_code_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT NOT NULL,
+  code_hash VARCHAR(120) NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  expires_at DATETIME NOT NULL,
+  consumed_at DATETIME,
+  UNIQUE KEY uq_oauth_login_codes_hash (code_hash),
+  KEY idx_oauth_login_codes_user_id (user_id),
+  CONSTRAINT fk_oauth_login_codes_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS follows (
   follow_id BIGINT AUTO_INCREMENT PRIMARY KEY,
   follower_id BIGINT NOT NULL,

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.scenik.mapper.OAuthLoginCodeMapper">
+  <resultMap id="OAuthLoginCodeResultMap" type="com.scenik.domain.OAuthLoginCode">
+    <id property="oauthLoginCodeId" column="oauth_login_code_id" />
+    <result property="userId" column="user_id" />
+    <result property="codeHash" column="code_hash" />
+    <result property="createdAt" column="created_at" />
+    <result property="expiresAt" column="expires_at" />
+    <result property="consumedAt" column="consumed_at" />
+  </resultMap>
+
+  <insert id="insert" parameterType="com.scenik.domain.OAuthLoginCode" useGeneratedKeys="true" keyProperty="oauthLoginCodeId" keyColumn="oauth_login_code_id">
+    INSERT INTO oauth_login_codes (user_id, code_hash, expires_at)
+    VALUES (#{userId}, #{codeHash}, #{expiresAt})
+  </insert>
+
+  <select id="findActiveByHashForUpdate" resultMap="OAuthLoginCodeResultMap">
+    SELECT *
+    FROM oauth_login_codes
+    WHERE code_hash = #{codeHash}
+      AND consumed_at IS NULL
+      AND expires_at > CURRENT_TIMESTAMP
+    FOR UPDATE
+  </select>
+
+  <update id="consume">
+    UPDATE oauth_login_codes
+    SET consumed_at = CURRENT_TIMESTAMP
+    WHERE oauth_login_code_id = #{oauthLoginCodeId}
+      AND consumed_at IS NULL
+  </update>
+</mapper>

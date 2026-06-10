@@ -66,3 +66,14 @@ Content-Type: application/json; charset=utf-8
 ### Logout
 POST {{baseUrl}}/auth/logout
 Authorization: Bearer {{accessToken}}
+
+### Google OAuth login start (open this URL in a browser)
+GET {{baseUrl}}/auth/oauth/google
+
+### Exchange the one-time code received at the frontend callback
+POST {{baseUrl}}/auth/oauth/exchange
+Content-Type: application/json; charset=utf-8
+
+{
+  "code": "paste-one-time-oauth-code-here"
+}

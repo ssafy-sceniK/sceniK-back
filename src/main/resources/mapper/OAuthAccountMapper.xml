@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.scenik.mapper.OAuthAccountMapper">
+  <resultMap id="OAuthAccountResultMap" type="com.scenik.domain.OAuthAccount">
+    <id property="oauthAccountId" column="oauth_account_id" />
+    <result property="userId" column="user_id" />
+    <result property="provider" column="provider" />
+    <result property="providerUserId" column="provider_user_id" />
+    <result property="providerEmail" column="provider_email" />
+    <result property="createdAt" column="created_at" />
+    <result property="updatedAt" column="updated_at" />
+  </resultMap>
+
+  <select id="findByProviderUserId" resultMap="OAuthAccountResultMap">
+    SELECT *
+    FROM oauth_accounts
+    WHERE provider = #{provider}
+      AND provider_user_id = #{providerUserId}
+    LIMIT 1
+  </select>
+
+  <insert id="insert" parameterType="com.scenik.domain.OAuthAccount" useGeneratedKeys="true" keyProperty="oauthAccountId" keyColumn="oauth_account_id">
+    INSERT INTO oauth_accounts (user_id, provider, provider_user_id, provider_email)
+    VALUES (#{userId}, #{provider}, #{providerUserId}, #{providerEmail})
+  </insert>
+</mapper>

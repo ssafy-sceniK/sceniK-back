@@ -119,6 +119,16 @@ public class AuthService {
     }
 
     @Transactional
+    public AuthResponse issueSession(Long userId) {
+        User user = userMapper.findById(userId);
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User was not found.");
+        }
+        String token = issueToken(userId);
+        return new AuthResponse(token, token, UserDto.from(user));
+    }
+
+    @Transactional
     public UserDto updateMe(String authorizationHeader, UpdateUserRequest request) {
         User user = requireUser(authorizationHeader);
         String nickname = requireText(request.nickname(), "Nickname is required.");

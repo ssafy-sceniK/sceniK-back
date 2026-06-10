@@ -1,11 +1,26 @@
 spring:
+  config:
+    import: "optional:file:.env[.properties]"
   datasource:
     url: ${DB_URL:jdbc:mysql://localhost:3306/scenik?serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
     username: ${DB_USERNAME:your_mysql_username}
     password: ${DB_PASSWORD:your_mysql_password}
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_OAUTH_CLIENT_ID:your_google_client_id}
+            client-secret: ${GOOGLE_OAUTH_CLIENT_SECRET:your_google_client_secret}
+            scope: openid,profile,email
+            redirect-uri: "${OAUTH_BASE_URL:http://localhost:8080}/login/oauth2/code/{registrationId}"
 
 kakao:
   rest-api-key: ${KAKAO_REST_API_KEY:your_kakao_rest_api_key}
+
+scenik:
+  oauth:
+    frontend-redirect-uri: ${OAUTH_FRONTEND_REDIRECT_URI:http://127.0.0.1:5173/oauth/callback}
 
 # Copy this file to application-local.yml or provide environment variables.
 # Do not commit real credentials, API keys, or secrets.

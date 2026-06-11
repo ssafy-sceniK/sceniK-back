@@ -7,6 +7,7 @@ public class User {
     private String email;
     private String nickname;
     private String passwordHash;
+    private String role;
     private String preferences;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -19,6 +20,8 @@ public class User {
     public void setNickname(String nickname) { this.nickname = nickname; }
     public String getPasswordHash() { return passwordHash; }
     public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
+    public String getRole() { return role; }
+    public void setRole(String role) { this.role = role; }
     public String getPreferences() { return preferences; }
     public void setPreferences(String preferences) { this.preferences = preferences; }
     public LocalDateTime getCreatedAt() { return createdAt; }

@@ -188,6 +188,7 @@ public class GlobalExceptionHandler {
             case "Target user was not found." -> new ErrorDescriptor("NOT_FOUND", "존재하지 않는 사용자입니다.");
             case "Post was already reported." -> new ErrorDescriptor("CONFLICT", "이미 신고한 게시글입니다.");
             case "Post owner does not match.", "Comment owner does not match.", "Route owner does not match.", "Review owner does not match." -> new ErrorDescriptor("FORBIDDEN", "권한이 없습니다.");
+            case "Admin role is required." -> new ErrorDescriptor("FORBIDDEN", "관리자 권한이 필요합니다.");
             case "Review content is required." -> new ErrorDescriptor("VALIDATION_ERROR", "리뷰 내용을 입력해 주세요.");
             case "Review rating must be between 0 and 5." -> new ErrorDescriptor("VALIDATION_ERROR", "평점은 0점 이상 5점 이하로 입력해 주세요.");
             case "Invalid page parameter." -> new ErrorDescriptor("VALIDATION_ERROR", "페이지 번호를 확인해 주세요.");

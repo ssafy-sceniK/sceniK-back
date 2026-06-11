@@ -2,6 +2,7 @@ package com.scenik.service;
 
 import com.scenik.domain.Content;
 import com.scenik.domain.Place;
+import com.scenik.domain.User;
 import com.scenik.dto.AdminDtos.ContentUpsertRequest;
 import com.scenik.dto.AdminDtos.PlaceUpsertRequest;
 import com.scenik.dto.ContentDto;
@@ -29,7 +30,7 @@ public class AdminService {
 
     @Transactional
     public ContentDto createContent(String authorization, ContentUpsertRequest request) {
-        requireTemporaryAdmin(authorization);
+        requireAdmin(authorization);
         Content content = toContent(request, null);
         if (content.getContentId() == null || content.getContentId().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "contentId is required.");
@@ -44,7 +45,7 @@ public class AdminService {
 
     @Transactional
     public ContentDto updateContent(String authorization, String contentId, ContentUpsertRequest request) {
-        requireTemporaryAdmin(authorization);
+        requireAdmin(authorization);
         Content existing = requireContent(contentId);
         Content content = toContent(request, existing);
         content.setContentId(contentId);
@@ -54,14 +55,14 @@ public class AdminService {
 
     @Transactional
     public void deleteContent(String authorization, String contentId) {
-        requireTemporaryAdmin(authorization);
+        requireAdmin(authorization);
         requireContent(contentId);
         contentMapper.softDelete(contentId);
     }
 
     @Transactional
     public PlaceDto createPlace(String authorization, PlaceUpsertRequest request) {
-        requireTemporaryAdmin(authorization);
+        requireAdmin(authorization);
         Place place = toPlace(request, null);
         if (place.getPlaceId() == null || place.getPlaceId().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "placeId is required.");
@@ -76,7 +77,7 @@ public class AdminService {
 
     @Transactional
     public PlaceDto updatePlace(String authorization, String placeId, PlaceUpsertRequest request) {
-        requireTemporaryAdmin(authorization);
+        requireAdmin(authorization);
         Place existing = requirePlace(placeId);
         Place place = toPlace(request, existing);
         place.setPlaceId(placeId);
@@ -86,7 +87,7 @@ public class AdminService {
 
     @Transactional
     public void deletePlace(String authorization, String placeId) {
-        requireTemporaryAdmin(authorization);
+        requireAdmin(authorization);
         requirePlace(placeId);
         placeMapper.deleteRoutePlaceReferences(placeId);
         placeMapper.deletePlaceLikeReferences(placeId);
@@ -96,9 +97,11 @@ public class AdminService {
         placeMapper.delete(placeId);
     }
 
-    private void requireTemporaryAdmin(String authorization) {
-        // TODO: Replace this temporary protection with role-based admin authorization.
-        authService.requireUser(authorization);
+    private void requireAdmin(String authorization) {
+        User user = authService.requireUser(authorization);
+        if (!"ROLE_ADMIN".equals(user.getRole())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin role is required.");
+        }
     }
 
     private Content requireContent(String contentId) {

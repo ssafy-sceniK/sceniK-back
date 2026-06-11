@@ -6,21 +6,32 @@
     <result property="email" column="email" />
     <result property="nickname" column="nickname" />
     <result property="passwordHash" column="password_hash" />
+    <result property="role" column="role" />
     <result property="preferences" column="preferences" />
     <result property="createdAt" column="created_at" />
     <result property="updatedAt" column="updated_at" />
   </resultMap>
 
+  <sql id="UserSelect">
+    SELECT u.*,
+           COALESCE(ur.role, 'ROLE_USER') AS role
+    FROM users u
+    LEFT JOIN user_roles ur ON ur.user_id = u.user_id
+  </sql>
+
   <select id="findById" resultMap="UserResultMap">
-    SELECT * FROM users WHERE user_id = #{userId}
+    <include refid="UserSelect" />
+    WHERE u.user_id = #{userId}
   </select>
 
   <select id="findByEmail" resultMap="UserResultMap">
-    SELECT * FROM users WHERE email = #{email}
+    <include refid="UserSelect" />
+    WHERE u.email = #{email}
   </select>
 
   <select id="findByNickname" resultMap="UserResultMap">
-    SELECT * FROM users WHERE nickname = #{nickname}
+    <include refid="UserSelect" />
+    WHERE u.nickname = #{nickname}
     LIMIT 1
   </select>
 

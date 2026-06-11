@@ -1,6 +1,20 @@
 -- Generated from ../../data/*.csv for local MVP/bootstrap data.
 -- The source CSV files remain the canonical editable seed input.
 DELETE FROM embedding_text WHERE (source_type = 'content' AND source_id LIKE 'content-%') OR (source_type = 'place_content' AND source_id LIKE 'E_%');
+
+INSERT INTO users (email, nickname, password_hash, preferences)
+VALUES ('admin@scenik.local', 'SceniKAdmin', 'pbkdf2_sha256$120000$c2NlbmlLLWFkbWluLXNhbHQ$qxhcQvT9cGmHXA5gWy8K-NNazRtsgtndjdJyS3rlfB8', '관리자')
+ON DUPLICATE KEY UPDATE
+  nickname = VALUES(nickname),
+  password_hash = VALUES(password_hash),
+  preferences = VALUES(preferences);
+
+INSERT INTO user_roles (user_id, role)
+SELECT user_id, 'ROLE_ADMIN'
+FROM users
+WHERE email = 'admin@scenik.local'
+ON DUPLICATE KEY UPDATE role = VALUES(role);
+
 INSERT IGNORE INTO contents (content_id, title, category, subcategory, release_year, status, description, cast_names, thumbnail_url, is_popular, country, ott_platform, tags, created_at)
 VALUES
 ('C_DRAMA_001', '선재 업고 튀어', '드라마', 'K-Drama', 2024, '공개', '최애 아티스트 류선재의 죽음으로 절망한 팬 임솔이 2008년으로 돌아가 그를 살리려는 타임슬립 로맨스 드라마.', '변우석, 김혜윤, 송건희, 이승협', 'https://upload.wikimedia.org/wikipedia/en/6/67/Lovely_Runner.png', TRUE, 'Korea', 'tvN / TVING', '수원,행궁동,화홍문,카페,타임슬립,로맨스,아이돌', CURRENT_TIMESTAMP),

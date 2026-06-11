@@ -71,3 +71,18 @@
 ## 제출 코멘트
 
 Week 3 기준 핵심 사용자 플로우는 대부분 구현되어 있으며, 평가에서 누락되기 쉬운 이메일 중복 확인, 설정 화면 로그아웃, 리뷰 상태 안내, 팔로우/맞팔, 댓글 관리 action sheet, 게시글 수정/삭제, AI 컨텍스트 표시를 화면과 증거 문서로 보강했습니다. 최종 targeted pass에서는 Course CRUD, Profile management, Submission completeness를 analyzer/evaluator가 확인하기 쉬운 화면 구조와 최종 문서로 보강했습니다. 남은 항목은 실제 브라우저 캡처, PDF/PPT export, 외부 map provider 검증, Week 4 AI 품질 개선 범위로 분리했습니다.
+
+## 2026-06-11 최종 analyzer 피드백 대응
+
+이번 최종 hardening pass에서는 새 기능을 추가하지 않고, 평가자가 루브릭별 구현 근거와 제출 산출물 위치를 더 빠르게 확인할 수 있도록 문서 연결성과 최종 QA 항목을 보강했습니다.
+
+- 루브릭 #01~#15 잔여 피드백 대응표: `backend/docs/qa/final-analyzer-feedback-hardening.md`
+- controller/service/mapper, frontend 화면, API endpoint 직접 확인 경로: `backend/docs/submission/evaluation-evidence-map.md`
+- 경계값, 빈 상태, 상태 전환 회귀 QA: `backend/docs/qa/final-rubric-live-qa-checklist.md`
+- 최종 smoke 보조 HTTP 파일: `backend/api-tests/final-smoke.http`
+- 최종 보고서 Markdown final본: `backend/docs/submission/final-report.md`
+- 최종 보고서 planned PDF export: `backend/docs/submission/final-report.pdf`
+- 발표자료 Markdown final본: `backend/docs/submission/presentation.md`
+- 발표자료 planned export: `backend/docs/submission/presentation.pdf`, `backend/docs/submission/presentation.pptx`
+
+PDF/PPT export와 live browser screenshot은 아직 생성하지 않았으므로 `export 필요`, `수동 캡처 필요` 상태로 유지합니다. 제출 직전 analyzer 재실행 결과와 실제 캡처 파일 존재 여부를 다시 반영해야 합니다.

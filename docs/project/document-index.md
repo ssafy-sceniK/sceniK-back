@@ -63,6 +63,7 @@
 | 항목 | 위치 | 상태 |
 | --- | --- | --- |
 | 최종 루브릭 live QA 체크리스트 | [final-rubric-live-qa-checklist.md](../qa/final-rubric-live-qa-checklist.md) | 존재 |
+| 최종 analyzer 피드백 보강 감사 | [final-analyzer-feedback-hardening.md](../qa/final-analyzer-feedback-hardening.md) | 존재 |
 | Week 3 live E2E 체크리스트 | [week3-live-e2e-checklist.md](../qa/week3-live-e2e-checklist.md) | 존재 |
 | 프론트 루브릭 피드백 감사 | [frontend-rubric-feedback-audit.md](../qa/frontend-rubric-feedback-audit.md) | 존재 |
 
@@ -87,5 +88,5 @@
 - WBS 원본 문서 위치를 연결합니다.
 - ERD 이미지 또는 원본 파일 위치를 연결합니다.
 - 사용자 흐름 또는 use-case 다이어그램 위치를 연결합니다.
-- `final-report.md`를 PDF로 export합니다.
-- `presentation.md`를 PPT 또는 PDF로 export합니다.
+- `final-report.md`를 `backend/docs/submission/final-report.pdf`로 export합니다.
+- `presentation.md`를 `backend/docs/submission/presentation.pdf` 또는 `backend/docs/submission/presentation.pptx`로 export합니다.

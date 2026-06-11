@@ -6,8 +6,11 @@
 
 | 산출물 | 파일 위치 | 상태 | 설명 | 제출 전 확인 |
 | --- | --- | --- | --- | --- |
-| 최종 보고서 | [final-report.md](./final-report.md) | 제출 가능, PDF export 필요 | 프로젝트 개요, 기능, 기술 스택, 아키텍처, DB, 사용자 여정, 루브릭, QA, 한계를 포함한 Markdown final본입니다. | 제출 포맷에 맞춰 PDF export |
-| 발표자료 | [presentation.md](./presentation.md) | 제출 가능, PPT/PDF export 필요 | 20장 구성의 발표용 Markdown final본입니다. | PPT 또는 PDF로 변환 |
+| 최종 보고서 Markdown final본 | [final-report.md](./final-report.md) | 제출 가능 | 프로젝트 개요, 기능, 기술 스택, 아키텍처, DB, 사용자 여정, 루브릭, QA, 한계를 포함한 Markdown final본입니다. | 제출 포맷에 맞춰 PDF export |
+| 최종 보고서 PDF export | `backend/docs/submission/final-report.pdf` | export 필요 | `final-report.md`에서 생성할 최종 제출용 PDF입니다. 현재 fake placeholder는 만들지 않습니다. | PDF 생성 후 파일 존재 확인 |
+| 발표자료 Markdown final본 | [presentation.md](./presentation.md) | 제출 가능 | 20장 구성의 발표용 Markdown final본입니다. | PPT 또는 PDF로 변환 |
+| 발표자료 PDF export | `backend/docs/submission/presentation.pdf` | export 필요 | `presentation.md`에서 생성할 발표 제출용 PDF입니다. 현재 fake placeholder는 만들지 않습니다. | PDF 생성 후 파일 존재 확인 |
+| 발표자료 PPTX export | `backend/docs/submission/presentation.pptx` | export 필요 | 발표 환경에서 PPTX가 요구될 경우 생성할 파일입니다. 현재 fake placeholder는 만들지 않습니다. | PPTX 생성 후 파일 존재 확인 |
 | 최종 보고서 outline | [final-report-outline.md](./final-report-outline.md) | 초안/참고 | final report 작성에 사용한 구조 초안입니다. | 최종 제출물로 사용하지 않음 |
 | 발표자료 outline | [presentation-outline.md](./presentation-outline.md) | 초안/참고 | slide 구성 초안입니다. | 최종 제출물로 사용하지 않음 |
 | 시연 시나리오 | [demo-scenario.md](./demo-scenario.md) | 제출 가능 | 시연 순서와 핵심 사용자 흐름입니다. | demo 계정/데이터와 경로 맞춤 확인 |
@@ -34,8 +37,8 @@
 ## 제출 전 마지막 확인
 
 - analyzer를 다시 실행해 최신 점수와 Partial 항목을 확인합니다.
-- 최종 보고서를 PDF로 export합니다.
-- 발표자료를 PPT 또는 PDF로 export합니다.
+- 최종 보고서를 `backend/docs/submission/final-report.pdf`로 export합니다.
+- 발표자료를 `backend/docs/submission/presentation.pdf` 또는 `backend/docs/submission/presentation.pptx`로 export합니다.
 - follow two-account live QA screenshot을 추가합니다.
 - review/detail/course/profile/community browser QA screenshot을 추가합니다.
 - demo account credentials를 준비하되 repository에는 커밋하지 않습니다.
@@ -47,3 +50,13 @@
 - PDF/PPT export는 아직 수행하지 않았습니다.
 - live browser screenshot은 아직 수동 캡처 필요 상태입니다.
 - `sceniK-ai`는 로컬 workspace에서 Git 저장소로 인식되지 않았으므로 제출 전 독립 repo 연결 확인이 필요합니다.
+
+## Planned export path 고정
+
+| 변환 대상 | 계획된 export 경로 | 현재 상태 |
+| --- | --- | --- |
+| `backend/docs/submission/final-report.md` | `backend/docs/submission/final-report.pdf` | export 필요 |
+| `backend/docs/submission/presentation.md` | `backend/docs/submission/presentation.pdf` | export 필요 |
+| `backend/docs/submission/presentation.md` | `backend/docs/submission/presentation.pptx` | PPTX 제출이 필요할 경우 export 필요 |
+
+현재 저장소에는 위 PDF/PPTX 파일을 fake placeholder로 만들지 않았습니다. 실제 변환이 완료된 뒤 파일 존재 여부와 제출 포맷을 다시 확인합니다.

@@ -153,6 +153,153 @@ cd C:\Users\jaemy\Downloads\sceniK\sceniK-ai
 | 맞팔 badge | 서로 팔로우한 사용자에게 `맞팔` badge가 표시됩니다. | 수동 확인 필요 |
 | 팔로우 pending | 버튼이 `처리 중` 상태로 중복 클릭을 막습니다. | 수동 확인 필요 |
 
+## 최종 회귀 QA — 경계값/빈 상태/상태 전환
+
+이 섹션은 analyzer가 마지막으로 지적한 boundary case, empty state, state transition 확인 항목입니다. 실제 live QA를 수행하기 전까지 상태는 `수동 확인 필요`로 유지합니다.
+
+### #01 CRUD
+
+| 항목 | 확인 내용 | 상태 |
+| --- | --- | --- |
+| invalid input | 필수 형식이 맞지 않는 입력에서 한국어 validation message가 표시됩니다. | 수동 확인 필요 |
+| missing required fields | 제목, 내용, 장소, 평점 등 필수값 누락 시 400 또는 화면 validation이 동작합니다. | 수동 확인 필요 |
+| create success | route/post/comment/review 생성 후 목록 또는 상세가 갱신됩니다. | 수동 확인 필요 |
+| update success | 작성자 수정 후 변경 내용과 성공 상태가 표시됩니다. | 수동 확인 필요 |
+| delete success | 삭제 후 목록 이동 또는 empty state 전환이 깨지지 않습니다. | 수동 확인 필요 |
+| unauthorized edit/delete | 다른 사용자 데이터 수정/삭제 시 403 또는 권한 안내가 표시됩니다. | 수동 확인 필요 |
+
+### #02 Search/sort
+
+| 항목 | 확인 내용 | 상태 |
+| --- | --- | --- |
+| empty keyword | 빈 검색어에서 기본 목록이 유지됩니다. | 수동 확인 필요 |
+| no result | 결과가 없을 때 한국어 empty state가 표시됩니다. | 수동 확인 필요 |
+| sort latest/popular | 최신순/인기순 전환 시 결과 순서와 query가 갱신됩니다. | 수동 확인 필요 |
+| category + keyword | 카테고리와 검색어 조합이 동시에 적용됩니다. | 수동 확인 필요 |
+| pagination/more | 더 보기 또는 page/size query가 중복/누락 없이 동작합니다. | 수동 확인 필요 |
+| URL query restore | frontend가 지원하는 화면에서 새로고침 후 query 상태가 복원됩니다. | 수동 확인 필요 |
+
+### #03 Detail
+
+| 항목 | 확인 내용 | 상태 |
+| --- | --- | --- |
+| invalid contentId | 없는 콘텐츠 ID에서 blank screen 대신 안내가 표시됩니다. | 수동 확인 필요 |
+| invalid placeId | 없는 장소 ID에서 blank screen 대신 안내가 표시됩니다. | 수동 확인 필요 |
+| invalid routeId | 없는 route ID에서 blank screen 대신 안내가 표시됩니다. | 수동 확인 필요 |
+| related data empty | 관련 장소/콘텐츠가 없을 때 fallback 안내가 표시됩니다. | 수동 확인 필요 |
+| fallback image | 잘못된 thumbnail은 neutral placeholder로만 대체되고 깨진 이미지 아이콘이 보이지 않습니다. | 수동 확인 필요 |
+| back/retry recovery | 오류 화면에서 뒤로가기 또는 다시 시도 후 정상 목록으로 복구됩니다. | 수동 확인 필요 |
+
+### #04 Review
+
+| 항목 | 확인 내용 | 상태 |
+| --- | --- | --- |
+| rating min/max | 0~5 범위 외 평점이 차단됩니다. | 수동 확인 필요 |
+| empty review content | 빈 리뷰 내용 저장이 차단됩니다. | 수동 확인 필요 |
+| duplicate review | 같은 사용자의 같은 장소 중복 리뷰가 차단됩니다. | 수동 확인 필요 |
+| average rating after create/update/delete | 작성/수정/삭제 후 평균 평점과 리뷰 수가 갱신됩니다. | 수동 확인 필요 |
+| owner-only edit/delete | 작성자에게만 수정/삭제 UI가 보이고 비작성자는 차단됩니다. | 수동 확인 필요 |
+
+### #05 Auth
+
+| 항목 | 확인 내용 | 상태 |
+| --- | --- | --- |
+| missing token | 인증 필요 API에서 token 누락 시 401과 로그인 안내가 표시됩니다. | 수동 확인 필요 |
+| invalid token | 잘못된 token에서 401과 한국어 안내가 표시됩니다. | 수동 확인 필요 |
+| logout token reuse | 로그아웃 후 같은 token 재사용이 차단되는지 확인합니다. | 수동 확인 필요 |
+| expired token if supported | token 만료 정책이 적용되는 환경에서 로그인 만료 안내가 표시됩니다. | 수동 확인 필요 |
+| frontend login guidance | 401 이후 로그인 화면 안내와 redirect가 반복 loop 없이 동작합니다. | 수동 확인 필요 |
+
+### #06 Signup
+
+| 항목 | 확인 내용 | 상태 |
+| --- | --- | --- |
+| invalid email | 잘못된 이메일 형식이 frontend/server에서 일관되게 안내됩니다. | 수동 확인 필요 |
+| duplicate email | 중복 이메일이 차단되고 메시지가 표시됩니다. | 수동 확인 필요 |
+| password too short | 8자 미만 비밀번호가 차단됩니다. | 수동 확인 필요 |
+| password confirmation mismatch | 비밀번호 확인 불일치가 차단됩니다. | 수동 확인 필요 |
+| signup success route | 가입 성공 후 로그인/홈 이동 흐름이 명확합니다. | 수동 확인 필요 |
+
+### #07 Profile
+
+| 항목 | 확인 내용 | 상태 |
+| --- | --- | --- |
+| nickname too short | 닉네임 최소 길이 validation이 동작합니다. | 수동 확인 필요 |
+| preference chips partial update | 일부 취향만 수정해도 기존 사용자 정보가 손상되지 않습니다. | 수동 확인 필요 |
+| image preview/deferred upload copy | 이미지 미리보기는 로컬 동작이며 서버 업로드 보류 안내가 표시됩니다. | 수동 확인 필요 |
+| save success/failure | 저장 성공/실패 상태가 화면 안에 표시됩니다. | 수동 확인 필요 |
+
+### #08 Likes/favorites
+
+| 항목 | 확인 내용 | 상태 |
+| --- | --- | --- |
+| double-click guard | 좋아요 버튼 연타 중 pending/disabled 상태가 적용됩니다. | 수동 확인 필요 |
+| duplicate like | 중복 좋아요가 count를 중복 증가시키지 않습니다. | 수동 확인 필요 |
+| unlike missing | 없는 좋아요 취소가 count를 손상하지 않습니다. | 수동 확인 필요 |
+| list refresh | 마이페이지 좋아요 목록이 toggle 후 갱신됩니다. | 수동 확인 필요 |
+| user isolation | 사용자 A/B 좋아요 상태가 서로 섞이지 않습니다. | 수동 확인 필요 |
+
+### #09 Follow
+
+| 항목 | 확인 내용 | 상태 |
+| --- | --- | --- |
+| self follow hidden/blocked | 자기 자신 팔로우가 숨겨지거나 backend에서 차단됩니다. | 수동 확인 필요 |
+| duplicate follow | 중복 팔로우가 count를 중복 증가시키지 않습니다. | 수동 확인 필요 |
+| unfollow missing | 없는 follow 취소가 count를 손상하지 않습니다. | 수동 확인 필요 |
+| follower/following count | 팔로우/언팔로우 후 count와 목록이 일치합니다. | 수동 확인 필요 |
+| mutual badge | 상호 팔로우 후 `맞팔` badge가 표시됩니다. | 수동 확인 필요 |
+| two-account QA | 일반 창/시크릿 창 등 두 세션으로 A/B 시나리오를 확인합니다. | 수동 캡처 필요 |
+
+### #10 Board
+
+| 항목 | 확인 내용 | 상태 |
+| --- | --- | --- |
+| owner edit/delete | 작성자에게만 수정/삭제 UI가 표시됩니다. | 수동 확인 필요 |
+| non-owner blocked | 비작성자 수정/삭제가 차단됩니다. | 수동 확인 필요 |
+| search/sort | 게시글 검색/정렬이 query와 결과에 반영됩니다. | 수동 확인 필요 |
+| empty board state | 게시글이 없거나 검색 결과가 없을 때 empty state가 표시됩니다. | 수동 확인 필요 |
+
+### #11 Comments
+
+| 항목 | 확인 내용 | 상태 |
+| --- | --- | --- |
+| empty comment | 빈 댓글 작성이 차단됩니다. | 수동 확인 필요 |
+| reply | 최상위 댓글에 답글을 작성할 수 있습니다. | 수동 확인 필요 |
+| reply-to-reply one-level mapping | 답글의 답글 입력이 backend 1단계 구조로 저장됩니다. | 수동 확인 필요 |
+| comment like | 댓글/답글 좋아요 count와 state가 갱신됩니다. | 수동 확인 필요 |
+| owner edit/delete | 작성자 댓글에만 action sheet 수정/삭제가 보입니다. | 수동 확인 필요 |
+| non-owner blocked | 비작성자 댓글 수정/삭제가 차단됩니다. | 수동 확인 필요 |
+
+### #12 Course
+
+| 항목 | 확인 내용 | 상태 |
+| --- | --- | --- |
+| save route | AI 결과를 저장하고 내 코스 목록에 표시합니다. | 수동 확인 필요 |
+| edit title | 저장 코스 제목 수정이 반영됩니다. | 수동 확인 필요 |
+| reorder place | 코스 장소 순서 변경이 저장됩니다. | 수동 확인 필요 |
+| remove all places validation | 모든 장소 제거 시 validation 또는 안내가 표시됩니다. | 수동 확인 필요 |
+| delete route | 코스 삭제 후 목록/상세가 복구됩니다. | 수동 확인 필요 |
+| progress summary | 코스 진행/장소 수/일차 요약이 화면에 표시됩니다. | 수동 확인 필요 |
+
+### #13 AI
+
+| 항목 | 확인 내용 | 상태 |
+| --- | --- | --- |
+| missing conditions | 필수 조건 누락 시 다음 단계 진입이 차단됩니다. | 수동 확인 필요 |
+| fallback route generation | 후보 장소 부족 시 한국어 fallback 안내가 표시됩니다. | 수동 확인 필요 |
+| prompt context panel | 선택 조건이 AI 참고 조건 패널에 표시됩니다. | 수동 확인 필요 |
+| result reason panel | 결과 화면에 추천 이유와 검증 장소 기반 설명이 표시됩니다. | 수동 확인 필요 |
+| backend-only AI call | frontend가 `sceniK-ai` 또는 `localhost:8000`을 직접 호출하지 않습니다. | 정적 확인 필요 |
+
+### #14/#15 Docs
+
+| 항목 | 확인 내용 | 상태 |
+| --- | --- | --- |
+| document links | README, PRD, 구현 명세, QA, evidence 문서 링크가 유효합니다. | 문서 확인 필요 |
+| final artifact paths | final Markdown과 PDF/PPT planned export path가 분리되어 있습니다. | 문서 확인 완료 |
+| screenshot paths | 수동 캡처 저장 예정 경로가 문서화되어 있습니다. | 문서 확인 완료, 캡처 필요 |
+| README/project index | 제출 산출물 index와 project document index가 최신 보강 문서를 가리킵니다. | 문서 확인 완료 |
+
 ## 루브릭별 최종 확인
 
 | 루브릭 | 최종 확인 포인트 | 상태 |

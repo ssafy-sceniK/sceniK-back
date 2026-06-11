@@ -1,0 +1,149 @@
+### 최종 제출 전 수동 smoke 시나리오
+### 이 파일은 REST Client용 보조 체크리스트입니다.
+### 실제 secret을 넣지 말고, 실행 직전에 token만 로컬에서 붙여 넣습니다.
+
+@baseUrl = http://localhost:8080
+@api = {{baseUrl}}/api
+@accessToken = paste-token-here
+@contentId = C_DRAMA_001
+@placeId = P_0001
+@routeId = paste-route-id-here
+@postId = paste-post-id-here
+@commentId = paste-comment-id-here
+@reviewId = paste-review-id-here
+@targetUserId = paste-other-user-id-here
+
+### 1. 공개 콘텐츠 목록
+# 기대: 200, 콘텐츠 목록과 X-Total-Count 확인
+GET {{api}}/contents?page=0&size=10&sort=popular
+
+### 2. 공개 장소 목록
+# 기대: 200, 장소 목록과 X-Total-Count 확인
+GET {{api}}/places?page=0&size=10&sort=popular
+
+### 3. 로그인
+# 기대: 200, accessToken 반환
+# @name login
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "demo@example.com",
+  "password": "password123"
+}
+
+### 4. 내 정보 조회
+# 기대: token 누락 시 401, token 포함 시 200
+GET {{api}}/users/me
+Authorization: Bearer {{accessToken}}
+
+### 5. 인증 누락 확인
+# 기대: 401, "로그인이 필요합니다." 계열 한국어 메시지
+GET {{api}}/users/me
+
+### 6. 리뷰 중복 작성 확인
+# 기대: 첫 작성은 성공, 같은 사용자/장소 재작성은 409와 한국어 메시지
+POST {{api}}/places/{{placeId}}/reviews
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "rating": 4.5,
+  "content": "최종 smoke 리뷰 검증입니다."
+}
+
+### 7. 리뷰 수정
+# 기대: 작성자만 수정 가능, 비작성자 403
+PATCH {{api}}/places/{{placeId}}/reviews/{{reviewId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "rating": 5,
+  "content": "최종 smoke 수정 리뷰입니다."
+}
+
+### 8. 팔로우
+# 기대: targetUserId가 다른 사용자이면 followedByMe true, 자기 자신이면 400/409 계열 한국어 메시지
+POST {{api}}/users/{{targetUserId}}/follow
+Authorization: Bearer {{accessToken}}
+
+### 9. 언팔로우
+# 기대: followedByMe false, follower/following count 일관성 확인
+DELETE {{api}}/users/{{targetUserId}}/follow
+Authorization: Bearer {{accessToken}}
+
+### 10. 댓글 작성
+# 기대: 200, commentId 반환
+POST {{api}}/posts/{{postId}}/comments
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "content": "최종 smoke 댓글 검증입니다."
+}
+
+### 11. 댓글 수정
+# 기대: 작성자만 수정 가능, 비작성자 403
+PATCH {{api}}/posts/{{postId}}/comments/{{commentId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "content": "최종 smoke 수정 댓글입니다."
+}
+
+### 12. 댓글 좋아요 toggle
+# 기대: 중복 좋아요가 count를 중복 증가시키지 않음
+POST {{api}}/posts/comments/{{commentId}}/likes
+Authorization: Bearer {{accessToken}}
+
+### 13. 저장 코스 수정
+# 기대: route title/summary 변경, 장소 목록 validation 확인
+PATCH {{api}}/routes/{{routeId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "title": "최종 smoke 수정 코스",
+  "summary": "최종 제출 전 route update 검증"
+}
+
+### 14. 콘텐츠 좋아요 toggle
+# 기대: 204, 마이페이지 좋아요 목록 refresh 확인
+POST {{api}}/contents/{{contentId}}/likes
+Authorization: Bearer {{accessToken}}
+
+### 15. 장소 방문 상태
+# 기대: 200, WANT_TO_GO 또는 VISITED 저장
+PUT {{api}}/places/{{placeId}}/visit-status
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "status": "WANT_TO_GO"
+}
+
+### 16. AI route generation
+# 기대: 200, 검증 장소 기반 route 또는 조건 변경 안내
+POST {{api}}/ai/routes
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "contentId": "{{contentId}}",
+  "contentIds": ["{{contentId}}"],
+  "region": "서울",
+  "durationDays": 1,
+  "transport": "대중교통",
+  "companion": "친구",
+  "style": "감성 촬영지 투어",
+  "budgetMin": 50000,
+  "budgetMax": 150000
+}
+
+### 17. 로그아웃
+# 기대: 200 또는 204, token revoke 정책 확인
+# 로그아웃 후 같은 token으로 보호 API를 다시 호출해 401 여부를 확인합니다.
+POST {{api}}/auth/logout
+Authorization: Bearer {{accessToken}}

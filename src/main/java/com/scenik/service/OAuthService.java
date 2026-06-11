@@ -52,6 +52,7 @@ public class OAuthService {
         String providerUserId = requireText(attribute(attributes, "sub"), "OAuth provider user ID is required.");
         OAuthAccount existingAccount = oauthAccountMapper.findByProviderUserId(normalizedProvider, providerUserId);
         if (existingAccount != null) {
+            updateProfileImage(existingAccount.getUserId(), attribute(attributes, "picture"));
             return issueLoginCode(existingAccount.getUserId());
         }
 
@@ -62,7 +63,9 @@ public class OAuthService {
 
         User user = userMapper.findByEmail(email);
         if (user == null) {
-            user = createOAuthUser(email, attribute(attributes, "name"));
+            user = createOAuthUser(email, attribute(attributes, "name"), attribute(attributes, "picture"));
+        } else {
+            updateProfileImage(user.getUserId(), attribute(attributes, "picture"));
         }
 
         OAuthAccount account = new OAuthAccount();
@@ -84,13 +87,21 @@ public class OAuthService {
         return authService.issueSession(loginCode.getUserId());
     }
 
-    private User createOAuthUser(String email, String displayName) {
+    private User createOAuthUser(String email, String displayName, String profileImageUrl) {
         User user = new User();
         user.setEmail(email);
         user.setNickname(uniqueNickname(displayName, email));
         user.setPasswordHash("oauth_only$" + UUID.randomUUID());
+        user.setProfileImageUrl(optionalText(profileImageUrl));
         userMapper.insert(user);
         return user;
+    }
+
+    private void updateProfileImage(Long userId, String profileImageUrl) {
+        String normalized = optionalText(profileImageUrl);
+        if (normalized != null) {
+            userMapper.updateProfileImage(userId, normalized);
+        }
     }
 
     private String uniqueNickname(String displayName, String email) {
@@ -148,6 +159,10 @@ public class OAuthService {
 
     private String requireTextOrDefault(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value.trim();
+    }
+
+    private String optionalText(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private String hash(String value) {

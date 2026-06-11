@@ -65,11 +65,28 @@ CREATE TABLE IF NOT EXISTS users (
   nickname VARCHAR(120) NOT NULL,
   password_hash VARCHAR(500) NOT NULL,
   preferences TEXT,
+  profile_image_url VARCHAR(1000),
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uq_users_email (email),
   UNIQUE KEY uq_users_nickname (nickname)
 );
+
+SET @profile_image_column_exists = (
+  SELECT COUNT(*)
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'users'
+    AND COLUMN_NAME = 'profile_image_url'
+);
+SET @profile_image_migration = IF(
+  @profile_image_column_exists = 0,
+  'ALTER TABLE users ADD COLUMN profile_image_url VARCHAR(1000) AFTER preferences',
+  'SELECT 1'
+);
+PREPARE profile_image_statement FROM @profile_image_migration;
+EXECUTE profile_image_statement;
+DEALLOCATE PREPARE profile_image_statement;
 
 CREATE TABLE IF NOT EXISTS auth_tokens (
   token_id BIGINT AUTO_INCREMENT PRIMARY KEY,

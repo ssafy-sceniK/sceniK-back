@@ -7,6 +7,7 @@
     <result property="nickname" column="nickname" />
     <result property="passwordHash" column="password_hash" />
     <result property="preferences" column="preferences" />
+    <result property="profileImageUrl" column="profile_image_url" />
     <result property="createdAt" column="created_at" />
     <result property="updatedAt" column="updated_at" />
   </resultMap>
@@ -25,14 +26,20 @@
   </select>
 
   <insert id="insert" parameterType="com.scenik.domain.User" useGeneratedKeys="true" keyProperty="userId" keyColumn="user_id">
-    INSERT INTO users (email, nickname, password_hash, preferences)
-    VALUES (#{email}, #{nickname}, #{passwordHash}, #{preferences})
+    INSERT INTO users (email, nickname, password_hash, preferences, profile_image_url)
+    VALUES (#{email}, #{nickname}, #{passwordHash}, #{preferences}, #{profileImageUrl})
   </insert>
 
   <update id="updateProfile">
     UPDATE users
     SET nickname = #{nickname},
         preferences = #{preferences}
+    WHERE user_id = #{userId}
+  </update>
+
+  <update id="updateProfileImage">
+    UPDATE users
+    SET profile_image_url = #{profileImageUrl}
     WHERE user_id = #{userId}
   </update>
 </mapper>

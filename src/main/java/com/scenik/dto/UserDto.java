@@ -9,6 +9,7 @@ public record UserDto(
         Long userId,
         String email,
         String nickname,
+        String profileImageUrl,
         List<String> preferences,
         LocalDateTime createdAt
 ) {
@@ -17,6 +18,7 @@ public record UserDto(
                 user.getUserId(),
                 user.getEmail(),
                 user.getNickname(),
+                user.getProfileImageUrl(),
                 split(user.getPreferences()),
                 user.getCreatedAt()
         );

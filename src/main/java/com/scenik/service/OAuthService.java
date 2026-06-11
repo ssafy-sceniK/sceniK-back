@@ -45,27 +45,25 @@ public class OAuthService {
     @Transactional
     public String completeLogin(String provider, Map<String, Object> attributes) {
         String normalizedProvider = requireText(provider, "OAuth provider is required.").toLowerCase(Locale.ROOT);
-        if (!"google".equals(normalizedProvider)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported OAuth provider.");
-        }
+        OAuthProfile profile = oauthProfile(normalizedProvider, attributes);
 
-        String providerUserId = requireText(attribute(attributes, "sub"), "OAuth provider user ID is required.");
+        String providerUserId = profile.providerUserId();
         OAuthAccount existingAccount = oauthAccountMapper.findByProviderUserId(normalizedProvider, providerUserId);
         if (existingAccount != null) {
-            updateProfileImage(existingAccount.getUserId(), attribute(attributes, "picture"));
+            updateProfileImage(existingAccount.getUserId(), profile.profileImageUrl());
             return issueLoginCode(existingAccount.getUserId());
         }
 
-        String email = normalizeEmail(attribute(attributes, "email"));
-        if (!isTrue(attributes.get("email_verified"))) {
+        String email = normalizeEmail(profile.email());
+        if (!profile.emailVerified()) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "OAuth email is not verified.");
         }
 
         User user = userMapper.findByEmail(email);
         if (user == null) {
-            user = createOAuthUser(email, attribute(attributes, "name"), attribute(attributes, "picture"));
+            user = createOAuthUser(email, profile.displayName(), profile.profileImageUrl());
         } else {
-            updateProfileImage(user.getUserId(), attribute(attributes, "picture"));
+            updateProfileImage(user.getUserId(), profile.profileImageUrl());
         }
 
         OAuthAccount account = new OAuthAccount();
@@ -75,6 +73,37 @@ public class OAuthService {
         account.setProviderEmail(email);
         oauthAccountMapper.insert(account);
         return issueLoginCode(user.getUserId());
+    }
+
+    private OAuthProfile oauthProfile(String provider, Map<String, Object> attributes) {
+        return switch (provider) {
+            case "google" -> new OAuthProfile(
+                    requireText(attribute(attributes, "sub"), "OAuth provider user ID is required."),
+                    attribute(attributes, "email"),
+                    isTrue(attributes.get("email_verified")),
+                    attribute(attributes, "name"),
+                    attribute(attributes, "picture")
+            );
+            case "kakao" -> kakaoProfile(attributes);
+            default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported OAuth provider.");
+        };
+    }
+
+    private OAuthProfile kakaoProfile(Map<String, Object> attributes) {
+        Map<String, Object> account = nestedMap(attributes, "kakao_account");
+        Map<String, Object> profile = nestedMap(account, "profile");
+        Map<String, Object> properties = nestedMap(attributes, "properties");
+        String email = attribute(account, "email");
+        if (email == null || email.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "OAuth email is required.");
+        }
+        return new OAuthProfile(
+                requireText(attribute(attributes, "id"), "OAuth provider user ID is required."),
+                email,
+                isTrue(account.get("is_email_valid")) && isTrue(account.get("is_email_verified")),
+                firstText(attribute(profile, "nickname"), attribute(properties, "nickname")),
+                firstText(attribute(profile, "profile_image_url"), attribute(properties, "profile_image"))
+        );
     }
 
     @Transactional
@@ -146,6 +175,19 @@ public class OAuthService {
         return value == null ? null : String.valueOf(value);
     }
 
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> nestedMap(Map<String, Object> attributes, String key) {
+        Object value = attributes.get(key);
+        return value instanceof Map<?, ?> map ? (Map<String, Object>) map : Map.of();
+    }
+
+    private String firstText(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) return value.trim();
+        }
+        return null;
+    }
+
     private boolean isTrue(Object value) {
         return Boolean.TRUE.equals(value) || "true".equalsIgnoreCase(String.valueOf(value));
     }
@@ -172,5 +214,14 @@ public class OAuthService {
         } catch (Exception ex) {
             throw new IllegalStateException("Could not hash OAuth login code.", ex);
         }
+    }
+
+    private record OAuthProfile(
+            String providerUserId,
+            String email,
+            boolean emailVerified,
+            String displayName,
+            String profileImageUrl
+    ) {
     }
 }

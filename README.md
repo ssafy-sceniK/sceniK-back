@@ -30,13 +30,15 @@ examples. Do not commit real credentials.
 The backend optionally loads key-value pairs from the project-root `.env` file.
 Process environment variables still take precedence.
 
-## Google OAuth
+## Google and Kakao OAuth
 
 Required local variables:
 
 ```text
 GOOGLE_OAUTH_CLIENT_ID=...
 GOOGLE_OAUTH_CLIENT_SECRET=...
+KAKAO_OAUTH_CLIENT_ID=...
+KAKAO_OAUTH_CLIENT_SECRET=...
 OAUTH_BASE_URL=http://localhost:8080
 OAUTH_FRONTEND_REDIRECT_URI=http://127.0.0.1:5173/oauth/callback
 ```
@@ -47,16 +49,24 @@ Register this exact authorized redirect URI in Google Cloud Console:
 http://localhost:8080/login/oauth2/code/google
 ```
 
+Register this exact redirect URI in Kakao Developers:
+
+```text
+http://localhost:8080/login/oauth2/code/kakao
+```
+
+Enable the Kakao Login consent items for nickname, profile image, and account email.
+
 OAuth flow:
 
-1. Navigate the browser directly to `http://localhost:8080/api/auth/oauth/google`.
-2. Google redirects back to the Spring Security callback.
+1. Navigate the browser to `/api/auth/oauth/google` or `/api/auth/oauth/kakao`.
+2. The OAuth provider redirects back to the Spring Security callback.
 3. The backend redirects to the frontend callback with a five-minute one-time `code`.
 4. Exchange that code with `POST /api/auth/oauth/exchange` to receive the normal sceniK access and refresh tokens.
 
 The one-time code is stored only as a SHA-256 hash and is consumed atomically.
 Logging out through `POST /api/auth/logout` revokes the sceniK session; it does
-not sign the user out of their Google account.
+not sign the user out of their Google or Kakao account.
 
 ## Run
 

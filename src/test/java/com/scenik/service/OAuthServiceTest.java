@@ -118,6 +118,52 @@ class OAuthServiceTest {
     }
 
     @Test
+    void verifiedKakaoEmailCreatesNewUserWithProfile() {
+        when(userMapper.findByEmail("kakao@scenik.com")).thenReturn(null);
+        when(userMapper.findByNickname("카카오 여행자")).thenReturn(null);
+        when(userMapper.insert(any(User.class))).thenAnswer(invocation -> {
+            User inserted = invocation.getArgument(0);
+            inserted.setUserId(31L);
+            return 1;
+        });
+        when(oauthLoginCodeMapper.insert(any(OAuthLoginCode.class))).thenReturn(1);
+
+        oauthService.completeLogin("kakao", Map.of(
+                "id", 123456789L,
+                "kakao_account", Map.of(
+                        "email", "kakao@scenik.com",
+                        "is_email_valid", true,
+                        "is_email_verified", true,
+                        "profile", Map.of(
+                                "nickname", "카카오 여행자",
+                                "profile_image_url", "https://example.com/kakao-profile.jpg"
+                        )
+                )
+        ));
+
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        verify(userMapper).insert(userCaptor.capture());
+        assertEquals("kakao@scenik.com", userCaptor.getValue().getEmail());
+        assertEquals("카카오 여행자", userCaptor.getValue().getNickname());
+        assertEquals("https://example.com/kakao-profile.jpg", userCaptor.getValue().getProfileImageUrl());
+
+        ArgumentCaptor<OAuthAccount> accountCaptor = ArgumentCaptor.forClass(OAuthAccount.class);
+        verify(oauthAccountMapper).insert(accountCaptor.capture());
+        assertEquals("kakao", accountCaptor.getValue().getProvider());
+        assertEquals("123456789", accountCaptor.getValue().getProviderUserId());
+    }
+
+    @Test
+    void kakaoLoginWithoutEmailIsRejected() {
+        assertThrows(ResponseStatusException.class, () -> oauthService.completeLogin("kakao", Map.of(
+                "id", 123L,
+                "kakao_account", Map.of("profile", Map.of("nickname", "카카오 사용자"))
+        )));
+
+        verify(oauthAccountMapper, never()).insert(any());
+    }
+
+    @Test
     void activeCodeIsConsumedAndExchangedForSession() {
         OAuthLoginCode loginCode = new OAuthLoginCode();
         loginCode.setOauthLoginCodeId(3L);

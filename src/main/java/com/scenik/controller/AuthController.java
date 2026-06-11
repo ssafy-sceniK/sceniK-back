@@ -47,6 +47,11 @@ public class AuthController {
         return new RedirectView("/api/auth/oauth/authorization/google");
     }
 
+    @GetMapping("/api/auth/oauth/kakao")
+    public RedirectView startKakaoOAuth() {
+        return new RedirectView("/api/auth/oauth/authorization/kakao");
+    }
+
     @PostMapping("/api/auth/oauth/exchange")
     public AuthResponse exchangeOAuthCode(@Valid @RequestBody OAuthCodeExchangeRequest request) {
         return oauthService.exchangeCode(request.code());

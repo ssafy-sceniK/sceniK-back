@@ -164,7 +164,8 @@ public class GlobalExceptionHandler {
             case "Bearer token is required.", "Refresh token is required." -> new ErrorDescriptor("UNAUTHORIZED", "로그인이 필요합니다.");
             case "Invalid or expired token.", "User was not found." -> new ErrorDescriptor("TOKEN_EXPIRED", "로그인이 만료되었습니다. 다시 로그인해 주세요.");
             case "Invalid or expired OAuth login code." -> new ErrorDescriptor("OAUTH_CODE_EXPIRED", "OAuth 로그인이 만료되었습니다. 다시 로그인해 주세요.");
-            case "OAuth email is not verified." -> new ErrorDescriptor("OAUTH_EMAIL_NOT_VERIFIED", "인증된 이메일이 있는 Google 계정으로 로그인해 주세요.");
+            case "OAuth email is required." -> new ErrorDescriptor("OAUTH_EMAIL_REQUIRED", "소셜 계정의 이메일 제공에 동의해 주세요.");
+            case "OAuth email is not verified." -> new ErrorDescriptor("OAUTH_EMAIL_NOT_VERIFIED", "인증된 이메일이 있는 소셜 계정으로 로그인해 주세요.");
             case "Unsupported OAuth provider." -> new ErrorDescriptor("UNSUPPORTED_OAUTH_PROVIDER", "지원하지 않는 OAuth 로그인 방식입니다.");
             case "Password must be at least 8 characters." -> new ErrorDescriptor("VALIDATION_ERROR", "비밀번호는 8자 이상이어야 합니다.");
             case "Email is required." -> new ErrorDescriptor("VALIDATION_ERROR", "이메일을 입력해 주세요.");

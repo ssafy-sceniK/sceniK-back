@@ -15,6 +15,23 @@ spring:
               - profile
               - email
             redirect-uri: "${OAUTH_BASE_URL:http://localhost:8080}/login/oauth2/code/{registrationId}"
+          kakao:
+            client-id: ${KAKAO_OAUTH_CLIENT_ID:not-configured}
+            client-secret: ${KAKAO_OAUTH_CLIENT_SECRET:}
+            client-authentication-method: client_secret_post
+            authorization-grant-type: authorization_code
+            redirect-uri: "${OAUTH_BASE_URL:http://localhost:8080}/login/oauth2/code/{registrationId}"
+            scope:
+              - profile_nickname
+              - profile_image
+              - account_email
+            client-name: Kakao
+        provider:
+          kakao:
+            authorization-uri: https://kauth.kakao.com/oauth/authorize
+            token-uri: https://kauth.kakao.com/oauth/token
+            user-info-uri: https://kapi.kakao.com/v2/user/me
+            user-name-attribute: id
   datasource:
     url: ${DB_URL:jdbc:mysql://localhost:3306/scenik?serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
     username: ${DB_USERNAME:root}
@@ -32,9 +49,6 @@ mybatis:
 
 server:
   port: 8080
-
-kakao:
-  rest-api-key: ${KAKAO_REST_API_KEY:}
 
 scenik:
   oauth:

@@ -1,5 +1,6 @@
 package com.scenik.controller;
 
+import com.scenik.dto.ApiResponse;
 import com.scenik.dto.AuthDtos.AuthResponse;
 import com.scenik.dto.AuthDtos.EmailAvailabilityResponse;
 import com.scenik.dto.AuthDtos.LoginRequest;
@@ -33,13 +34,13 @@ public class AuthController {
     }
 
     @PostMapping("/api/auth/signup")
-    public AuthResponse signup(@Valid @RequestBody SignupRequest request) {
-        return authService.signup(request);
+    public ApiResponse<AuthResponse> signup(@Valid @RequestBody SignupRequest request) {
+        return ApiResponse.ok("회원가입이 완료되었습니다.", authService.signup(request));
     }
 
     @PostMapping("/api/auth/login")
-    public AuthResponse login(@Valid @RequestBody LoginRequest request) {
-        return authService.login(request);
+    public ApiResponse<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+        return ApiResponse.ok("로그인되었습니다.", authService.login(request));
     }
 
     @GetMapping("/api/auth/oauth/google")
@@ -53,39 +54,39 @@ public class AuthController {
     }
 
     @PostMapping("/api/auth/oauth/exchange")
-    public AuthResponse exchangeOAuthCode(@Valid @RequestBody OAuthCodeExchangeRequest request) {
-        return oauthService.exchangeCode(request.code());
+    public ApiResponse<AuthResponse> exchangeOAuthCode(@Valid @RequestBody OAuthCodeExchangeRequest request) {
+        return ApiResponse.ok("OAuth 로그인이 완료되었습니다.", oauthService.exchangeCode(request.code()));
     }
 
     @GetMapping("/api/auth/check-email")
-    public EmailAvailabilityResponse checkEmail(@RequestParam("email") String email) {
-        return authService.checkEmail(email);
+    public ApiResponse<EmailAvailabilityResponse> checkEmail(@RequestParam("email") String email) {
+        return ApiResponse.ok(authService.checkEmail(email));
     }
 
     @PostMapping("/api/auth/logout")
-    public ResponseEntity<Void> logout(@RequestHeader(value = "Authorization", required = false) String authorization) {
+    public ResponseEntity<ApiResponse<Void>> logout(@RequestHeader(value = "Authorization", required = false) String authorization) {
         authService.logout(authorization);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.okMessage("로그아웃되었습니다."));
     }
 
     @PostMapping("/api/auth/token/refresh")
-    public AuthResponse refresh(
+    public ApiResponse<AuthResponse> refresh(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @Valid @RequestBody(required = false) RefreshTokenRequest request
     ) {
-        return authService.refresh(authorization, request);
+        return ApiResponse.ok("토큰이 갱신되었습니다.", authService.refresh(authorization, request));
     }
 
     @GetMapping("/api/users/me")
-    public UserDto me(@RequestHeader(value = "Authorization", required = false) String authorization) {
-        return UserDto.from(authService.requireUser(authorization));
+    public ApiResponse<UserDto> me(@RequestHeader(value = "Authorization", required = false) String authorization) {
+        return ApiResponse.ok(UserDto.from(authService.requireUser(authorization)));
     }
 
     @PatchMapping("/api/users/me")
-    public UserDto updateMe(
+    public ApiResponse<UserDto> updateMe(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @Valid @RequestBody UpdateUserRequest request
     ) {
-        return authService.updateMe(authorization, request);
+        return ApiResponse.ok("프로필이 수정되었습니다.", authService.updateMe(authorization, request));
     }
 }

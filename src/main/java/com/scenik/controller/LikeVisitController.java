@@ -1,5 +1,6 @@
 package com.scenik.controller;
 
+import com.scenik.dto.ApiResponse;
 import com.scenik.dto.LikeVisitDtos.LikesDto;
 import com.scenik.dto.LikeVisitDtos.VisitStatusDto;
 import com.scenik.dto.LikeVisitDtos.VisitStatusRequest;
@@ -30,48 +31,48 @@ public class LikeVisitController {
     }
 
     @PostMapping("/api/contents/{contentId}/likes")
-    public ResponseEntity<Void> likeContent(
+    public ResponseEntity<ApiResponse<Void>> likeContent(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @PathVariable("contentId") String contentId
     ) {
         likeVisitService.likeContent(authService.requireUser(authorization), contentId);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.okMessage("콘텐츠 좋아요가 반영되었습니다."));
     }
 
     @DeleteMapping("/api/contents/{contentId}/likes")
-    public ResponseEntity<Void> unlikeContent(
+    public ResponseEntity<ApiResponse<Void>> unlikeContent(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @PathVariable("contentId") String contentId
     ) {
         likeVisitService.unlikeContent(authService.requireUser(authorization), contentId);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.okMessage("콘텐츠 좋아요가 취소되었습니다."));
     }
 
     @PostMapping("/api/places/{placeId}/likes")
-    public ResponseEntity<Void> likePlace(
+    public ResponseEntity<ApiResponse<Void>> likePlace(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @PathVariable("placeId") String placeId
     ) {
         likeVisitService.likePlace(authService.requireUser(authorization), placeId);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.okMessage("장소 좋아요가 반영되었습니다."));
     }
 
     @DeleteMapping("/api/places/{placeId}/likes")
-    public ResponseEntity<Void> unlikePlace(
+    public ResponseEntity<ApiResponse<Void>> unlikePlace(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @PathVariable("placeId") String placeId
     ) {
         likeVisitService.unlikePlace(authService.requireUser(authorization), placeId);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.okMessage("장소 좋아요가 취소되었습니다."));
     }
 
     @GetMapping("/api/users/me/likes")
-    public LikesDto myLikes(@RequestHeader(value = "Authorization", required = false) String authorization) {
-        return likeVisitService.getLikes(authService.requireUser(authorization));
+    public ApiResponse<LikesDto> myLikes(@RequestHeader(value = "Authorization", required = false) String authorization) {
+        return ApiResponse.ok(likeVisitService.getLikes(authService.requireUser(authorization)));
     }
 
     @GetMapping("/api/users/me/liked-contents")
-    public ResponseEntity<List<String>> myLikedContents(
+    public ResponseEntity<ApiResponse<List<String>>> myLikedContents(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @RequestParam(value = "page", required = false) Integer page,
             @RequestParam(value = "size", required = false) Integer size
@@ -80,11 +81,11 @@ public class LikeVisitController {
         List<String> paged = ListQuerySupport.paginate(contentIds, page, size);
         return ResponseEntity.ok()
                 .header("X-Total-Count", String.valueOf(contentIds.size()))
-                .body(paged);
+                .body(ApiResponse.ok(paged));
     }
 
     @GetMapping("/api/users/me/liked-places")
-    public ResponseEntity<List<String>> myLikedPlaces(
+    public ResponseEntity<ApiResponse<List<String>>> myLikedPlaces(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @RequestParam(value = "page", required = false) Integer page,
             @RequestParam(value = "size", required = false) Integer size
@@ -93,38 +94,40 @@ public class LikeVisitController {
         List<String> paged = ListQuerySupport.paginate(placeIds, page, size);
         return ResponseEntity.ok()
                 .header("X-Total-Count", String.valueOf(placeIds.size()))
-                .body(paged);
+                .body(ApiResponse.ok(paged));
     }
 
     @PostMapping("/api/places/{placeId}/visit-status")
-    public VisitStatusDto setVisitStatus(
+    public ApiResponse<VisitStatusDto> setVisitStatus(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @PathVariable("placeId") String placeId,
             @Valid @RequestBody VisitStatusRequest request
     ) {
-        return likeVisitService.setVisitStatus(authService.requireUser(authorization), placeId, request.status());
+        return ApiResponse.ok("방문 상태가 저장되었습니다.",
+                likeVisitService.setVisitStatus(authService.requireUser(authorization), placeId, request.status()));
     }
 
     @PutMapping("/api/places/{placeId}/visit-status")
-    public VisitStatusDto putVisitStatus(
+    public ApiResponse<VisitStatusDto> putVisitStatus(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @PathVariable("placeId") String placeId,
             @Valid @RequestBody VisitStatusRequest request
     ) {
-        return likeVisitService.setVisitStatus(authService.requireUser(authorization), placeId, request.status());
+        return ApiResponse.ok("방문 상태가 저장되었습니다.",
+                likeVisitService.setVisitStatus(authService.requireUser(authorization), placeId, request.status()));
     }
 
     @DeleteMapping("/api/places/{placeId}/visit-status")
-    public ResponseEntity<Void> deleteVisitStatus(
+    public ResponseEntity<ApiResponse<Void>> deleteVisitStatus(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @PathVariable("placeId") String placeId
     ) {
         likeVisitService.deleteVisitStatus(authService.requireUser(authorization), placeId);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.okMessage("방문 상태가 삭제되었습니다."));
     }
 
     @GetMapping("/api/users/me/visit-status")
-    public ResponseEntity<List<VisitStatusDto>> myVisitStatus(
+    public ResponseEntity<ApiResponse<List<VisitStatusDto>>> myVisitStatus(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @RequestParam(value = "page", required = false) Integer page,
             @RequestParam(value = "size", required = false) Integer size
@@ -133,6 +136,6 @@ public class LikeVisitController {
         List<VisitStatusDto> paged = ListQuerySupport.paginate(statuses, page, size);
         return ResponseEntity.ok()
                 .header("X-Total-Count", String.valueOf(statuses.size()))
-                .body(paged);
+                .body(ApiResponse.ok(paged));
     }
 }

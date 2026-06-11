@@ -1,5 +1,6 @@
 package com.scenik.controller;
 
+import com.scenik.dto.ApiResponse;
 import com.scenik.dto.FollowDtos.FollowStatusDto;
 import com.scenik.dto.FollowDtos.FollowUserDto;
 import com.scenik.service.AuthService;
@@ -23,40 +24,40 @@ public class FollowController {
     }
 
     @PostMapping("/api/users/{userId}/follow")
-    public FollowStatusDto follow(
+    public ApiResponse<FollowStatusDto> follow(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @PathVariable("userId") Long userId
     ) {
-        return followService.follow(authService.requireUser(authorization), userId);
+        return ApiResponse.ok("팔로우했습니다.", followService.follow(authService.requireUser(authorization), userId));
     }
 
     @DeleteMapping("/api/users/{userId}/follow")
-    public FollowStatusDto unfollow(
+    public ApiResponse<FollowStatusDto> unfollow(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @PathVariable("userId") Long userId
     ) {
-        return followService.unfollow(authService.requireUser(authorization), userId);
+        return ApiResponse.ok("팔로우를 취소했습니다.", followService.unfollow(authService.requireUser(authorization), userId));
     }
 
     @GetMapping("/api/users/{userId}/followers")
-    public List<FollowUserDto> followers(
+    public ApiResponse<List<FollowUserDto>> followers(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @PathVariable("userId") Long userId
     ) {
-        return followService.followers(authService.requireUser(authorization), userId);
+        return ApiResponse.ok(followService.followers(authService.requireUser(authorization), userId));
     }
 
     @GetMapping("/api/users/{userId}/following")
-    public List<FollowUserDto> following(
+    public ApiResponse<List<FollowUserDto>> following(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @PathVariable("userId") Long userId
     ) {
-        return followService.following(authService.requireUser(authorization), userId);
+        return ApiResponse.ok(followService.following(authService.requireUser(authorization), userId));
     }
 
     @GetMapping("/api/users/me/following")
-    public List<FollowUserDto> myFollowing(@RequestHeader(value = "Authorization", required = false) String authorization) {
+    public ApiResponse<List<FollowUserDto>> myFollowing(@RequestHeader(value = "Authorization", required = false) String authorization) {
         var user = authService.requireUser(authorization);
-        return followService.following(user, user.getUserId());
+        return ApiResponse.ok(followService.following(user, user.getUserId()));
     }
 }

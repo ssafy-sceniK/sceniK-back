@@ -29,9 +29,19 @@ public class GlobalExceptionHandler {
     public record FieldErrorResponse(String field, String message) {
     }
 
-    public record ErrorResponse(String code, String message, List<FieldErrorResponse> fieldErrors) {
+    public record ErrorResponse(
+            boolean success,
+            String code,
+            String message,
+            Object data,
+            List<FieldErrorResponse> fieldErrors
+    ) {
         public ErrorResponse(String code, String message) {
-            this(code, message, List.of());
+            this(false, code, message, null, List.of());
+        }
+
+        public ErrorResponse(String code, String message, List<FieldErrorResponse> fieldErrors) {
+            this(false, code, message, null, fieldErrors);
         }
     }
 
@@ -161,7 +171,7 @@ public class GlobalExceptionHandler {
             case "Email already exists." -> new ErrorDescriptor("DUPLICATE_EMAIL", "이미 사용 중인 이메일입니다.");
             case "Nickname already exists." -> new ErrorDescriptor("DUPLICATE_NICKNAME", "이미 사용 중인 닉네임입니다.");
             case "Invalid email or password." -> new ErrorDescriptor("INVALID_CREDENTIALS", "가입되지 않았거나 비밀번호가 올바르지 않습니다.");
-            case "Bearer token is required.", "Refresh token is required." -> new ErrorDescriptor("UNAUTHORIZED", "로그인이 필요합니다.");
+            case "Bearer token is required.", "Refresh token is required." -> new ErrorDescriptor("AUTH_REQUIRED", "로그인이 필요합니다.");
             case "Invalid or expired token.", "User was not found." -> new ErrorDescriptor("TOKEN_EXPIRED", "로그인이 만료되었습니다. 다시 로그인해 주세요.");
             case "Invalid or expired OAuth login code." -> new ErrorDescriptor("OAUTH_CODE_EXPIRED", "OAuth 로그인이 만료되었습니다. 다시 로그인해 주세요.");
             case "OAuth email is required." -> new ErrorDescriptor("OAUTH_EMAIL_REQUIRED", "소셜 계정의 이메일 제공에 동의해 주세요.");
@@ -183,11 +193,11 @@ public class GlobalExceptionHandler {
             case "Review was not found." -> new ErrorDescriptor("NOT_FOUND", "존재하지 않는 리뷰입니다.");
             case "Content already exists." -> new ErrorDescriptor("CONFLICT", "이미 등록된 콘텐츠입니다.");
             case "Place already exists." -> new ErrorDescriptor("CONFLICT", "이미 등록된 장소입니다.");
-            case "Place review already exists." -> new ErrorDescriptor("CONFLICT", "이미 이 장소에 리뷰를 작성했습니다.");
+            case "Place review already exists." -> new ErrorDescriptor("DUPLICATE_ACTION", "이미 이 장소에 리뷰를 작성했습니다.");
             case "Cannot follow self." -> new ErrorDescriptor("VALIDATION_ERROR", "자기 자신은 팔로우할 수 없습니다.");
-            case "Follow already exists." -> new ErrorDescriptor("CONFLICT", "이미 팔로우한 사용자입니다.");
+            case "Follow already exists." -> new ErrorDescriptor("DUPLICATE_ACTION", "이미 팔로우한 사용자입니다.");
             case "Target user was not found." -> new ErrorDescriptor("NOT_FOUND", "존재하지 않는 사용자입니다.");
-            case "Post was already reported." -> new ErrorDescriptor("CONFLICT", "이미 신고한 게시글입니다.");
+            case "Post was already reported." -> new ErrorDescriptor("DUPLICATE_ACTION", "이미 신고한 게시글입니다.");
             case "Post owner does not match.", "Comment owner does not match.", "Route owner does not match.", "Review owner does not match." -> new ErrorDescriptor("FORBIDDEN", "권한이 없습니다.");
             case "Admin role is required." -> new ErrorDescriptor("FORBIDDEN", "관리자 권한이 필요합니다.");
             case "Review content is required." -> new ErrorDescriptor("VALIDATION_ERROR", "리뷰 내용을 입력해 주세요.");
@@ -201,9 +211,9 @@ public class GlobalExceptionHandler {
             case "Route days are required.", "Each day must include places.", "candidatePlaces are required.", "Reorder places are required." -> new ErrorDescriptor("INVALID_REQUEST", "코스에 저장할 장소가 없습니다.");
             case "Route stop placeId is required.", "Candidate placeId is required.", "Route placeId must exist in candidatePlaces." -> new ErrorDescriptor("INVALID_REQUEST", "코스에 포함된 장소 정보를 찾을 수 없습니다.");
             case "Candidate places must be verified." -> new ErrorDescriptor("INVALID_REQUEST", "검증된 장소만 코스에 포함할 수 있습니다.");
-            case "Duplicate candidate placeId." -> new ErrorDescriptor("CONFLICT", "중복된 후보 장소가 있습니다.");
-            case "Duplicate visitOrder for route day." -> new ErrorDescriptor("CONFLICT", "같은 날짜에 중복된 방문 순서가 있습니다.");
-            case "Duplicate placeId in route." -> new ErrorDescriptor("CONFLICT", "이미 코스에 포함된 장소입니다.");
+            case "Duplicate candidate placeId." -> new ErrorDescriptor("DUPLICATE_ACTION", "중복된 후보 장소가 있습니다.");
+            case "Duplicate visitOrder for route day." -> new ErrorDescriptor("DUPLICATE_ACTION", "같은 날짜에 중복된 방문 순서가 있습니다.");
+            case "Duplicate placeId in route." -> new ErrorDescriptor("DUPLICATE_ACTION", "이미 코스에 포함된 장소입니다.");
             case "title is required.", "Route title is required." -> new ErrorDescriptor("VALIDATION_ERROR", "제목을 입력해 주세요.");
             case "content is required." -> new ErrorDescriptor("VALIDATION_ERROR", "내용을 입력해 주세요.");
             case "category is required." -> new ErrorDescriptor("VALIDATION_ERROR", "카테고리를 입력해 주세요.");
@@ -227,7 +237,7 @@ public class GlobalExceptionHandler {
     private ErrorDescriptor defaultDescriptor(HttpStatus status) {
         return switch (status) {
             case BAD_REQUEST -> new ErrorDescriptor("INVALID_REQUEST", "입력값을 확인해 주세요.");
-            case UNAUTHORIZED -> new ErrorDescriptor("UNAUTHORIZED", "로그인이 필요합니다.");
+            case UNAUTHORIZED -> new ErrorDescriptor("AUTH_REQUIRED", "로그인이 필요합니다.");
             case FORBIDDEN -> new ErrorDescriptor("FORBIDDEN", "권한이 없습니다.");
             case NOT_FOUND -> new ErrorDescriptor("NOT_FOUND", "요청한 정보를 찾을 수 없습니다.");
             case CONFLICT -> new ErrorDescriptor("CONFLICT", "요청한 데이터가 현재 상태와 충돌합니다.");

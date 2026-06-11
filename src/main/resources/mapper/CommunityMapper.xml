@@ -44,7 +44,7 @@
     SELECT cp.*,
            u.nickname AS user_nickname,
            COALESCE((SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = cp.post_id), 0) AS like_count,
-           COALESCE((SELECT COUNT(*) FROM comments c WHERE c.post_id = cp.post_id AND (c.status IS NULL OR c.status != 'DELETED')), 0) AS comment_count,
+           COALESCE((SELECT COUNT(*) FROM comments c WHERE c.post_id = cp.post_id AND <include refid="VisibleCommentPredicate" />), 0) AS comment_count,
            CASE
              WHEN #{userId} IS NULL THEN FALSE
              ELSE EXISTS(
@@ -54,6 +54,20 @@
            END AS is_liked
     FROM community_posts cp
     JOIN users u ON u.user_id = cp.user_id
+  </sql>
+
+  <sql id="VisibleCommentPredicate">
+    (c.status IS NULL OR c.status != 'DELETED')
+    AND (
+      c.parent_comment_id IS NULL
+      OR EXISTS (
+        SELECT 1
+        FROM comments pc
+        WHERE pc.comment_id = c.parent_comment_id
+          AND pc.post_id = c.post_id
+          AND (pc.status IS NULL OR pc.status != 'DELETED')
+      )
+    )
   </sql>
 
   <select id="findPosts" resultMap="CommunityPostResultMap">
@@ -124,14 +138,14 @@
   <select id="findCommentsByPostId" resultMap="CommunityCommentResultMap">
     <include refid="CommentSelect" />
     WHERE c.post_id = #{postId}
-      AND (c.status IS NULL OR c.status != 'DELETED')
+      AND <include refid="VisibleCommentPredicate" />
     ORDER BY c.created_at ASC
   </select>
 
   <select id="findCommentById" resultMap="CommunityCommentResultMap">
     <include refid="CommentSelect" />
     WHERE c.comment_id = #{commentId}
-      AND (c.status IS NULL OR c.status != 'DELETED')
+      AND <include refid="VisibleCommentPredicate" />
   </select>
 
   <insert id="insertComment" parameterType="com.scenik.domain.CommunityComment">

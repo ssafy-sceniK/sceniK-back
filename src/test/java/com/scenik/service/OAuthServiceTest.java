@@ -90,13 +90,15 @@ class OAuthServiceTest {
                 "sub", "google-user-new",
                 "email", "new@scenik.com",
                 "email_verified", true,
-                "name", "New Member"
+                "name", "New Member",
+                "picture", "https://example.com/profile.jpg"
         ));
 
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
         verify(userMapper).insert(userCaptor.capture());
         assertEquals("new@scenik.com", userCaptor.getValue().getEmail());
         assertEquals("New Member", userCaptor.getValue().getNickname());
+        assertEquals("https://example.com/profile.jpg", userCaptor.getValue().getProfileImageUrl());
         assertNotNull(userCaptor.getValue().getPasswordHash());
 
         ArgumentCaptor<OAuthAccount> accountCaptor = ArgumentCaptor.forClass(OAuthAccount.class);

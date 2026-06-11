@@ -10,6 +10,7 @@ public record UserDto(
         String email,
         String nickname,
         String role,
+        String profileImageUrl,
         List<String> preferences,
         LocalDateTime createdAt
 ) {
@@ -19,6 +20,7 @@ public record UserDto(
                 user.getEmail(),
                 user.getNickname(),
                 user.getRole() == null || user.getRole().isBlank() ? "ROLE_USER" : user.getRole(),
+                user.getProfileImageUrl(),
                 split(user.getPreferences()),
                 user.getCreatedAt()
         );

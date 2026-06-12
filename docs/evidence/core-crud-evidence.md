@@ -549,19 +549,80 @@ Content-Type: application/json
 - `ContentUpsertRequest`는 Bean Validation annotation이 아니라 service의 수동 validation으로 검증합니다. evaluator에게는 `GlobalExceptionHandler`가 실제 한국어 error shape로 변환한다는 점을 함께 제시합니다.
 - 콘텐츠 카테고리는 현재 seed/category 목록과 관리자 입력을 모두 허용하는 자유 문자열입니다. 따라서 허용 목록 기반의 “invalid category” 검증은 현재 강제하지 않고, 누락/공백/길이 초과 카테고리만 `VALIDATION_ERROR`로 처리합니다.
 
-### Execution Evidence Not Included
+### Runtime Smoke Test Result - 2026-06-12 10:05 KST
 
-현재 repository에는 `content-crud-validation.http` 실행 결과의 raw response log, screenshot, 또는 캡처 파일이 포함되어 있지 않습니다. 결과를 조작하지 않기 위해 미실행 증거를 완료로 표기하지 않았습니다.
+로컬 MySQL 문제 해결 후 backend를 실제로 기동하고 CRUD smoke를 재실행했습니다. 8080 포트가 이미 사용 중이어서 이번 검증은 `http://localhost:18080/api` 기준으로 수행했습니다.
 
-평가자는 다음 절차로 동일한 결과를 재현할 수 있습니다.
+#### 실행 환경 확인
 
-1. backend를 실행합니다.
-2. `api-tests/auth-flow.http`의 `Login with admin credentials for CRUD` 요청을 실행합니다.
-3. admin 로그인 응답의 `accessToken`을 복사합니다.
-4. `api-tests/content-crud-validation.http`의 `@accessToken`에 붙여 넣습니다.
-5. 비관리자 403까지 확인하려면 `Signup with valid password` 또는 `Login with valid credentials` 요청으로 일반 사용자 token을 발급하고 `@userAccessToken`에 붙여 넣습니다.
-6. `content-crud-validation.http`의 요청을 순서대로 실행합니다.
-7. status code, `ApiResponse<ContentDto>`/`ApiResponse<PlaceDto>` body, `VALIDATION_ERROR`, `NOT_FOUND`, `AUTH_REQUIRED`, `FORBIDDEN`, `CONFLICT` 응답을 확인합니다.
+| 항목 | 실제 명령 | 실제 결과 | 판정 |
+| --- | --- | --- | --- |
+| MySQL 서비스 확인 | `Get-Service MYSQL84` | `Running` | PASS |
+| MySQL 포트 확인 | `Get-NetTCPConnection -LocalPort 3306` | `Listen` 확인 | PASS |
+| backend 기동 | `.\gradlew.bat bootRun --args="--server.port=18080"` | `Tomcat started on port 18080`, `Started ScenikApplication` | PASS |
+| smoke base URL | `http://localhost:18080/api` | 실제 요청 전송 가능 | PASS |
+
+#### 실제 CRUD smoke 결과
+
+| 구분 | Scenario | Endpoint | 실제 HTTP status | 실제 response code | 실제 response message | 결과 |
+| --- | --- | --- | --- | --- | --- | --- |
+| Success | 콘텐츠 목록 조회 | `GET /api/contents` | `200` | `SUCCESS` | `요청이 성공했습니다.` | PASS |
+| Success | 장소 목록 조회 | `GET /api/places` | `200` | `SUCCESS` | `요청이 성공했습니다.` | PASS |
+| Success | 관리자 콘텐츠 생성 | `POST /api/admin/contents` | `200` | `SUCCESS` | `생성되었습니다.` | PASS |
+| Success | 관리자 콘텐츠 수정 | `PATCH /api/admin/contents/{contentId}` | `200` | `SUCCESS` | `수정되었습니다.` | PASS |
+| Success | 관리자 콘텐츠 삭제 | `DELETE /api/admin/contents/{contentId}` | `200` | `SUCCESS` | `삭제되었습니다.` | PASS |
+| Success | 관리자 장소 생성 | `POST /api/admin/places` | `200` | `SUCCESS` | `생성되었습니다.` | PASS |
+| Success | 관리자 장소 수정 | `PATCH /api/admin/places/{placeId}` | `200` | `SUCCESS` | `수정되었습니다.` | PASS |
+| Success | 관리자 장소 삭제 | `DELETE /api/admin/places/{placeId}` | `200` | `SUCCESS` | `삭제되었습니다.` | PASS |
+| Error | 입력값 검증 실패 | `POST /api/admin/contents` invalid payload | `400` | `VALIDATION_ERROR` | `제목을 입력해 주세요.` | PASS |
+| Error | 인증 누락 | `POST /api/admin/contents` without token | `401` | `AUTH_REQUIRED` | `로그인이 필요합니다.` | PASS |
+| Error | 비관리자 접근 | `POST /api/admin/contents` with `ROLE_USER` token | `403` | `FORBIDDEN` | `관리자 권한이 필요합니다.` | PASS |
+| Error | 존재하지 않는 콘텐츠 | `GET /api/contents/C_NOT_FOUND_RUNTIME` | `404` | `NOT_FOUND` | `존재하지 않는 콘텐츠입니다.` | PASS |
+| Error | 중복 콘텐츠 생성 | `POST /api/admin/contents` duplicate `contentId` | `409` | `CONFLICT` | `이미 등록된 콘텐츠입니다.` | PASS |
+
+#### 실제 응답 body snippet
+
+```json
+{"success":true,"code":"SUCCESS","message":"요청이 성공했습니다.","data":[...]}
+```
+
+```json
+{"success":true,"code":"SUCCESS","message":"생성되었습니다.","data":{"contentId":"C_ADMIN_SMOKE_20260612100548", "...":"..."}}
+```
+
+```json
+{"success":true,"code":"SUCCESS","message":"삭제되었습니다.","data":null}
+```
+
+```json
+{"success":false,"code":"VALIDATION_ERROR","message":"제목을 입력해 주세요.","data":null,"fieldErrors":[]}
+```
+
+```json
+{"success":false,"code":"AUTH_REQUIRED","message":"로그인이 필요합니다.","data":null,"fieldErrors":[]}
+```
+
+```json
+{"success":false,"code":"FORBIDDEN","message":"관리자 권한이 필요합니다.","data":null,"fieldErrors":[]}
+```
+
+```json
+{"success":false,"code":"NOT_FOUND","message":"존재하지 않는 콘텐츠입니다.","data":null,"fieldErrors":[]}
+```
+
+```json
+{"success":false,"code":"CONFLICT","message":"이미 등록된 콘텐츠입니다.","data":null,"fieldErrors":[]}
+```
+
+#### 테스트 데이터 정리
+
+| 테스트 데이터 | ID | 정리 결과 |
+| --- | --- | --- |
+| 관리자 콘텐츠 CRUD | `C_ADMIN_SMOKE_20260612100548` | delete scenario로 `삭제되었습니다.` 응답 확인 |
+| 관리자 장소 CRUD | `P_ADMIN_SMOKE_20260612100548` | delete scenario로 `삭제되었습니다.` 응답 확인 |
+| 중복 검증용 콘텐츠 | `C_ADMIN_DUP_20260612100548` | duplicate 검증 후 delete scenario로 정리 |
+
+CRUD 리소스는 delete 시나리오로 정리했습니다. 403 검증에는 일반 사용자 token을 사용했고, access token 값은 문서와 repository에 남기지 않았습니다.
 
 ### 평가자용 수동 QA 체크리스트
 

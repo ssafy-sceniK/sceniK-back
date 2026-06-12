@@ -19,8 +19,28 @@
 ### - 15번 콘텐츠 삭제는 soft delete이므로 같은 contentId 재사용은 피합니다.
 ### - admin CUD endpoint는 ROLE_ADMIN token만 허용합니다.
 ### - token 누락/만료는 401, 로그인했지만 ROLE_ADMIN이 아니면 403을 기대합니다.
+###
+### 2026-06-12 10:05 KST 실제 runtime smoke 결과:
+### - 로컬 MySQL 문제 해결 후 backend가 정상 기동되었습니다.
+### - 8080 포트가 이미 사용 중이라 실제 검증은 http://localhost:18080/api 기준으로 수행했습니다.
+### - Tomcat started on port 18080, Started ScenikApplication 확인.
+### - GET /api/contents: 200 SUCCESS, "요청이 성공했습니다." PASS
+### - GET /api/places: 200 SUCCESS, "요청이 성공했습니다." PASS
+### - POST /api/admin/contents: 200 SUCCESS, "생성되었습니다." PASS
+### - PATCH /api/admin/contents/{contentId}: 200 SUCCESS, "수정되었습니다." PASS
+### - DELETE /api/admin/contents/{contentId}: 200 SUCCESS, "삭제되었습니다." PASS
+### - POST /api/admin/places: 200 SUCCESS, "생성되었습니다." PASS
+### - PATCH /api/admin/places/{placeId}: 200 SUCCESS, "수정되었습니다." PASS
+### - DELETE /api/admin/places/{placeId}: 200 SUCCESS, "삭제되었습니다." PASS
+### - 400 VALIDATION_ERROR, "제목을 입력해 주세요." PASS
+### - 401 AUTH_REQUIRED, "로그인이 필요합니다." PASS
+### - 403 FORBIDDEN, "관리자 권한이 필요합니다." PASS
+### - 404 NOT_FOUND, "존재하지 않는 콘텐츠입니다." PASS
+### - 409 CONFLICT, "이미 등록된 콘텐츠입니다." PASS
+### - 생성한 콘텐츠/장소/중복 검증용 콘텐츠는 delete 시나리오로 정리했습니다.
+### - 실제 access token 값은 repository에 남기지 않았습니다.
 
-@baseUrl = http://localhost:8080
+@baseUrl = http://localhost:18080
 @api = {{baseUrl}}/api
 @accessToken = paste-access-token-here
 @userAccessToken = paste-non-admin-access-token-here

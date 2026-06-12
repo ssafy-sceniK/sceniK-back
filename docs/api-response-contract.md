@@ -255,6 +255,37 @@ Content-Type: application/json
 4. 토큰 갱신 응답도 표준 래퍼와 기존 raw 토큰 응답을 모두 지원한다.
 5. 오류 코드 기반 세부 분기는 필요한 화면에서 `response.data.code`를 기준으로 확장한다.
 
+## CRUD smoke 실행 결과
+
+2026-06-12 10:05 KST에 로컬 MySQL 문제 해결 후 backend를 실제 기동하고 CRUD smoke를 재실행했습니다. 8080 포트가 이미 사용 중이어서 검증은 `http://localhost:18080/api` 기준으로 수행했습니다.
+
+| 항목 | 결과 |
+| --- | --- |
+| MySQL 서비스 | `MYSQL84` Running |
+| backend 기동 | `.\gradlew.bat bootRun --args="--server.port=18080"` |
+| Spring Boot 상태 | `Tomcat started on port 18080`, `Started ScenikApplication` 확인 |
+| CRUD HTTP smoke | 실제 요청 전송 및 응답 수집 완료 |
+| 테스트 데이터 정리 | 생성한 콘텐츠/장소/중복 검증용 콘텐츠는 delete scenario로 정리 |
+| 상세 증거 | `docs/evidence/core-crud-evidence.md`의 `Runtime Smoke Test Result - 2026-06-12 10:05 KST` |
+
+### 실제 응답 계약 확인 결과
+
+| Scenario | HTTP status | response code | response message | 판정 |
+| --- | --- | --- | --- | --- |
+| `GET /api/contents` | `200` | `SUCCESS` | `요청이 성공했습니다.` | PASS |
+| `GET /api/places` | `200` | `SUCCESS` | `요청이 성공했습니다.` | PASS |
+| `POST /api/admin/contents` | `200` | `SUCCESS` | `생성되었습니다.` | PASS |
+| `PATCH /api/admin/contents/{contentId}` | `200` | `SUCCESS` | `수정되었습니다.` | PASS |
+| `DELETE /api/admin/contents/{contentId}` | `200` | `SUCCESS` | `삭제되었습니다.` | PASS |
+| `POST /api/admin/places` | `200` | `SUCCESS` | `생성되었습니다.` | PASS |
+| `PATCH /api/admin/places/{placeId}` | `200` | `SUCCESS` | `수정되었습니다.` | PASS |
+| `DELETE /api/admin/places/{placeId}` | `200` | `SUCCESS` | `삭제되었습니다.` | PASS |
+| 입력값 검증 실패 | `400` | `VALIDATION_ERROR` | `제목을 입력해 주세요.` | PASS |
+| 토큰 누락 | `401` | `AUTH_REQUIRED` | `로그인이 필요합니다.` | PASS |
+| 비관리자 접근 | `403` | `FORBIDDEN` | `관리자 권한이 필요합니다.` | PASS |
+| 존재하지 않는 콘텐츠 | `404` | `NOT_FOUND` | `존재하지 않는 콘텐츠입니다.` | PASS |
+| 중복 콘텐츠 생성 | `409` | `CONFLICT` | `이미 등록된 콘텐츠입니다.` | PASS |
+
 ## 남은 범위
 
 아래 API들은 아직 전체 응답 래퍼 마이그레이션 대상이 아니다.

@@ -1,6 +1,7 @@
 package com.scenik.controller;
 
 import com.scenik.dto.CommunityDtos.CommentDto;
+import com.scenik.dto.CommunityDtos.ImageUploadDto;
 import com.scenik.dto.CommunityDtos.CommentRequest;
 import com.scenik.dto.CommunityDtos.NotificationDto;
 import com.scenik.dto.CommunityDtos.PostDto;
@@ -9,6 +10,7 @@ import com.scenik.dto.CommunityDtos.ReportDto;
 import com.scenik.dto.CommunityDtos.ReportRequest;
 import com.scenik.domain.User;
 import com.scenik.service.AuthService;
+import com.scenik.service.CommunityImageStorageService;
 import com.scenik.service.CommunityService;
 import com.scenik.util.ListQuerySupport;
 import jakarta.validation.Valid;
@@ -17,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -27,16 +30,23 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api")
 public class CommunityController {
     private final AuthService authService;
     private final CommunityService communityService;
+    private final CommunityImageStorageService communityImageStorageService;
 
-    public CommunityController(AuthService authService, CommunityService communityService) {
+    public CommunityController(
+            AuthService authService,
+            CommunityService communityService,
+            CommunityImageStorageService communityImageStorageService
+    ) {
         this.authService = authService;
         this.communityService = communityService;
+        this.communityImageStorageService = communityImageStorageService;
     }
 
     @GetMapping("/posts")
@@ -73,6 +83,15 @@ public class CommunityController {
             @Valid @RequestBody PostRequest request
     ) {
         return communityService.createPost(authService.requireUser(authorization), request);
+    }
+
+    @PostMapping(value = "/posts/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ImageUploadDto uploadPostImage(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestParam("file") MultipartFile file
+    ) {
+        authService.requireUser(authorization);
+        return communityImageStorageService.store(file);
     }
 
     @PatchMapping("/posts/{postId}")

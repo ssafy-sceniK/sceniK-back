@@ -10,6 +10,7 @@ public class CommunityPost {
     private String content;
     private String region;
     private String routeId;
+    private String imageUrl;
     private String status;
     private Integer likeCount;
     private Boolean liked;
@@ -31,6 +32,8 @@ public class CommunityPost {
     public void setRegion(String region) { this.region = region; }
     public String getRouteId() { return routeId; }
     public void setRouteId(String routeId) { this.routeId = routeId; }
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
     public Integer getLikeCount() { return likeCount; }

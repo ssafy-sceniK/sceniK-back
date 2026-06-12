@@ -18,6 +18,7 @@ public final class CommunityDtos {
             String body,
             String region,
             String routeId,
+            String imageUrl,
             List<String> tags
     ) {
         @AssertTrue(message = "내용을 입력해 주세요.")
@@ -38,6 +39,7 @@ public final class CommunityDtos {
             String body,
             String region,
             String routeId,
+            String imageUrl,
             List<String> tags,
             Integer likeCount,
             Integer likes,
@@ -46,6 +48,12 @@ public final class CommunityDtos {
             List<CommentDto> comments,
             LocalDateTime createdAt,
             LocalDateTime updatedAt
+    ) {
+    }
+
+    public record ImageUploadDto(
+            String imageUrl,
+            String fileName
     ) {
     }
 

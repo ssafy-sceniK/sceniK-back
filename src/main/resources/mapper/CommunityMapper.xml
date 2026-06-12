@@ -9,6 +9,7 @@
     <result property="content" column="content" />
     <result property="region" column="region" />
     <result property="routeId" column="route_id" />
+    <result property="imageUrl" column="image_url" />
     <result property="status" column="status" />
     <result property="likeCount" column="like_count" />
     <result property="liked" column="is_liked" />
@@ -90,8 +91,8 @@
   </select>
 
   <insert id="insertPost" parameterType="com.scenik.domain.CommunityPost">
-    INSERT INTO community_posts (post_id, user_id, title, content, region, route_id, status)
-    VALUES (#{postId}, #{userId}, #{title}, #{content}, #{region}, #{routeId}, #{status})
+    INSERT INTO community_posts (post_id, user_id, title, content, region, route_id, image_url, status)
+    VALUES (#{postId}, #{userId}, #{title}, #{content}, #{region}, #{routeId}, #{imageUrl}, #{status})
   </insert>
 
   <update id="updatePost" parameterType="com.scenik.domain.CommunityPost">
@@ -100,6 +101,7 @@
         content = #{content},
         region = #{region},
         route_id = #{routeId},
+        image_url = #{imageUrl},
         status = #{status}
     WHERE post_id = #{postId}
   </update>

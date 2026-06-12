@@ -64,6 +64,7 @@ public class CommunityService {
         post.setContent(requireText(firstText(request.content(), request.body()), "content is required."));
         post.setRegion(firstText(request.region(), "Korea"));
         post.setRouteId(validatedRouteId(user, request.routeId()));
+        post.setImageUrl(trimToNull(request.imageUrl()));
         post.setStatus("ACTIVE");
         communityMapper.insertPost(post);
         replaceTags(post.getPostId(), request.tags());
@@ -83,6 +84,7 @@ public class CommunityService {
         post.setContent(requireText(firstText(firstText(request.content(), request.body()), existing.getContent()), "content is required."));
         post.setRegion(firstText(request.region(), existing.getRegion()));
         post.setRouteId(request.routeId() == null ? existing.getRouteId() : validatedRouteId(user, request.routeId()));
+        post.setImageUrl(request.imageUrl() == null ? existing.getImageUrl() : trimToNull(request.imageUrl()));
         post.setStatus(firstText(existing.getStatus(), "ACTIVE"));
         communityMapper.updatePost(post);
         if (request.tags() != null) {
@@ -325,6 +327,7 @@ public class CommunityService {
                 post.getContent(),
                 post.getRegion(),
                 post.getRouteId(),
+                post.getImageUrl(),
                 tags,
                 likeCount,
                 likeCount,

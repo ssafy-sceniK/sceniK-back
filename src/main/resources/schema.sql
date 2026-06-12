@@ -252,6 +252,7 @@ CREATE TABLE IF NOT EXISTS community_posts (
   content TEXT NOT NULL,
   region VARCHAR(80),
   route_id VARCHAR(64),
+  image_url VARCHAR(1000),
   status VARCHAR(40) DEFAULT 'ACTIVE',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -262,6 +263,22 @@ CREATE TABLE IF NOT EXISTS community_posts (
   CONSTRAINT fk_community_posts_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
   CONSTRAINT fk_community_posts_route FOREIGN KEY (route_id) REFERENCES travel_routes(route_id) ON DELETE SET NULL
 );
+
+SET @community_post_image_column_exists = (
+  SELECT COUNT(*)
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'community_posts'
+    AND COLUMN_NAME = 'image_url'
+);
+SET @community_post_image_migration = IF(
+  @community_post_image_column_exists = 0,
+  'ALTER TABLE community_posts ADD COLUMN image_url VARCHAR(1000) AFTER route_id',
+  'SELECT 1'
+);
+PREPARE community_post_image_statement FROM @community_post_image_migration;
+EXECUTE community_post_image_statement;
+DEALLOCATE PREPARE community_post_image_statement;
 
 CREATE TABLE IF NOT EXISTS comments (
   comment_id VARCHAR(64) PRIMARY KEY,

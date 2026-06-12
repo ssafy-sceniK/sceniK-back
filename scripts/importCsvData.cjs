@@ -2,10 +2,13 @@ const fs = require('fs');
 const path = require('path');
 
 const root = path.resolve(__dirname, '..');
-const dataDir = path.join(root, 'data');
+const dataDir = path.join(root, 'data', 'seed');
+const frontendRoot = path.resolve(root, '..', 'sceniK-front');
 
 function parseCsv(fileName) {
-  const text = fs.readFileSync(path.join(dataDir, fileName), 'utf8').replace(/^\uFEFF/, '');
+  const filePath = path.join(dataDir, fileName);
+  if (!fs.existsSync(filePath)) return [];
+  const text = fs.readFileSync(filePath, 'utf8').replace(/^\uFEFF/, '');
   const rows = [];
   let row = [];
   let field = '';
@@ -71,7 +74,15 @@ function sqlBool(value) {
 }
 
 function sqlNum(value) {
-  return Number.isFinite(Number(value)) ? String(Number(value)) : 'NULL';
+  return value !== '' && value !== null && value !== undefined && Number.isFinite(Number(value))
+    ? String(Number(value))
+    : 'NULL';
+}
+
+function csvNumber(value) {
+  return value !== '' && value !== null && value !== undefined && Number.isFinite(Number(value))
+    ? Number(value)
+    : null;
 }
 
 const categoryMap = {
@@ -87,35 +98,6 @@ const subcategoryMap = {
 };
 
 const fallbackImages = ['/images/kdrama-scene.jpg', '/images/seoul-street.jpg', '/images/onboarding-hero.jpg'];
-const regionCenters = {
-  서울: [37.5665, 126.978],
-  경기: [37.2636, 127.0286],
-  인천: [37.4563, 126.7052],
-  부산: [35.1796, 129.0756],
-  제주: [33.4996, 126.5312],
-  강원: [37.8228, 128.1555],
-  경북: [36.4919, 128.8889],
-  경남: [35.4606, 128.2132],
-  전북: [35.7175, 127.153],
-  전남: [34.8679, 126.991],
-  충북: [36.6357, 127.4913],
-  충남: [36.6588, 126.6728],
-  대구: [35.8714, 128.6014],
-  광주: [35.1595, 126.8526],
-  대전: [36.3504, 127.3845],
-  울산: [35.5384, 129.3114],
-};
-
-function coordinates(region, index) {
-  const [lat, lng] = regionCenters[region] ?? [36.5, 127.8];
-  const row = Math.floor(index / 17) - 8;
-  const col = (index % 17) - 8;
-  return {
-    latitude: Number((lat + row * 0.006 + col * 0.0013).toFixed(7)),
-    longitude: Number((lng + col * 0.006 + row * 0.0011).toFixed(7)),
-  };
-}
-
 const rawContents = parseCsv('contents.csv');
 const rawPlaces = parseCsv('places.csv');
 const rawContentPlaces = parseCsv('content_places.csv');
@@ -189,7 +171,8 @@ const places = rawPlaces.map((row, index) => {
     relatedContentIds,
     tags: unique(tagValues),
     verified: true,
-    ...coordinates(row.region, index),
+    latitude: csvNumber(row.latitude),
+    longitude: csvNumber(row.longitude),
   };
 });
 
@@ -254,7 +237,7 @@ const communitySeedPosts = courseTemplates.slice(0, 4).map((course, index) => ({
 
 const mockOutput = `// Generated from ../../data/*.csv. Do not hand-edit large arrays; update source CSV and rerun scripts/importCsvData.cjs.\nexport const contents = ${JSON.stringify(contents, null, 2)};\n\nexport const places = ${JSON.stringify(places, null, 2)};\n\nexport const contentPlaces = ${JSON.stringify(contentPlaces, null, 2)};\n\nexport const courseTemplates = ${JSON.stringify(courseTemplates, null, 2)};\n\nexport const notices = ${JSON.stringify(notices, null, 2)};\n\nexport const communitySeedPosts = ${JSON.stringify(communitySeedPosts, null, 2)};\n`;
 
-fs.writeFileSync(path.join(root, 'frontend/src/data/mockData.js'), mockOutput, 'utf8');
+fs.writeFileSync(path.join(frontendRoot, 'src/data/mockData.js'), mockOutput, 'utf8');
 
 const sqlLines = [];
 sqlLines.push('-- Generated from ../../data/*.csv for local MVP/bootstrap data.');
@@ -294,19 +277,23 @@ const placeTagPairs = [];
 places.forEach((place) => {
   place.tags.forEach((tag) => placeTagPairs.push([place.placeId, tag]));
 });
-sqlLines.push('INSERT IGNORE INTO place_tags (place_id, tag)');
-sqlLines.push('VALUES');
-sqlLines.push(placeTagPairs.map(([placeId, tag]) => `(${sql(placeId)}, ${sql(tag)})`).join(',\n'));
-sqlLines.push(';');
-sqlLines.push('');
+if (placeTagPairs.length) {
+  sqlLines.push('INSERT IGNORE INTO place_tags (place_id, tag)');
+  sqlLines.push('VALUES');
+  sqlLines.push(placeTagPairs.map(([placeId, tag]) => `(${sql(placeId)}, ${sql(tag)})`).join(',\n'));
+  sqlLines.push(';');
+  sqlLines.push('');
+}
 
-sqlLines.push('INSERT INTO embedding_text (source_type, source_id, text)');
-sqlLines.push('VALUES');
-sqlLines.push(rawEmbeddings.map((row) => `('place_content', ${sql(row.embedding_id)}, ${sql(row.embedding_text)})`).join(',\n'));
-sqlLines.push(';');
-sqlLines.push('');
+if (rawEmbeddings.length) {
+  sqlLines.push('INSERT INTO embedding_text (source_type, source_id, text)');
+  sqlLines.push('VALUES');
+  sqlLines.push(rawEmbeddings.map((row) => `('place_content', ${sql(row.embedding_id)}, ${sql(row.embedding_text)})`).join(',\n'));
+  sqlLines.push(';');
+  sqlLines.push('');
+}
 
-fs.writeFileSync(path.join(root, 'backend/src/main/resources/data.sql'), sqlLines.join('\n'), 'utf8');
+fs.writeFileSync(path.join(root, 'src/main/resources/data.sql'), sqlLines.join('\n'), 'utf8');
 
 console.log(JSON.stringify({
   contents: contents.length,

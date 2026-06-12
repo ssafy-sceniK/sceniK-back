@@ -64,3 +64,9 @@
 - 콘텐츠/지역/테마 preference chips에 `aria-pressed`를 추가해 선택 상태를 명확히 했습니다.
 - `MyPageView.vue` profile header에 preference chip summary와 profile image 표시 경로를 추가했습니다.
 - 저장 성공/실패/검증 실패는 `FormStatusNotice`로 화면 안에 표시합니다.
+## 2026-06-12 실제 런타임 QA 보강
+
+- 통합 근거: [final-runtime-rubric-qa-evidence.md](./final-runtime-rubric-qa-evidence.md)
+- 실제 검증: 로그인 성공/실패, refresh, logout, 로그아웃 토큰 재사용 차단, 회원가입 성공/중복/약한 비밀번호, 프로필 조회/수정/검증 오류
+- 확인 결과: 로그아웃은 `200 SUCCESS`를 반환하고, 로그아웃된 토큰 재사용은 `401 TOKEN_EXPIRED`로 차단됩니다.
+- 회원가입 중복 이메일/닉네임은 각각 `409 DUPLICATE_EMAIL`, `409 DUPLICATE_NICKNAME`으로 확인했습니다.

@@ -683,3 +683,9 @@ CRUD 리소스는 delete 시나리오로 정리했습니다. 403 검증에는 �
 
 - Admin CRUD는 기존 token 저장소와 `user_roles` 기반 role 확인으로 보호됩니다. 전체 API 인증을 Spring Security filter/JWT authority 체계로 통합하는 작업은 Rubric #05 보안 고도화 범위입니다.
 - 위 CRUD 상태는 build/smoke와 HTTP 파일로 검증 가능하며, 실제 브라우저 live QA는 `/admin/contents`, `/admin/places`에서 admin 계정으로 수동 확인해야 합니다.
+## 2026-06-12 실제 런타임 QA 보강
+
+- 통합 근거: [final-runtime-rubric-qa-evidence.md](./final-runtime-rubric-qa-evidence.md)
+- 실제 검증: `GET /api/contents`, `GET /api/places`, `POST/PATCH/DELETE /api/admin/contents`, `POST/PATCH/DELETE /api/admin/places`
+- 확인 결과: 관리자 생성은 `201 Created`와 `Location` header를 반환하고, 삭제는 `204 No Content`로 처리됩니다.
+- 오류 계약: `400 VALIDATION_ERROR`, `401 AUTH_REQUIRED`, `403 FORBIDDEN`, `404 NOT_FOUND`, `409 CONFLICT`를 실제 런타임에서 확인했습니다.

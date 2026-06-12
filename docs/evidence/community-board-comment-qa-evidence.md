@@ -75,3 +75,9 @@ Rubric #10 `Board CRUD`와 Rubric #11 `Comment CRUD`의 추가 피드백인 권�
 
 - 실제 바이너리 첨부 업로드는 현재 MVP 범위가 아니며 구현하지 않았습니다.
 - 이번 패스에서는 브라우저 스크린샷을 새로 캡처하지 않았습니다.
+## 2026-06-12 실제 런타임 QA 보강
+
+- 통합 근거: [final-runtime-rubric-qa-evidence.md](./final-runtime-rubric-qa-evidence.md)
+- 실제 검증: 게시글 생성/목록/상세/수정/삭제, 비작성자 수정 차단, 댓글 생성/답글/목록/수정/삭제, 댓글 수 동기화
+- 확인 결과: 임시 게시글의 댓글+답글 생성 후 댓글 목록은 `X-Total-Count: 2`를 반환했고, 비작성자 댓글 수정은 `403 FORBIDDEN`으로 차단됐습니다.
+- 브라우저 DOM 검증: 댓글 섹션, 입력창, 인라인 `답글/수정/삭제`, 댓글 버튼 포커스를 headless Chrome에서 확인했습니다.

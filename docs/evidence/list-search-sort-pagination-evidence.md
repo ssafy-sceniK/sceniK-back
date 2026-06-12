@@ -130,3 +130,9 @@ fresh schema 기준으로 목록 필터와 정렬에 필요한 보조 인덱스�
 - 콘텐츠/장소 목록은 MyBatis에서 조건 조합 후 service 계층에서 page slicing을 수행합니다. 대용량 데이터에서는 SQL `LIMIT/OFFSET` 적용으로 추가 고도화할 수 있습니다.
 - keyword 검색은 현재 `LIKE` 기반입니다. 대량 데이터에서는 full-text index 또는 검색 엔진 도입이 개선점입니다.
 - 외부 지도 provider의 live search 품질은 Rubric #02의 목록 API 구현과 별도 범위입니다.
+## 2026-06-12 실제 런타임 QA 보강
+
+- 통합 근거: [final-runtime-rubric-qa-evidence.md](./final-runtime-rubric-qa-evidence.md)
+- 실제 검증: 콘텐츠 검색/정렬, 장소 지역+검색+정렬, 게시글 검색+정렬, 잘못된 sort/size, 검색 결과 없음
+- 확인 결과: 빈 결과는 `200`과 빈 배열로 반환되고, 잘못된 sort/size는 `400 VALIDATION_ERROR`로 반환됩니다.
+- `EXPLAIN` 결과: 팔로우/댓글 조회는 인덱스 사용을 확인했지만, 콘텐츠/장소 대표 검색은 현재 데이터 규모에서 full scan/filesort가 확인되어 향후 복합 인덱스 최적화 여지가 있습니다.

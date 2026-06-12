@@ -78,3 +78,9 @@ Rubric #03 평가자가 상세 조회, 404 처리, 관련 데이터의 `null`/�
 
 - `GET /api/contents/{contentId}/places`는 현재 content 존재 여부를 별도로 먼저 검증하지 않고 관계 목록을 조회합니다. 따라서 존재하지 않는 contentId라도 관계가 없으면 `data: []`가 될 수 있습니다. 상세 리소스 자체의 404 검증은 `GET /api/contents/{contentId}`에서 담당합니다.
 - 관련 데이터가 정말 없는지, 존재하지 않는 상위 리소스인지까지 엄격히 구분하려면 관련 목록 endpoint에서도 상위 리소스 존재 검증을 추가할 수 있습니다. 이번 pass에서는 기존 API 동작 호환성을 우선했습니다.
+## 2026-06-12 실제 런타임 QA 보강
+
+- 통합 근거: [final-runtime-rubric-qa-evidence.md](./final-runtime-rubric-qa-evidence.md)
+- 실제 검증: `GET /api/contents/{contentId}`, `GET /api/contents/{contentId}/places`, `GET /api/places/{placeId}`
+- 확인 결과: 정상 상세는 `200 SUCCESS`, 없는 콘텐츠/장소는 `404 NOT_FOUND`로 반환됩니다.
+- 관련 장소 목록은 배열로 반환되어 프론트가 `null`을 직접 순회하지 않아도 되는 계약을 확인했습니다.

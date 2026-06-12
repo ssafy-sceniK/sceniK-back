@@ -322,3 +322,9 @@ Content-Type: application/json
 - 코스/AI 코스 API
 
 위 API들은 기존 프론트 흐름을 우선 보존하고, 추후 동일한 계약으로 단계적으로 정리한다.
+## 2026-06-12 실제 런타임 확인
+
+- 통합 근거: [final-runtime-rubric-qa-evidence.md](./evidence/final-runtime-rubric-qa-evidence.md)
+- 확인된 성공 계약: `SUCCESS / 생성되었습니다.`, `SUCCESS / 수정되었습니다.`, `SUCCESS / 로그아웃되었습니다.`
+- 확인된 오류 계약: `VALIDATION_ERROR`, `AUTH_REQUIRED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `DUPLICATE_ACTION`, `TOKEN_EXPIRED`
+- 참고: 관리자 삭제 API는 HTTP semantics에 맞춰 `204 No Content`를 반환하므로 성공 본문이 없습니다.

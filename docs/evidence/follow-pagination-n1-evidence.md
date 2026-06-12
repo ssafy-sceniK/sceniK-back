@@ -86,3 +86,9 @@ END AS followed_by_me
 ## 실행 증거 상태
 
 이번 패스에서는 대량 follow fixture를 새로 생성하지 않았기 때문에 `EXPLAIN`과 응답 시간 측정은 실행하지 않았습니다. 대신 코드와 SQL 구조를 보강했고, `api-tests/final-smoke.http`에 pagination 재현 요청을 추가했습니다.
+## 2026-06-12 실제 런타임 QA 보강
+
+- 통합 근거: [final-runtime-rubric-qa-evidence.md](./final-runtime-rubric-qa-evidence.md)
+- 실제 검증: 팔로우, 중복 팔로우, 팔로워/팔로잉 페이지네이션, 언팔로우
+- 확인 결과: 중복 팔로우는 `409 DUPLICATE_ACTION`, 목록 응답은 `X-Total-Count`를 포함합니다.
+- `EXPLAIN` 결과: 팔로잉 목록은 `uq_follows_pair`와 `users.PRIMARY` 인덱스를 사용하는 것으로 확인했습니다.

@@ -80,3 +80,8 @@
 14. 답글 좋아요가 부모 댓글 count를 변경하지 않는지 확인합니다.
 15. 다른 사용자의 댓글에는 action sheet trigger가 보이지 않는지 확인합니다.
 16. 게시글 목록에서 `sort=popular`, `keyword`, `region` query를 수동 API로 확인합니다.
+## 2026-06-12 실제 런타임 QA 보강
+
+- 통합 근거: [final-runtime-rubric-qa-evidence.md](./final-runtime-rubric-qa-evidence.md)
+- 실제 검증: 게시글 상세 댓글 섹션 표시, 기존 댓글/답글 렌더링, 로그인 사용자 입력창, 작성자 인라인 액션, 댓글 버튼 포커스
+- 확인 결과: 정책 안내 문구와 댓글 관리 `더보기` 바텀시트는 제거됐고, 작성자에게 `답글 / 수정 / 삭제`가 인라인으로 표시됩니다.

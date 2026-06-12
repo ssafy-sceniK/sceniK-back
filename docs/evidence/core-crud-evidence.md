@@ -105,6 +105,14 @@ Rubric #01은 아래 순서로 바로 추적할 수 있습니다.
 | `PATCH /api/admin/places/{placeId}` | Update | `200 OK`, `ApiResponse<PlaceDto>` | `400 VALIDATION_ERROR`, `401 AUTH_REQUIRED`, `403 FORBIDDEN`, `404 NOT_FOUND` | path `placeId` 존재/길이, `name`, `region` 필수 및 길이 검증 | `AdminController.updatePlace`, `AdminService.updatePlace` |
 | `DELETE /api/admin/places/{placeId}` | Delete | `200 OK`, `ApiResponse<Void>`, `data:null` | `400 VALIDATION_ERROR`, `401 AUTH_REQUIRED`, `403 FORBIDDEN`, `404 NOT_FOUND` | path `placeId` 존재/길이 검증 | `AdminController.deletePlace`, `AdminService.deletePlace`, `PlaceMapper.delete*References` |
 
+관리자 upsert/delete 성공 메시지는 콘텐츠와 장소 모두 action 기준으로 통일합니다.
+
+| 동작 | 성공 메시지 | data |
+| --- | --- | --- |
+| Create | `생성되었습니다.` | 생성된 `ContentDto` 또는 `PlaceDto` |
+| Update | `수정되었습니다.` | 수정된 `ContentDto` 또는 `PlaceDto` |
+| Delete | `삭제되었습니다.` | `null` |
+
 ### Consistency Verification Checklist
 
 | 확인 항목 | 상태 | 근거 |
@@ -368,7 +376,7 @@ Content-Type: application/json
 {
   "success": true,
   "code": "SUCCESS",
-  "message": "콘텐츠가 생성되었습니다.",
+  "message": "생성되었습니다.",
   "data": {
     "contentId": "C_ADMIN_QA_001",
     "title": "QA 검증 콘텐츠",
@@ -414,7 +422,7 @@ Content-Type: application/json
 {
   "success": true,
   "code": "SUCCESS",
-  "message": "콘텐츠가 수정되었습니다.",
+  "message": "수정되었습니다.",
   "data": {
     "contentId": "C_ADMIN_QA_001",
     "title": "QA 검증 콘텐츠 수정본",
@@ -450,7 +458,7 @@ Authorization: Bearer {ROLE_ADMIN accessToken}
 {
   "success": true,
   "code": "SUCCESS",
-  "message": "콘텐츠가 삭제되었습니다.",
+  "message": "삭제되었습니다.",
   "data": null
 }
 ```

@@ -137,12 +137,26 @@ OAuth 시작 엔드포인트인 `GET /api/auth/oauth/google`, `GET /api/auth/oau
 
 | API | 성공 데이터 | 비고 |
 | --- | --- | --- |
-| `POST /api/admin/contents` | `ContentDto` | `ROLE_ADMIN` 필요 |
-| `PATCH /api/admin/contents/{contentId}` | `ContentDto` | `ROLE_ADMIN` 필요 |
-| `DELETE /api/admin/contents/{contentId}` | `null` | 콘텐츠 soft delete |
-| `POST /api/admin/places` | `PlaceDto` | `ROLE_ADMIN` 필요 |
-| `PATCH /api/admin/places/{placeId}` | `PlaceDto` | `ROLE_ADMIN` 필요 |
-| `DELETE /api/admin/places/{placeId}` | `null` | 관련 참조 정리 후 장소 삭제 |
+| `POST /api/admin/contents` | `ContentDto` | `ROLE_ADMIN` 필요, message: `생성되었습니다.` |
+| `PATCH /api/admin/contents/{contentId}` | `ContentDto` | `ROLE_ADMIN` 필요, message: `수정되었습니다.` |
+| `DELETE /api/admin/contents/{contentId}` | `null` | 콘텐츠 soft delete, message: `삭제되었습니다.` |
+| `POST /api/admin/places` | `PlaceDto` | `ROLE_ADMIN` 필요, message: `생성되었습니다.` |
+| `PATCH /api/admin/places/{placeId}` | `PlaceDto` | `ROLE_ADMIN` 필요, message: `수정되었습니다.` |
+| `DELETE /api/admin/places/{placeId}` | `null` | 관련 참조 정리 후 장소 삭제, message: `삭제되었습니다.` |
+
+관리자 CRUD 성공 메시지는 리소스명 대신 action 기준 메시지로 통일한다. 따라서 콘텐츠와 장소 모두 생성은 `생성되었습니다.`, 수정은 `수정되었습니다.`, 삭제는 `삭제되었습니다.`를 반환한다. 실제 리소스 구분은 `data`의 `ContentDto`/`PlaceDto` 또는 endpoint path로 판단한다.
+
+관리자 CRUD 오류 메시지는 `GlobalExceptionHandler`를 통해 아래 코드로 표준화한다.
+
+| 상황 | HTTP | code | message |
+| --- | --- | --- | --- |
+| token 누락 | `401` | `AUTH_REQUIRED` | `로그인이 필요합니다.` |
+| token 만료/무효 | `401` | `TOKEN_EXPIRED` | `로그인이 만료되었습니다. 다시 로그인해 주세요.` |
+| 비관리자 사용자 | `403` | `FORBIDDEN` | `관리자 권한이 필요합니다.` |
+| 필수값 누락/공백 | `400` | `VALIDATION_ERROR` | 필드별 한국어 메시지 |
+| 길이 초과 | `400` | `VALIDATION_ERROR` | 필드별 한국어 메시지 |
+| 콘텐츠/장소 ID 중복 | `409` | `CONFLICT` | `이미 등록된 콘텐츠입니다.` 또는 `이미 등록된 장소입니다.` |
+| 존재하지 않는 콘텐츠/장소 | `404` | `NOT_FOUND` | `존재하지 않는 콘텐츠입니다.` 또는 `존재하지 않는 장소입니다.` |
 
 ## 응답 예시
 

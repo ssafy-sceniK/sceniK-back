@@ -82,7 +82,7 @@ Content-Type: application/json
 ### 8. 관리자 콘텐츠 생성 - 정상
 # 기대: 200 OK
 # 현재 구현은 201 Created가 아니라 200 OK를 반환합니다.
-# 기대 body: { "success": true, "code": "SUCCESS", "message": "콘텐츠가 생성되었습니다.", "data": ContentDto }
+# 기대 body: { "success": true, "code": "SUCCESS", "message": "생성되었습니다.", "data": ContentDto }
 POST {{api}}/admin/contents
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
@@ -156,7 +156,7 @@ Content-Type: application/json
 ### 13. 관리자 콘텐츠 수정
 # 기대: 200 OK
 # 기대: 전달하지 않은 필드는 기존 값 유지, 전달한 title/isPopular/tags만 변경
-# 기대 body: { "success": true, "code": "SUCCESS", "message": "콘텐츠가 수정되었습니다.", "data": ContentDto }
+# 기대 body: { "success": true, "code": "SUCCESS", "message": "수정되었습니다.", "data": ContentDto }
 PATCH {{api}}/admin/contents/{{contentId}}
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
@@ -182,7 +182,7 @@ Content-Type: application/json
 
 ### 15. 관리자 콘텐츠 삭제
 # 기대: 200 OK
-# 기대 body: { "success": true, "code": "SUCCESS", "message": "콘텐츠가 삭제되었습니다.", "data": null }
+# 기대 body: { "success": true, "code": "SUCCESS", "message": "삭제되었습니다.", "data": null }
 # 구현: contents.status = 'DELETED' soft delete
 # 참고: soft delete 후 같은 contentId 재생성은 DB unique key 때문에 충돌할 수 있으므로 반복 실행 시 새 contentId를 사용합니다.
 DELETE {{api}}/admin/contents/{{contentId}}
@@ -211,7 +211,7 @@ GET {{api}}/places/P_0001
 
 ### 18. 관리자 장소 생성 - 정상
 # 기대: 200 OK
-# 기대 body: { "success": true, "code": "SUCCESS", "message": "장소가 생성되었습니다.", "data": PlaceDto }
+# 기대 body: { "success": true, "code": "SUCCESS", "message": "생성되었습니다.", "data": PlaceDto }
 POST {{api}}/admin/places
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
@@ -236,7 +236,7 @@ Content-Type: application/json
 
 ### 19. 관리자 장소 수정
 # 기대: 200 OK
-# 기대 body: { "success": true, "code": "SUCCESS", "message": "장소가 수정되었습니다.", "data": PlaceDto }
+# 기대 body: { "success": true, "code": "SUCCESS", "message": "수정되었습니다.", "data": PlaceDto }
 PATCH {{api}}/admin/places/{{placeId}}
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
@@ -251,7 +251,7 @@ Content-Type: application/json
 
 ### 20. 관리자 장소 삭제
 # 기대: 200 OK
-# 기대 body: { "success": true, "code": "SUCCESS", "message": "장소가 삭제되었습니다.", "data": null }
+# 기대 body: { "success": true, "code": "SUCCESS", "message": "삭제되었습니다.", "data": null }
 # 구현: 장소 관련 참조를 정리한 뒤 places row를 삭제합니다.
 DELETE {{api}}/admin/places/{{placeId}}
 Authorization: Bearer {{accessToken}}

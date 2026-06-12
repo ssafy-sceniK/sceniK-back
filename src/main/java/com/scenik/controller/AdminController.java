@@ -19,6 +19,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/admin")
 public class AdminController {
+    private static final String CREATED_MESSAGE = "생성되었습니다.";
+    private static final String UPDATED_MESSAGE = "수정되었습니다.";
+    private static final String DELETED_MESSAGE = "삭제되었습니다.";
+
     private final AdminService adminService;
 
     public AdminController(AdminService adminService) {
@@ -30,7 +34,7 @@ public class AdminController {
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @RequestBody ContentUpsertRequest request
     ) {
-        return ApiResponse.ok("콘텐츠가 생성되었습니다.", adminService.createContent(authorization, request));
+        return ApiResponse.ok(CREATED_MESSAGE, adminService.createContent(authorization, request));
     }
 
     @PatchMapping("/contents/{contentId}")
@@ -39,7 +43,7 @@ public class AdminController {
             @PathVariable("contentId") String contentId,
             @RequestBody ContentUpsertRequest request
     ) {
-        return ApiResponse.ok("콘텐츠가 수정되었습니다.", adminService.updateContent(authorization, contentId, request));
+        return ApiResponse.ok(UPDATED_MESSAGE, adminService.updateContent(authorization, contentId, request));
     }
 
     @DeleteMapping("/contents/{contentId}")
@@ -48,7 +52,7 @@ public class AdminController {
             @PathVariable("contentId") String contentId
     ) {
         adminService.deleteContent(authorization, contentId);
-        return ResponseEntity.ok(ApiResponse.okMessage("콘텐츠가 삭제되었습니다."));
+        return ResponseEntity.ok(ApiResponse.okMessage(DELETED_MESSAGE));
     }
 
     @PostMapping("/places")
@@ -56,7 +60,7 @@ public class AdminController {
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @RequestBody PlaceUpsertRequest request
     ) {
-        return ApiResponse.ok("장소가 생성되었습니다.", adminService.createPlace(authorization, request));
+        return ApiResponse.ok(CREATED_MESSAGE, adminService.createPlace(authorization, request));
     }
 
     @PatchMapping("/places/{placeId}")
@@ -65,7 +69,7 @@ public class AdminController {
             @PathVariable("placeId") String placeId,
             @RequestBody PlaceUpsertRequest request
     ) {
-        return ApiResponse.ok("장소가 수정되었습니다.", adminService.updatePlace(authorization, placeId, request));
+        return ApiResponse.ok(UPDATED_MESSAGE, adminService.updatePlace(authorization, placeId, request));
     }
 
     @DeleteMapping("/places/{placeId}")
@@ -74,6 +78,6 @@ public class AdminController {
             @PathVariable("placeId") String placeId
     ) {
         adminService.deletePlace(authorization, placeId);
-        return ResponseEntity.ok(ApiResponse.okMessage("장소가 삭제되었습니다."));
+        return ResponseEntity.ok(ApiResponse.okMessage(DELETED_MESSAGE));
     }
 }

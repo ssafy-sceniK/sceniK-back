@@ -1,5 +1,6 @@
 package com.scenik.controller;
 
+import com.scenik.dto.ApiResponse;
 import com.scenik.dto.PlaceDto;
 import com.scenik.service.AuthService;
 import com.scenik.service.PlaceService;
@@ -29,7 +30,7 @@ public class PlaceController {
     }
 
     @GetMapping
-    public ResponseEntity<List<PlaceDto>> list(
+    public ResponseEntity<ApiResponse<List<PlaceDto>>> list(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @RequestParam(value = "region", required = false) String region,
             @RequestParam(value = "district", required = false) String district,
@@ -46,22 +47,22 @@ public class PlaceController {
         List<PlaceDto> paged = ListQuerySupport.paginate(places, page, size);
         return ResponseEntity.ok()
                 .header("X-Total-Count", String.valueOf(places.size()))
-                .body(paged);
+                .body(ApiResponse.ok(paged));
     }
 
     @GetMapping("/nearby")
-    public List<PlaceDto> nearby(
+    public ApiResponse<List<PlaceDto>> nearby(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @RequestParam(value = "latitude", required = false) Double latitude,
             @RequestParam(value = "longitude", required = false) Double longitude,
             @RequestParam(value = "radiusKm", required = false) Double radiusKm,
             @RequestParam(value = "limit", required = false) Integer limit
     ) {
-        return placeService.getNearbyPlaces(latitude, longitude, radiusKm, limit, authService.optionalUserId(authorization));
+        return ApiResponse.ok(placeService.getNearbyPlaces(latitude, longitude, radiusKm, limit, authService.optionalUserId(authorization)));
     }
 
     @GetMapping("/{placeId}")
-    public PlaceDto detail(
+    public ApiResponse<PlaceDto> detail(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @PathVariable("placeId") String placeId
     ) {
@@ -69,7 +70,7 @@ public class PlaceController {
         if (place == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Place was not found.");
         }
-        return place;
+        return ApiResponse.ok(place);
     }
 
     private String firstText(String preferred, String fallback) {

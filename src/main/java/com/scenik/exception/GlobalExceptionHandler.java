@@ -183,6 +183,8 @@ public class GlobalExceptionHandler {
             case "Nickname is required." -> new ErrorDescriptor("VALIDATION_ERROR", "닉네임을 입력해 주세요.");
             case "contentId is required." -> new ErrorDescriptor("VALIDATION_ERROR", "콘텐츠 ID를 입력해 주세요.");
             case "placeId is required." -> new ErrorDescriptor("VALIDATION_ERROR", "장소 ID를 입력해 주세요.");
+            case "contentId is too long." -> new ErrorDescriptor("VALIDATION_ERROR", "콘텐츠 ID는 64자 이하로 입력해 주세요.");
+            case "placeId is too long." -> new ErrorDescriptor("VALIDATION_ERROR", "장소 ID는 64자 이하로 입력해 주세요.");
             case "Content was not found." -> new ErrorDescriptor("NOT_FOUND", "존재하지 않는 콘텐츠입니다.");
             case "Place was not found." -> new ErrorDescriptor("NOT_FOUND", "존재하지 않는 장소입니다.");
             case "Route place was not found." -> new ErrorDescriptor("NOT_FOUND", "코스에 포함된 장소 정보를 찾을 수 없습니다.");
@@ -220,6 +222,10 @@ public class GlobalExceptionHandler {
             case "name is required." -> new ErrorDescriptor("VALIDATION_ERROR", "이름을 입력해 주세요.");
             case "Route region is required." -> new ErrorDescriptor("VALIDATION_ERROR", "지역을 선택해 주세요.");
             case "region is required." -> new ErrorDescriptor("VALIDATION_ERROR", "지역을 입력해 주세요.");
+            case "title is too long." -> new ErrorDescriptor("VALIDATION_ERROR", "제목은 255자 이하로 입력해 주세요.");
+            case "category is too long." -> new ErrorDescriptor("VALIDATION_ERROR", "카테고리는 80자 이하로 입력해 주세요.");
+            case "name is too long." -> new ErrorDescriptor("VALIDATION_ERROR", "이름은 255자 이하로 입력해 주세요.");
+            case "region is too long." -> new ErrorDescriptor("VALIDATION_ERROR", "지역은 80자 이하로 입력해 주세요.");
             case "latitude and longitude are required." -> new ErrorDescriptor("VALIDATION_ERROR", "위도와 경도를 입력해 주세요.");
             case "Invalid dayNumber.", "Route day is required.", "dayNumber is out of bounds.", "Stop dayNumber must match parent day." -> new ErrorDescriptor("VALIDATION_ERROR", "코스 날짜가 올바르지 않습니다.");
             case "visitOrder must be positive." -> new ErrorDescriptor("VALIDATION_ERROR", "방문 순서는 1 이상이어야 합니다.");

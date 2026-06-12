@@ -1,5 +1,6 @@
 package com.scenik.controller;
 
+import com.scenik.dto.ApiResponse;
 import com.scenik.dto.ContentCategoryDto;
 import com.scenik.dto.ContentDto;
 import com.scenik.dto.PlaceDto;
@@ -31,7 +32,7 @@ public class ContentController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ContentDto>> list(
+    public ResponseEntity<ApiResponse<List<ContentDto>>> list(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @RequestParam(value = "category", required = false) String category,
             @RequestParam(value = "keyword", required = false) String keyword,
@@ -52,23 +53,23 @@ public class ContentController {
         List<ContentDto> paged = ListQuerySupport.paginate(contents, page, size);
         return ResponseEntity.ok()
                 .header("X-Total-Count", String.valueOf(contents.size()))
-                .body(paged);
+                .body(ApiResponse.ok(paged));
     }
 
     @GetMapping("/categories")
-    public List<ContentCategoryDto> categories() {
-        return contentService.getCategories();
+    public ApiResponse<List<ContentCategoryDto>> categories() {
+        return ApiResponse.ok(contentService.getCategories());
     }
 
     @GetMapping("/popular")
-    public List<ContentDto> popular(
+    public ApiResponse<List<ContentDto>> popular(
             @RequestHeader(value = "Authorization", required = false) String authorization
     ) {
-        return contentService.getContents(null, null, Boolean.TRUE, authService.optionalUserId(authorization));
+        return ApiResponse.ok(contentService.getContents(null, null, Boolean.TRUE, authService.optionalUserId(authorization)));
     }
 
     @GetMapping("/{contentId}")
-    public ContentDto detail(
+    public ApiResponse<ContentDto> detail(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @PathVariable("contentId") String contentId
     ) {
@@ -76,11 +77,11 @@ public class ContentController {
         if (content == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Content was not found.");
         }
-        return content;
+        return ApiResponse.ok(content);
     }
 
     @GetMapping("/{contentId}/places")
-    public List<PlaceDto> relatedPlaces(@PathVariable("contentId") String contentId) {
-        return contentService.getRelatedPlaces(contentId);
+    public ApiResponse<List<PlaceDto>> relatedPlaces(@PathVariable("contentId") String contentId) {
+        return ApiResponse.ok(contentService.getRelatedPlaces(contentId));
     }
 }

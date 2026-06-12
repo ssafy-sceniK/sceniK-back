@@ -1,5 +1,6 @@
 package com.scenik.controller;
 
+import com.scenik.dto.ApiResponse;
 import com.scenik.dto.AdminDtos.ContentUpsertRequest;
 import com.scenik.dto.AdminDtos.PlaceUpsertRequest;
 import com.scenik.dto.ContentDto;
@@ -25,54 +26,54 @@ public class AdminController {
     }
 
     @PostMapping("/contents")
-    public ContentDto createContent(
+    public ApiResponse<ContentDto> createContent(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @RequestBody ContentUpsertRequest request
     ) {
-        return adminService.createContent(authorization, request);
+        return ApiResponse.ok("콘텐츠가 생성되었습니다.", adminService.createContent(authorization, request));
     }
 
     @PatchMapping("/contents/{contentId}")
-    public ContentDto updateContent(
+    public ApiResponse<ContentDto> updateContent(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @PathVariable("contentId") String contentId,
             @RequestBody ContentUpsertRequest request
     ) {
-        return adminService.updateContent(authorization, contentId, request);
+        return ApiResponse.ok("콘텐츠가 수정되었습니다.", adminService.updateContent(authorization, contentId, request));
     }
 
     @DeleteMapping("/contents/{contentId}")
-    public ResponseEntity<Void> deleteContent(
+    public ResponseEntity<ApiResponse<Void>> deleteContent(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @PathVariable("contentId") String contentId
     ) {
         adminService.deleteContent(authorization, contentId);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.okMessage("콘텐츠가 삭제되었습니다."));
     }
 
     @PostMapping("/places")
-    public PlaceDto createPlace(
+    public ApiResponse<PlaceDto> createPlace(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @RequestBody PlaceUpsertRequest request
     ) {
-        return adminService.createPlace(authorization, request);
+        return ApiResponse.ok("장소가 생성되었습니다.", adminService.createPlace(authorization, request));
     }
 
     @PatchMapping("/places/{placeId}")
-    public PlaceDto updatePlace(
+    public ApiResponse<PlaceDto> updatePlace(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @PathVariable("placeId") String placeId,
             @RequestBody PlaceUpsertRequest request
     ) {
-        return adminService.updatePlace(authorization, placeId, request);
+        return ApiResponse.ok("장소가 수정되었습니다.", adminService.updatePlace(authorization, placeId, request));
     }
 
     @DeleteMapping("/places/{placeId}")
-    public ResponseEntity<Void> deletePlace(
+    public ResponseEntity<ApiResponse<Void>> deletePlace(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @PathVariable("placeId") String placeId
     ) {
         adminService.deletePlace(authorization, placeId);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.okMessage("장소가 삭제되었습니다."));
     }
 }

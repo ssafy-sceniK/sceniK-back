@@ -2,13 +2,16 @@
 
 ## 적용 목적
 
-인증, 좋아요/방문 상태, 팔로우 API의 성공/오류 응답 형식을 같은 규칙으로 맞춰 프론트엔드 오류 처리와 QA 재현성을 높인다.
+인증, 좋아요/방문 상태, 팔로우, 콘텐츠/장소 조회, 관리자 CRUD API의 성공/오류 응답 형식을 같은 규칙으로 맞춰 프론트엔드 오류 처리와 QA 재현성을 높인다.
 
 이번 정리는 전체 API를 한 번에 바꾸는 대규모 마이그레이션이 아니라, 예외 케이스가 자주 발생하는 다음 컨트롤러를 우선 표준화한 증분 개선이다.
 
 - `src/main/java/com/scenik/controller/AuthController.java`
 - `src/main/java/com/scenik/controller/LikeVisitController.java`
 - `src/main/java/com/scenik/controller/FollowController.java`
+- `src/main/java/com/scenik/controller/ContentController.java`
+- `src/main/java/com/scenik/controller/PlaceController.java`
+- `src/main/java/com/scenik/controller/AdminController.java`
 - `src/main/java/com/scenik/exception/GlobalExceptionHandler.java`
 
 ## 성공 응답 형식
@@ -112,6 +115,35 @@ OAuth 시작 엔드포인트인 `GET /api/auth/oauth/google`, `GET /api/auth/oau
 | `GET /api/users/{userId}/following` | `List<FollowUserDto>` | 팔로잉 목록 |
 | `GET /api/users/me/following` | `List<FollowUserDto>` | 내 팔로잉 목록 |
 
+### 콘텐츠 조회
+
+| API | 성공 데이터 | 비고 |
+| --- | --- | --- |
+| `GET /api/contents` | `List<ContentDto>` | `X-Total-Count` 헤더 유지 |
+| `GET /api/contents/categories` | `List<ContentCategoryDto>` | 콘텐츠 카테고리 목록 |
+| `GET /api/contents/popular` | `List<ContentDto>` | 인기 콘텐츠 목록 |
+| `GET /api/contents/{contentId}` | `ContentDto` | 존재하지 않으면 `404 NOT_FOUND` |
+| `GET /api/contents/{contentId}/places` | `List<PlaceDto>` | 콘텐츠 관련 장소 목록 |
+
+### 장소 조회
+
+| API | 성공 데이터 | 비고 |
+| --- | --- | --- |
+| `GET /api/places` | `List<PlaceDto>` | `X-Total-Count` 헤더 유지 |
+| `GET /api/places/nearby` | `List<PlaceDto>` | 좌표가 없으면 빈 목록 반환 |
+| `GET /api/places/{placeId}` | `PlaceDto` | 존재하지 않으면 `404 NOT_FOUND` |
+
+### 관리자 CRUD
+
+| API | 성공 데이터 | 비고 |
+| --- | --- | --- |
+| `POST /api/admin/contents` | `ContentDto` | `ROLE_ADMIN` 필요 |
+| `PATCH /api/admin/contents/{contentId}` | `ContentDto` | `ROLE_ADMIN` 필요 |
+| `DELETE /api/admin/contents/{contentId}` | `null` | 콘텐츠 soft delete |
+| `POST /api/admin/places` | `PlaceDto` | `ROLE_ADMIN` 필요 |
+| `PATCH /api/admin/places/{placeId}` | `PlaceDto` | `ROLE_ADMIN` 필요 |
+| `DELETE /api/admin/places/{placeId}` | `null` | 관련 참조 정리 후 장소 삭제 |
+
 ## 응답 예시
 
 ### 로그인 성공
@@ -197,6 +229,9 @@ Content-Type: application/json
 - `frontend/src/api/authApi.js`
 - `frontend/src/api/engagementApi.js`
 - `frontend/src/api/followApi.js`
+- `frontend/src/api/contentApi.js`
+- `frontend/src/api/placeApi.js`
+- `frontend/src/api/adminApi.js`
 
 처리 원칙:
 
@@ -210,10 +245,8 @@ Content-Type: application/json
 
 아래 API들은 아직 전체 응답 래퍼 마이그레이션 대상이 아니다.
 
-- 콘텐츠/장소 공개 조회 API
 - 커뮤니티 게시글/댓글 API
 - 리뷰 API
 - 코스/AI 코스 API
-- 관리자 CRUD API
 
 위 API들은 기존 프론트 흐름을 우선 보존하고, 추후 동일한 계약으로 단계적으로 정리한다.

@@ -60,6 +60,70 @@
 | SQL mapper | `src/main/resources/mapper/ContentMapper.xml` |
 | Exception handler | `src/main/java/com/scenik/exception/GlobalExceptionHandler.java` |
 
+### Traceability Map
+
+Rubric #01은 아래 순서로 바로 추적할 수 있습니다.
+
+| 단계 | 확인 위치 | 평가자가 확인할 내용 |
+| --- | --- | --- |
+| Rubric | Rubric #01 Core Data Management CRUD | 콘텐츠/장소 원본 데이터 Create, Read, Update, Delete 완성도 |
+| Evidence | `backend/docs/evidence/core-crud-evidence.md` | CRUD endpoint, 응답 계약, validation, 401/403/404/409 처리 근거 |
+| API contract | `backend/docs/api-response-contract.md` | `ApiResponse<T>` 성공 응답과 `GlobalExceptionHandler.ErrorResponse` 오류 응답 표준 |
+| HTTP QA | `backend/api-tests/content-crud-validation.http` | 관리자 token 발급 후 C/R/U/D, validation, not-found, 권한 오류 재현 순서 |
+| Controller | `src/main/java/com/scenik/controller/ContentController.java` | 공개 콘텐츠 Read endpoint가 `ApiResponse`로 응답하는지 확인 |
+| Controller | `src/main/java/com/scenik/controller/PlaceController.java` | 공개 장소 Read endpoint가 `ApiResponse`로 응답하는지 확인 |
+| Controller | `src/main/java/com/scenik/controller/AdminController.java` | 콘텐츠/장소 Create, Update, Delete endpoint가 `ApiResponse`로 응답하는지 확인 |
+| Service | `src/main/java/com/scenik/service/ContentService.java` | 공개 조회 결과 변환과 soft-deleted 콘텐츠 제외 흐름 |
+| Service | `src/main/java/com/scenik/service/PlaceService.java` | 장소 목록, 주변 장소, 상세 조회 결과 변환 |
+| Service | `src/main/java/com/scenik/service/AdminService.java` | `ROLE_ADMIN` 확인, 필수값/길이 검증, 중복/존재 여부 처리 |
+| DTO | `src/main/java/com/scenik/dto/ApiResponse.java` | 성공 응답 공통 shape: `success`, `code`, `message`, `data` |
+| DTO | `src/main/java/com/scenik/dto/AdminDtos.java` | `ContentUpsertRequest`, `PlaceUpsertRequest` 요청 shape |
+| DTO | `src/main/java/com/scenik/dto/ContentDto.java`, `src/main/java/com/scenik/dto/PlaceDto.java` | 콘텐츠/장소 응답 data shape |
+| Exception | `src/main/java/com/scenik/exception/GlobalExceptionHandler.java` | `VALIDATION_ERROR`, `AUTH_REQUIRED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT` 매핑 |
+| Mapper | `src/main/resources/mapper/ContentMapper.xml`, `src/main/resources/mapper/PlaceMapper.xml` | insert/update/delete/select SQL과 soft delete/참조 정리 동작 |
+| Frontend | `frontend/src/api/adminApi.js`, `frontend/src/api/contentApi.js`, `frontend/src/api/placeApi.js` | 표준 `ApiResponse`의 `data` unwrap 처리 |
+| Admin UI | `frontend/src/views/AdminView.vue` | `/admin/contents`, `/admin/places` 브라우저 CRUD 검증 화면 |
+
+### CRUD 일관성 매트릭스
+
+아래 표는 Rubric #01 평가자가 모든 CRUD 관련 endpoint의 응답 계약과 검증 흐름을 한눈에 확인하기 위한 최종 점검표입니다.
+
+| Endpoint | CRUD Type | Success Contract | Error Contract | Validation | Source |
+| --- | --- | --- | --- | --- | --- |
+| `GET /api/contents` | Read List | `200 OK`, `ApiResponse<List<ContentDto>>`, `X-Total-Count` | `GlobalExceptionHandler.ErrorResponse` | `sort`, `page`, `size` query 검증 | `ContentController.list`, `ListQuerySupport` |
+| `GET /api/contents/categories` | Read List | `200 OK`, `ApiResponse<List<ContentCategoryDto>>` | `GlobalExceptionHandler.ErrorResponse` | 별도 입력값 없음 | `ContentController.categories` |
+| `GET /api/contents/popular` | Read List | `200 OK`, `ApiResponse<List<ContentDto>>` | `GlobalExceptionHandler.ErrorResponse` | 선택적 token만 처리 | `ContentController.popular` |
+| `GET /api/contents/{contentId}` | Read Detail | `200 OK`, `ApiResponse<ContentDto>` | `404 NOT_FOUND`, `success:false`, `data:null` | 존재하지 않는 `contentId` 처리 | `ContentController.detail`, `ContentService.getContent` |
+| `GET /api/contents/{contentId}/places` | Related Read | `200 OK`, `ApiResponse<List<PlaceDto>>` | `GlobalExceptionHandler.ErrorResponse` | `contentId` 기준 관련 장소 조회 | `ContentController.relatedPlaces`, `ContentService.getRelatedPlaces` |
+| `GET /api/places` | Read List | `200 OK`, `ApiResponse<List<PlaceDto>>`, `X-Total-Count` | `GlobalExceptionHandler.ErrorResponse` | `sort`, `page`, `size` query 검증 | `PlaceController.list`, `ListQuerySupport` |
+| `GET /api/places/nearby` | Read List | `200 OK`, `ApiResponse<List<PlaceDto>>` | `GlobalExceptionHandler.ErrorResponse` | 좌표 누락 시 빈 목록, `radiusKm`, `limit` 정규화 | `PlaceController.nearby`, `PlaceService.getNearbyPlaces` |
+| `GET /api/places/{placeId}` | Read Detail | `200 OK`, `ApiResponse<PlaceDto>` | `404 NOT_FOUND`, `success:false`, `data:null` | 존재하지 않는 `placeId` 처리 | `PlaceController.detail`, `PlaceService.getPlace` |
+| `POST /api/admin/contents` | Create | `200 OK`, `ApiResponse<ContentDto>` | `400 VALIDATION_ERROR`, `401 AUTH_REQUIRED`, `403 FORBIDDEN`, `409 CONFLICT` | `contentId`, `title`, `category` 필수 및 길이 검증 | `AdminController.createContent`, `AdminService.createContent` |
+| `PATCH /api/admin/contents/{contentId}` | Update | `200 OK`, `ApiResponse<ContentDto>` | `400 VALIDATION_ERROR`, `401 AUTH_REQUIRED`, `403 FORBIDDEN`, `404 NOT_FOUND` | path `contentId` 존재/길이, `title`, `category` 필수 및 길이 검증 | `AdminController.updateContent`, `AdminService.updateContent` |
+| `DELETE /api/admin/contents/{contentId}` | Delete | `200 OK`, `ApiResponse<Void>`, `data:null` | `400 VALIDATION_ERROR`, `401 AUTH_REQUIRED`, `403 FORBIDDEN`, `404 NOT_FOUND` | path `contentId` 존재/길이 검증 | `AdminController.deleteContent`, `AdminService.deleteContent`, `ContentMapper.softDelete` |
+| `POST /api/admin/places` | Create | `200 OK`, `ApiResponse<PlaceDto>` | `400 VALIDATION_ERROR`, `401 AUTH_REQUIRED`, `403 FORBIDDEN`, `409 CONFLICT` | `placeId`, `name`, `region` 필수 및 길이 검증 | `AdminController.createPlace`, `AdminService.createPlace` |
+| `PATCH /api/admin/places/{placeId}` | Update | `200 OK`, `ApiResponse<PlaceDto>` | `400 VALIDATION_ERROR`, `401 AUTH_REQUIRED`, `403 FORBIDDEN`, `404 NOT_FOUND` | path `placeId` 존재/길이, `name`, `region` 필수 및 길이 검증 | `AdminController.updatePlace`, `AdminService.updatePlace` |
+| `DELETE /api/admin/places/{placeId}` | Delete | `200 OK`, `ApiResponse<Void>`, `data:null` | `400 VALIDATION_ERROR`, `401 AUTH_REQUIRED`, `403 FORBIDDEN`, `404 NOT_FOUND` | path `placeId` 존재/길이 검증 | `AdminController.deletePlace`, `AdminService.deletePlace`, `PlaceMapper.delete*References` |
+
+### Consistency Verification Checklist
+
+| 확인 항목 | 상태 | 근거 |
+| --- | --- | --- |
+| `ApiResponse` 성공 응답 사용 | 확인 완료 | `ContentController`, `PlaceController`, `AdminController`의 공개 Read 및 관리자 콘텐츠/장소 CUD endpoint |
+| 표준 오류 응답 사용 | 확인 완료 | `GlobalExceptionHandler.ErrorResponse`가 `success:false`, `code`, `message`, `data:null`, `fieldErrors`를 반환 |
+| Validation 적용 | 확인 완료 | `AdminService`에서 필수값, 공백, 길이 초과를 `ResponseStatusException`으로 변환 |
+| HTTP status와 body code 정합성 | 확인 완료 | `400 VALIDATION_ERROR`, `401 AUTH_REQUIRED`, `403 FORBIDDEN`, `404 NOT_FOUND`, `409 CONFLICT` |
+| 관리자 권한 분리 | 확인 완료 | `AuthService.requireUser()` 후 `AdminService.requireAdmin()`에서 `ROLE_ADMIN` 검사 |
+| QA 시나리오 존재 | 확인 완료 | `backend/api-tests/content-crud-validation.http`에 create/read/update/delete, 401, 403, 404, 409, validation 포함 |
+| Frontend 표준 응답 호환 | 확인 완료 | `frontend/src/api/contentApi.js`, `frontend/src/api/placeApi.js`, `frontend/src/api/adminApi.js`에서 `data` unwrap 처리 |
+| 문서 추적성 | 확인 완료 | 이 문서의 `Traceability Map`과 `CRUD 일관성 매트릭스`에서 evidence → source code 경로 명시 |
+
+### 발견된 예외 및 정책 결정
+
+- 공개 콘텐츠 Read, 공개 장소 Read, 관리자 콘텐츠/장소 CUD는 표준 `ApiResponse` 계약으로 맞춰져 있습니다.
+- 콘텐츠 `category`는 현재 allow-list enum이 아니라 자유 문자열 정책입니다. 따라서 “허용되지 않는 카테고리 값” 자체는 차단하지 않고, 누락/공백/길이 초과만 `VALIDATION_ERROR`로 처리합니다.
+- 콘텐츠 삭제는 원본 row를 물리 삭제하지 않고 `status = 'DELETED'`로 바꾸는 soft delete입니다. 삭제 후 공개 목록/상세 조회에서는 제외되며, 관리자 반복 delete는 기존 row 확인 후 같은 soft delete를 다시 수행할 수 있습니다.
+
 ### 구현 파일
 
 | 구분 | 파일 | 역할 |
@@ -74,6 +138,7 @@
 | 운영자 API client | `frontend/src/api/adminApi.js` | `/api/admin/contents`, `/api/admin/places` 호출 |
 | Request DTO | `src/main/java/com/scenik/dto/AdminDtos.java` | `ContentUpsertRequest` |
 | Response DTO | `src/main/java/com/scenik/dto/ContentDto.java` | 콘텐츠 응답 표준 shape |
+| 장소 Response DTO | `src/main/java/com/scenik/dto/PlaceDto.java` | 장소 응답 표준 shape |
 | Mapper | `src/main/java/com/scenik/mapper/ContentMapper.java` | MyBatis mapper interface |
 | SQL Mapper | `src/main/resources/mapper/ContentMapper.xml` | select/insert/update/softDelete SQL |
 | 오류 응답 | `src/main/java/com/scenik/exception/GlobalExceptionHandler.java` | 한국어 error code/message 매핑 |
@@ -95,8 +160,9 @@
 
 | 동작 | Method | Endpoint | 구현 위치 | 인증 | 현재 상태 |
 | --- | --- | --- | --- | --- | --- |
-| 목록 조회 | GET | `/api/places` | `PlaceController.list` | 선택 | 구현 완료 |
-| 상세 조회 | GET | `/api/places/{placeId}` | `PlaceController.detail` | 선택 | 구현 완료 |
+| 목록 조회 | GET | `/api/places` | `PlaceController.list` | 선택 | `ApiResponse<List<PlaceDto>>` 구현 완료 |
+| 주변 장소 조회 | GET | `/api/places/nearby` | `PlaceController.nearby` | 선택 | `ApiResponse<List<PlaceDto>>` 구현 완료 |
+| 상세 조회 | GET | `/api/places/{placeId}` | `PlaceController.detail` | 선택 | `ApiResponse<PlaceDto>` 구현 완료 |
 | 장소 생성 | POST | `/api/admin/places` | `AdminController.createPlace` | `ROLE_ADMIN` token 필요 | backend + admin UI 구현 |
 | 장소 수정 | PATCH | `/api/admin/places/{placeId}` | `AdminController.updatePlace` | `ROLE_ADMIN` token 필요 | backend + admin UI 구현 |
 | 장소 삭제 | DELETE | `/api/admin/places/{placeId}` | `AdminController.deletePlace` | `ROLE_ADMIN` token 필요 | backend + admin UI 구현, 관련 참조 정리 후 물리 삭제 |
@@ -147,33 +213,39 @@
 - 생성 시 `contentId`가 없으면 `400 VALIDATION_ERROR`, `콘텐츠 ID를 입력해 주세요.`
 - 생성/수정 시 `title`이 없으면 `400 VALIDATION_ERROR`, `제목을 입력해 주세요.`
 - 생성/수정 시 `category`가 없으면 `400 VALIDATION_ERROR`, `카테고리를 입력해 주세요.`
+- `contentId` 64자 초과, `title` 255자 초과, `category` 80자 초과는 `400 VALIDATION_ERROR`로 응답합니다.
 - request body가 없으면 `400 VALIDATION_ERROR`, `콘텐츠 정보를 입력해 주세요.`
 - 중복 `contentId` 생성은 `409 CONFLICT`, `이미 등록된 콘텐츠입니다.`
 - 없는 `contentId` 수정/삭제는 `404 NOT_FOUND`, `존재하지 않는 콘텐츠입니다.`
 
-### Response DTO: `ContentDto`
+### Response DTO: `ApiResponse<ContentDto>`
 
-공개 조회와 관리자 생성/수정 응답은 모두 `ContentDto` shape를 사용합니다.
+공개 콘텐츠 조회와 관리자 생성/수정/삭제 응답은 공통 성공 응답 래퍼인 `ApiResponse`를 사용합니다. 실제 콘텐츠 데이터는 `data` 필드 안의 `ContentDto` shape로 제공됩니다.
 
 ```json
 {
-  "contentId": "C_ADMIN_QA_001",
-  "title": "QA 검증 콘텐츠",
-  "category": "드라마",
-  "subcategory": "로맨스",
-  "releaseYear": 2026,
-  "status": "ACTIVE",
-  "description": "Rubric #01 콘텐츠 CRUD 검증용 데이터입니다.",
-  "castNames": "김테스트, 이검증",
-  "thumbnailUrl": "https://example.com/scenik-qa-content.jpg",
-  "isPopular": false,
-  "country": "Korea",
-  "ottPlatform": "TVING",
-  "tags": ["QA", "CRUD", "콘텐츠"],
-  "likeCount": 0,
-  "viewCount": 0,
-  "relatedPlaceCount": 0,
-  "isLiked": false
+  "success": true,
+  "code": "SUCCESS",
+  "message": "요청이 성공했습니다.",
+  "data": {
+    "contentId": "C_ADMIN_QA_001",
+    "title": "QA 검증 콘텐츠",
+    "category": "드라마",
+    "subcategory": "로맨스",
+    "releaseYear": 2026,
+    "status": "ACTIVE",
+    "description": "Rubric #01 콘텐츠 CRUD 검증용 데이터입니다.",
+    "castNames": "김테스트, 이검증",
+    "thumbnailUrl": "https://example.com/scenik-qa-content.jpg",
+    "isPopular": false,
+    "country": "Korea",
+    "ottPlatform": "TVING",
+    "tags": ["QA", "CRUD", "콘텐츠"],
+    "likeCount": 0,
+    "viewCount": 0,
+    "relatedPlaceCount": 0,
+    "isLiked": false
+  }
 }
 ```
 
@@ -196,8 +268,53 @@ Content-Type: application/json
 ```
 
 ```json
-[
-  {
+{
+  "success": true,
+  "code": "SUCCESS",
+  "message": "요청이 성공했습니다.",
+  "data": [
+    {
+      "contentId": "C_DRAMA_001",
+      "title": "선재 업고 튀어",
+      "category": "드라마",
+      "subcategory": "로맨스",
+      "releaseYear": 2024,
+      "status": "공개",
+      "description": "시간을 거슬러 최애를 구하려는 팬의 타임슬립 로맨스 드라마.",
+      "castNames": "변우석, 김혜윤",
+      "thumbnailUrl": "https://...",
+      "isPopular": true,
+      "country": "Korea",
+      "ottPlatform": "tvN / TVING",
+      "tags": ["드라마", "로맨스"],
+      "likeCount": 0,
+      "viewCount": 0,
+      "relatedPlaceCount": 4,
+      "isLiked": false
+    }
+  ]
+}
+```
+
+#### 2. 콘텐츠 상세 조회
+
+```http
+GET /api/contents/C_DRAMA_001
+```
+
+예상 응답:
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+
+```json
+{
+  "success": true,
+  "code": "SUCCESS",
+  "message": "요청이 성공했습니다.",
+  "data": {
     "contentId": "C_DRAMA_001",
     "title": "선재 업고 튀어",
     "category": "드라마",
@@ -216,41 +333,6 @@ Content-Type: application/json
     "relatedPlaceCount": 4,
     "isLiked": false
   }
-]
-```
-
-#### 2. 콘텐츠 상세 조회
-
-```http
-GET /api/contents/C_DRAMA_001
-```
-
-예상 응답:
-
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-```
-
-```json
-{
-  "contentId": "C_DRAMA_001",
-  "title": "선재 업고 튀어",
-  "category": "드라마",
-  "subcategory": "로맨스",
-  "releaseYear": 2024,
-  "status": "공개",
-  "description": "시간을 거슬러 최애를 구하려는 팬의 타임슬립 로맨스 드라마.",
-  "castNames": "변우석, 김혜윤",
-  "thumbnailUrl": "https://...",
-  "isPopular": true,
-  "country": "Korea",
-  "ottPlatform": "tvN / TVING",
-  "tags": ["드라마", "로맨스"],
-  "likeCount": 0,
-  "viewCount": 0,
-  "relatedPlaceCount": 4,
-  "isLiked": false
 }
 ```
 
@@ -280,27 +362,32 @@ Content-Type: application/json
 }
 ```
 
-현재 구현상 예상 응답은 `201 Created`가 아니라 `200 OK`입니다.
+현재 구현상 예상 응답은 `201 Created`가 아니라 `200 OK`이며, 본문은 공통 성공 응답 래퍼입니다.
 
 ```json
 {
-  "contentId": "C_ADMIN_QA_001",
-  "title": "QA 검증 콘텐츠",
-  "category": "드라마",
-  "subcategory": "로맨스",
-  "releaseYear": 2026,
-  "status": "ACTIVE",
-  "description": "Rubric #01 콘텐츠 CRUD 검증용 데이터입니다.",
-  "castNames": "김테스트, 이검증",
-  "thumbnailUrl": "https://example.com/scenik-qa-content.jpg",
-  "isPopular": false,
-  "country": "Korea",
-  "ottPlatform": "TVING",
-  "tags": ["QA", "CRUD", "콘텐츠"],
-  "likeCount": 0,
-  "viewCount": 0,
-  "relatedPlaceCount": 0,
-  "isLiked": false
+  "success": true,
+  "code": "SUCCESS",
+  "message": "콘텐츠가 생성되었습니다.",
+  "data": {
+    "contentId": "C_ADMIN_QA_001",
+    "title": "QA 검증 콘텐츠",
+    "category": "드라마",
+    "subcategory": "로맨스",
+    "releaseYear": 2026,
+    "status": "ACTIVE",
+    "description": "Rubric #01 콘텐츠 CRUD 검증용 데이터입니다.",
+    "castNames": "김테스트, 이검증",
+    "thumbnailUrl": "https://example.com/scenik-qa-content.jpg",
+    "isPopular": false,
+    "country": "Korea",
+    "ottPlatform": "TVING",
+    "tags": ["QA", "CRUD", "콘텐츠"],
+    "likeCount": 0,
+    "viewCount": 0,
+    "relatedPlaceCount": 0,
+    "isLiked": false
+  }
 }
 ```
 
@@ -325,23 +412,28 @@ Content-Type: application/json
 
 ```json
 {
-  "contentId": "C_ADMIN_QA_001",
-  "title": "QA 검증 콘텐츠 수정본",
-  "category": "드라마",
-  "subcategory": "로맨스",
-  "releaseYear": 2026,
-  "status": "ACTIVE",
-  "description": "Rubric #01 콘텐츠 CRUD 검증용 데이터입니다.",
-  "castNames": "김테스트, 이검증",
-  "thumbnailUrl": "https://example.com/scenik-qa-content.jpg",
-  "isPopular": true,
-  "country": "Korea",
-  "ottPlatform": "TVING",
-  "tags": ["QA", "CRUD", "수정"],
-  "likeCount": 0,
-  "viewCount": 0,
-  "relatedPlaceCount": 0,
-  "isLiked": false
+  "success": true,
+  "code": "SUCCESS",
+  "message": "콘텐츠가 수정되었습니다.",
+  "data": {
+    "contentId": "C_ADMIN_QA_001",
+    "title": "QA 검증 콘텐츠 수정본",
+    "category": "드라마",
+    "subcategory": "로맨스",
+    "releaseYear": 2026,
+    "status": "ACTIVE",
+    "description": "Rubric #01 콘텐츠 CRUD 검증용 데이터입니다.",
+    "castNames": "김테스트, 이검증",
+    "thumbnailUrl": "https://example.com/scenik-qa-content.jpg",
+    "isPopular": true,
+    "country": "Korea",
+    "ottPlatform": "TVING",
+    "tags": ["QA", "CRUD", "수정"],
+    "likeCount": 0,
+    "viewCount": 0,
+    "relatedPlaceCount": 0,
+    "isLiked": false
+  }
 }
 ```
 
@@ -354,8 +446,13 @@ Authorization: Bearer {ROLE_ADMIN accessToken}
 
 예상 응답:
 
-```http
-HTTP/1.1 204 No Content
+```json
+{
+  "success": true,
+  "code": "SUCCESS",
+  "message": "콘텐츠가 삭제되었습니다.",
+  "data": null
+}
 ```
 
 삭제는 물리 삭제가 아니라 `contents.status = 'DELETED'`로 바꾸는 soft delete입니다. 공개 목록과 상세 조회는 `(status IS NULL OR status != 'DELETED')` 조건으로 삭제된 콘텐츠를 제외합니다.
@@ -372,8 +469,10 @@ GET /api/contents?sort=unknown
 
 ```json
 {
+  "success": false,
   "code": "VALIDATION_ERROR",
   "message": "정렬 기준을 확인해 주세요.",
+  "data": null,
   "fieldErrors": []
 }
 ```
@@ -388,8 +487,10 @@ GET /api/contents/C_NOT_EXISTS
 
 ```json
 {
+  "success": false,
   "code": "NOT_FOUND",
   "message": "존재하지 않는 콘텐츠입니다.",
+  "data": null,
   "fieldErrors": []
 }
 ```
@@ -405,8 +506,10 @@ Content-Type: application/json
 
 ```json
 {
-  "code": "UNAUTHORIZED",
+  "success": false,
+  "code": "AUTH_REQUIRED",
   "message": "로그인이 필요합니다.",
+  "data": null,
   "fieldErrors": []
 }
 ```
@@ -423,8 +526,10 @@ Content-Type: application/json
 
 ```json
 {
+  "success": false,
   "code": "FORBIDDEN",
   "message": "관리자 권한이 필요합니다.",
+  "data": null,
   "fieldErrors": []
 }
 ```
@@ -434,6 +539,7 @@ Content-Type: application/json
 - Admin CRUD는 `AdminService.requireAdmin()`에서 token과 `ROLE_ADMIN`을 검사합니다. 전체 인증 아키텍처를 Spring Security filter 기반 JWT/authority 구조로 통합하는 작업은 별도 보안 고도화 범위입니다.
 - `POST /api/admin/contents`는 현재 `200 OK`를 반환합니다. REST 관례상 `201 Created`와 `Location` header는 추가 개선 가능 항목입니다.
 - `ContentUpsertRequest`는 Bean Validation annotation이 아니라 service의 수동 validation으로 검증합니다. evaluator에게는 `GlobalExceptionHandler`가 실제 한국어 error shape로 변환한다는 점을 함께 제시합니다.
+- 콘텐츠 카테고리는 현재 seed/category 목록과 관리자 입력을 모두 허용하는 자유 문자열입니다. 따라서 허용 목록 기반의 “invalid category” 검증은 현재 강제하지 않고, 누락/공백/길이 초과 카테고리만 `VALIDATION_ERROR`로 처리합니다.
 
 ### Execution Evidence Not Included
 
@@ -447,7 +553,7 @@ Content-Type: application/json
 4. `api-tests/content-crud-validation.http`의 `@accessToken`에 붙여 넣습니다.
 5. 비관리자 403까지 확인하려면 `Signup with valid password` 또는 `Login with valid credentials` 요청으로 일반 사용자 token을 발급하고 `@userAccessToken`에 붙여 넣습니다.
 6. `content-crud-validation.http`의 요청을 순서대로 실행합니다.
-7. status code, `ContentDto`/`PlaceDto` body, `VALIDATION_ERROR`, `NOT_FOUND`, `UNAUTHORIZED`, `FORBIDDEN`, `CONFLICT` 응답을 확인합니다.
+7. status code, `ApiResponse<ContentDto>`/`ApiResponse<PlaceDto>` body, `VALIDATION_ERROR`, `NOT_FOUND`, `AUTH_REQUIRED`, `FORBIDDEN`, `CONFLICT` 응답을 확인합니다.
 
 ### 평가자용 수동 QA 체크리스트
 
@@ -455,13 +561,13 @@ Content-Type: application/json
 
 | 단계 | 요청 | 기대 결과 |
 | --- | --- | --- |
-| 1 | `GET /api/contents?page=0&size=5&sort=popular` | `200 OK`, `X-Total-Count`, `ContentDto[]` |
+| 1 | `GET /api/contents?page=0&size=5&sort=popular` | `200 OK`, `X-Total-Count`, `ApiResponse<List<ContentDto>>` |
 | 2 | `GET /api/contents/{contentId}`와 `GET /api/contents/C_NOT_EXISTS` | 정상 ID는 `200 OK`, 없는 ID는 `404 NOT_FOUND` |
-| 3 | `POST /api/admin/contents` without token | `401 UNAUTHORIZED`, `로그인이 필요합니다.` |
+| 3 | `POST /api/admin/contents` without token | `401 AUTH_REQUIRED`, `로그인이 필요합니다.` |
 | 4 | `POST /api/admin/contents` with `ROLE_USER` token | `403 FORBIDDEN`, `관리자 권한이 필요합니다.` |
-| 5 | `POST /api/admin/contents` with `ROLE_ADMIN` token | `200 OK`, 생성된 `ContentDto` |
-| 6 | 같은 `contentId` 재생성과 `title/category` 누락 요청 | `409 CONFLICT`, `400 VALIDATION_ERROR` |
-| 7 | `PATCH /api/admin/contents/{contentId}`와 `DELETE /api/admin/contents/{contentId}` | 수정 성공 후 `204 No Content`, soft delete |
+| 5 | `POST /api/admin/contents` with `ROLE_ADMIN` token | `200 OK`, 생성된 `ApiResponse<ContentDto>` |
+| 6 | 같은 `contentId` 재생성, `title/category` 누락, 길이 초과 요청 | `409 CONFLICT`, `400 VALIDATION_ERROR` |
+| 7 | `PATCH /api/admin/contents/{contentId}`와 `DELETE /api/admin/contents/{contentId}` | 수정/삭제 모두 `200 OK`, 삭제는 `data: null`, soft delete |
 | 8 | `/admin/contents`, `/admin/places` 브라우저 UI | admin 계정은 CRUD 가능, 비관리자 계정은 권한 필요 안내 |
 
 수동 실행용 REST Client 파일은 `api-tests/content-crud-validation.http`에 추가했습니다. 실제 access token은 로컬 실행 시에만 붙여 넣고 repository에는 커밋하지 않습니다.

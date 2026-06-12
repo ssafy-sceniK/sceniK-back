@@ -18,6 +18,13 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class AdminService {
+    private static final int CONTENT_ID_MAX_LENGTH = 64;
+    private static final int TITLE_MAX_LENGTH = 255;
+    private static final int CATEGORY_MAX_LENGTH = 80;
+    private static final int PLACE_ID_MAX_LENGTH = 64;
+    private static final int NAME_MAX_LENGTH = 255;
+    private static final int REGION_MAX_LENGTH = 80;
+
     private final AuthService authService;
     private final ContentMapper contentMapper;
     private final PlaceMapper placeMapper;
@@ -105,7 +112,8 @@ public class AdminService {
     }
 
     private Content requireContent(String contentId) {
-        Content content = contentMapper.findByIdForWrite(contentId);
+        String normalizedContentId = requireText(contentId, "contentId is required.", CONTENT_ID_MAX_LENGTH, "contentId is too long.");
+        Content content = contentMapper.findByIdForWrite(normalizedContentId);
         if (content == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Content was not found.");
         }
@@ -113,7 +121,8 @@ public class AdminService {
     }
 
     private Place requirePlace(String placeId) {
-        Place place = placeMapper.findByIdForWrite(placeId);
+        String normalizedPlaceId = requireText(placeId, "placeId is required.", PLACE_ID_MAX_LENGTH, "placeId is too long.");
+        Place place = placeMapper.findByIdForWrite(normalizedPlaceId);
         if (place == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Place was not found.");
         }
@@ -125,9 +134,9 @@ public class AdminService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Content request is required.");
         }
         Content content = new Content();
-        content.setContentId(firstText(request.contentId(), fallback == null ? null : fallback.getContentId()));
-        content.setTitle(requireText(firstText(request.title(), fallback == null ? null : fallback.getTitle()), "title is required."));
-        content.setCategory(requireText(firstText(request.category(), fallback == null ? null : fallback.getCategory()), "category is required."));
+        content.setContentId(requireMaxLength(firstText(request.contentId(), fallback == null ? null : fallback.getContentId()), CONTENT_ID_MAX_LENGTH, "contentId is too long."));
+        content.setTitle(requireText(firstText(request.title(), fallback == null ? null : fallback.getTitle()), "title is required.", TITLE_MAX_LENGTH, "title is too long."));
+        content.setCategory(requireText(firstText(request.category(), fallback == null ? null : fallback.getCategory()), "category is required.", CATEGORY_MAX_LENGTH, "category is too long."));
         content.setSubcategory(firstText(request.subcategory(), fallback == null ? null : fallback.getSubcategory()));
         content.setReleaseYear(request.releaseYear() == null && fallback != null ? fallback.getReleaseYear() : request.releaseYear());
         content.setStatus(firstText(request.status(), fallback == null ? "ACTIVE" : fallback.getStatus()));
@@ -146,10 +155,10 @@ public class AdminService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Place request is required.");
         }
         Place place = new Place();
-        place.setPlaceId(firstText(request.placeId(), fallback == null ? null : fallback.getPlaceId()));
-        place.setPlaceName(requireText(firstText(request.name(), firstText(request.placeName(), fallback == null ? null : fallback.getPlaceName())), "name is required."));
+        place.setPlaceId(requireMaxLength(firstText(request.placeId(), fallback == null ? null : fallback.getPlaceId()), PLACE_ID_MAX_LENGTH, "placeId is too long."));
+        place.setPlaceName(requireText(firstText(request.name(), firstText(request.placeName(), fallback == null ? null : fallback.getPlaceName())), "name is required.", NAME_MAX_LENGTH, "name is too long."));
         place.setAddress(firstText(request.address(), fallback == null ? null : fallback.getAddress()));
-        place.setRegion(requireText(firstText(request.region(), fallback == null ? null : fallback.getRegion()), "region is required."));
+        place.setRegion(requireText(firstText(request.region(), fallback == null ? null : fallback.getRegion()), "region is required.", REGION_MAX_LENGTH, "region is too long."));
         place.setDistrict(firstText(request.district(), fallback == null ? null : fallback.getDistrict()));
         place.setCategory(firstText(request.category(), fallback == null ? null : fallback.getCategory()));
         place.setDescription(firstText(request.description(), fallback == null ? null : fallback.getDescription()));
@@ -176,6 +185,17 @@ public class AdminService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
         }
         return value.trim();
+    }
+
+    private String requireText(String value, String requiredMessage, int maxLength, String lengthMessage) {
+        return requireMaxLength(requireText(value, requiredMessage), maxLength, lengthMessage);
+    }
+
+    private String requireMaxLength(String value, int maxLength, String message) {
+        if (value != null && value.length() > maxLength) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
+        }
+        return value;
     }
 
     private String joinTags(List<String> tags, String fallback) {

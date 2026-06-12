@@ -6,6 +6,7 @@ import com.scenik.dto.AdminDtos.PlaceUpsertRequest;
 import com.scenik.dto.ContentDto;
 import com.scenik.dto.PlaceDto;
 import com.scenik.service.AdminService;
+import java.net.URI;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -15,13 +16,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.util.UriComponentsBuilder;
 
 @RestController
 @RequestMapping("/api/admin")
 public class AdminController {
     private static final String CREATED_MESSAGE = "생성되었습니다.";
     private static final String UPDATED_MESSAGE = "수정되었습니다.";
-    private static final String DELETED_MESSAGE = "삭제되었습니다.";
 
     private final AdminService adminService;
 
@@ -30,11 +31,17 @@ public class AdminController {
     }
 
     @PostMapping("/contents")
-    public ApiResponse<ContentDto> createContent(
+    public ResponseEntity<ApiResponse<ContentDto>> createContent(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @RequestBody ContentUpsertRequest request
     ) {
-        return ApiResponse.ok(CREATED_MESSAGE, adminService.createContent(authorization, request));
+        ContentDto created = adminService.createContent(authorization, request);
+        URI location = UriComponentsBuilder.fromPath("/api/contents/{contentId}")
+                .buildAndExpand(created.contentId())
+                .encode()
+                .toUri();
+        return ResponseEntity.created(location)
+                .body(ApiResponse.ok(CREATED_MESSAGE, created));
     }
 
     @PatchMapping("/contents/{contentId}")
@@ -47,20 +54,26 @@ public class AdminController {
     }
 
     @DeleteMapping("/contents/{contentId}")
-    public ResponseEntity<ApiResponse<Void>> deleteContent(
+    public ResponseEntity<Void> deleteContent(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @PathVariable("contentId") String contentId
     ) {
         adminService.deleteContent(authorization, contentId);
-        return ResponseEntity.ok(ApiResponse.okMessage(DELETED_MESSAGE));
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/places")
-    public ApiResponse<PlaceDto> createPlace(
+    public ResponseEntity<ApiResponse<PlaceDto>> createPlace(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @RequestBody PlaceUpsertRequest request
     ) {
-        return ApiResponse.ok(CREATED_MESSAGE, adminService.createPlace(authorization, request));
+        PlaceDto created = adminService.createPlace(authorization, request);
+        URI location = UriComponentsBuilder.fromPath("/api/places/{placeId}")
+                .buildAndExpand(created.placeId())
+                .encode()
+                .toUri();
+        return ResponseEntity.created(location)
+                .body(ApiResponse.ok(CREATED_MESSAGE, created));
     }
 
     @PatchMapping("/places/{placeId}")
@@ -73,11 +86,11 @@ public class AdminController {
     }
 
     @DeleteMapping("/places/{placeId}")
-    public ResponseEntity<ApiResponse<Void>> deletePlace(
+    public ResponseEntity<Void> deletePlace(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @PathVariable("placeId") String placeId
     ) {
         adminService.deletePlace(authorization, placeId);
-        return ResponseEntity.ok(ApiResponse.okMessage(DELETED_MESSAGE));
+        return ResponseEntity.noContent().build();
     }
 }

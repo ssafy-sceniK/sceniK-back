@@ -12,7 +12,10 @@ CREATE TABLE IF NOT EXISTS contents (
   country VARCHAR(80),
   ott_platform VARCHAR(120),
   tags VARCHAR(500),
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_contents_status_category (status, category),
+  KEY idx_contents_popular_created (is_popular, created_at),
+  KEY idx_contents_created_at (created_at)
 );
 
 CREATE TABLE IF NOT EXISTS places (
@@ -31,7 +34,11 @@ CREATE TABLE IF NOT EXISTS places (
   indoor_outdoor VARCHAR(40),
   parking_available BOOLEAN DEFAULT FALSE,
   latitude DECIMAL(10, 7),
-  longitude DECIMAL(10, 7)
+  longitude DECIMAL(10, 7),
+  KEY idx_places_region_district (region, district),
+  KEY idx_places_category (category),
+  KEY idx_places_name (place_name),
+  KEY idx_places_lat_lng (latitude, longitude)
 );
 
 CREATE TABLE IF NOT EXISTS content_places (
@@ -250,6 +257,8 @@ CREATE TABLE IF NOT EXISTS community_posts (
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY idx_community_posts_user_id (user_id),
   KEY idx_community_posts_route_id (route_id),
+  KEY idx_community_posts_status_updated (status, updated_at),
+  KEY idx_community_posts_region_updated (region, updated_at),
   CONSTRAINT fk_community_posts_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
   CONSTRAINT fk_community_posts_route FOREIGN KEY (route_id) REFERENCES travel_routes(route_id) ON DELETE SET NULL
 );
@@ -274,6 +283,7 @@ CREATE TABLE IF NOT EXISTS post_tags (
   post_id VARCHAR(64) NOT NULL,
   tag VARCHAR(80) NOT NULL,
   PRIMARY KEY (post_id, tag),
+  KEY idx_post_tags_tag (tag),
   CONSTRAINT fk_post_tags_post FOREIGN KEY (post_id) REFERENCES community_posts(post_id) ON DELETE CASCADE
 );
 

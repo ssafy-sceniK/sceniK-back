@@ -8,6 +8,9 @@
     <result property="preferences" column="preferences" />
     <result property="createdAt" column="created_at" />
     <result property="updatedAt" column="updated_at" />
+    <result property="followerCount" column="follower_count" />
+    <result property="followingCount" column="following_count" />
+    <result property="followedByMe" column="followed_by_me" />
   </resultMap>
 
   <insert id="insertFollow">
@@ -37,7 +40,24 @@
   </select>
 
   <select id="findFollowers" resultMap="FollowUserResultMap">
-    SELECT u.user_id, u.email, u.nickname, u.preferences, u.created_at, u.updated_at
+    SELECT
+      u.user_id,
+      u.email,
+      u.nickname,
+      u.preferences,
+      u.created_at,
+      u.updated_at,
+      COALESCE((SELECT COUNT(*) FROM follows ff WHERE ff.following_id = u.user_id), 0) AS follower_count,
+      COALESCE((SELECT COUNT(*) FROM follows fg WHERE fg.follower_id = u.user_id), 0) AS following_count,
+      CASE
+        WHEN #{actorUserId} IS NULL THEN FALSE
+        ELSE EXISTS(
+          SELECT 1
+          FROM follows fm
+          WHERE fm.follower_id = #{actorUserId}
+            AND fm.following_id = u.user_id
+        )
+      END AS followed_by_me
     FROM follows f
     JOIN users u ON u.user_id = f.follower_id
     WHERE f.following_id = #{userId}
@@ -45,7 +65,24 @@
   </select>
 
   <select id="findFollowing" resultMap="FollowUserResultMap">
-    SELECT u.user_id, u.email, u.nickname, u.preferences, u.created_at, u.updated_at
+    SELECT
+      u.user_id,
+      u.email,
+      u.nickname,
+      u.preferences,
+      u.created_at,
+      u.updated_at,
+      COALESCE((SELECT COUNT(*) FROM follows ff WHERE ff.following_id = u.user_id), 0) AS follower_count,
+      COALESCE((SELECT COUNT(*) FROM follows fg WHERE fg.follower_id = u.user_id), 0) AS following_count,
+      CASE
+        WHEN #{actorUserId} IS NULL THEN FALSE
+        ELSE EXISTS(
+          SELECT 1
+          FROM follows fm
+          WHERE fm.follower_id = #{actorUserId}
+            AND fm.following_id = u.user_id
+        )
+      END AS followed_by_me
     FROM follows f
     JOIN users u ON u.user_id = f.following_id
     WHERE f.follower_id = #{userId}

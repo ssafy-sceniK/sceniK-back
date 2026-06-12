@@ -34,6 +34,8 @@
 | `message` | string | 사용자에게 보여줄 수 있는 한국어 메시지 |
 | `data` | object/array/null | 실제 응답 데이터. 단순 액션 성공은 `null` |
 
+관리자 삭제처럼 HTTP semantics를 우선하는 일부 성공 응답은 `204 No Content`와 빈 body를 반환한다. 이 경우 성공 여부는 HTTP status로 판단하며, 프론트엔드는 `ApiResponse.data` unwrap을 시도하지 않는다.
+
 ## 오류 응답 형식
 
 ```json
@@ -137,14 +139,14 @@ OAuth 시작 엔드포인트인 `GET /api/auth/oauth/google`, `GET /api/auth/oau
 
 | API | 성공 데이터 | 비고 |
 | --- | --- | --- |
-| `POST /api/admin/contents` | `ContentDto` | `ROLE_ADMIN` 필요, message: `생성되었습니다.` |
+| `POST /api/admin/contents` | `ContentDto` | `201 Created`, `Location: /api/contents/{contentId}`, `ROLE_ADMIN` 필요, message: `생성되었습니다.` |
 | `PATCH /api/admin/contents/{contentId}` | `ContentDto` | `ROLE_ADMIN` 필요, message: `수정되었습니다.` |
-| `DELETE /api/admin/contents/{contentId}` | `null` | 콘텐츠 soft delete, message: `삭제되었습니다.` |
-| `POST /api/admin/places` | `PlaceDto` | `ROLE_ADMIN` 필요, message: `생성되었습니다.` |
+| `DELETE /api/admin/contents/{contentId}` | body 없음 | `204 No Content`, 콘텐츠 soft delete |
+| `POST /api/admin/places` | `PlaceDto` | `201 Created`, `Location: /api/places/{placeId}`, `ROLE_ADMIN` 필요, message: `생성되었습니다.` |
 | `PATCH /api/admin/places/{placeId}` | `PlaceDto` | `ROLE_ADMIN` 필요, message: `수정되었습니다.` |
-| `DELETE /api/admin/places/{placeId}` | `null` | 관련 참조 정리 후 장소 삭제, message: `삭제되었습니다.` |
+| `DELETE /api/admin/places/{placeId}` | body 없음 | `204 No Content`, 관련 참조 정리 후 장소 삭제 |
 
-관리자 CRUD 성공 메시지는 리소스명 대신 action 기준 메시지로 통일한다. 따라서 콘텐츠와 장소 모두 생성은 `생성되었습니다.`, 수정은 `수정되었습니다.`, 삭제는 `삭제되었습니다.`를 반환한다. 실제 리소스 구분은 `data`의 `ContentDto`/`PlaceDto` 또는 endpoint path로 판단한다.
+관리자 CRUD 성공 메시지는 리소스명 대신 action 기준 메시지로 통일한다. 콘텐츠와 장소 생성은 `생성되었습니다.`, 수정은 `수정되었습니다.`를 반환한다. 삭제는 `204 No Content`로 body를 반환하지 않으므로 별도 성공 메시지를 내려주지 않는다. 실제 리소스 구분은 `data`의 `ContentDto`/`PlaceDto` 또는 endpoint path로 판단한다.
 
 관리자 CRUD 오류 메시지는 `GlobalExceptionHandler`를 통해 아래 코드로 표준화한다.
 
@@ -234,6 +236,19 @@ Content-Type: application/json
 }
 ```
 
+## 상세 조회 null/empty 규칙
+
+상세 조회와 관련 데이터는 다음 규칙을 기준으로 맞춘다.
+
+| 상황 | HTTP | code | data | 프론트 처리 |
+| --- | --- | --- | --- | --- |
+| 상세 리소스 없음 | `404` | `NOT_FOUND` | `null` | 상세 실패 패널 표시 |
+| 관련 목록 없음 | `200` | `SUCCESS` | `[]` | 빈 상태 메시지 표시 |
+| 선택 scalar 필드 없음 | `200` | `SUCCESS` | 해당 필드 `null` | fallback copy 또는 빈 문자열 처리 |
+| count/rating 없음 | `200` | `SUCCESS` | `0`, `0.0` | 숫자 UI 기본값 표시 |
+
+상세 evidence는 `docs/evidence/detail-retrieval-null-empty-evidence.md`에서 확인한다.
+
 ## 프론트엔드 처리 기준
 
 프론트엔드는 다음 파일에서 표준 응답을 풀어 처리한다.
@@ -250,14 +265,17 @@ Content-Type: application/json
 처리 원칙:
 
 1. 성공 응답은 `unwrapApiData(response.data)`로 `data` 필드를 꺼낸다.
-2. 아직 표준화되지 않은 raw 응답도 그대로 지원한다.
-3. 사용자 메시지는 우선순위에 따라 `fieldErrors[0].message`, `message`, HTTP 상태 기본 메시지 순으로 선택한다.
-4. 토큰 갱신 응답도 표준 래퍼와 기존 raw 토큰 응답을 모두 지원한다.
-5. 오류 코드 기반 세부 분기는 필요한 화면에서 `response.data.code`를 기준으로 확장한다.
+2. `204 No Content` 성공 응답은 body가 없으므로 `unwrapApiData`를 호출하지 않고 HTTP status 성공으로 처리한다.
+3. 아직 표준화되지 않은 raw 응답도 그대로 지원한다.
+4. 사용자 메시지는 우선순위에 따라 `fieldErrors[0].message`, `message`, HTTP 상태 기본 메시지 순으로 선택한다.
+5. 토큰 갱신 응답도 표준 래퍼와 기존 raw 토큰 응답을 모두 지원한다.
+6. 오류 코드 기반 세부 분기는 필요한 화면에서 `response.data.code`를 기준으로 확장한다.
 
 ## CRUD smoke 실행 결과
 
 2026-06-12 10:05 KST에 로컬 MySQL 문제 해결 후 backend를 실제 기동하고 CRUD smoke를 재실행했습니다. 8080 포트가 이미 사용 중이어서 검증은 `http://localhost:18080/api` 기준으로 수행했습니다.
+
+> 참고: 아래 실제 runtime 결과는 생성 `201 Created`와 삭제 `204 No Content` 적용 전 기록입니다. 현재 계약의 기대값은 생성 `201 Created + Location`, 삭제 `204 No Content`이며 `api-tests/content-crud-validation.http`에 갱신되어 있습니다.
 
 | 항목 | 결과 |
 | --- | --- |
@@ -285,6 +303,15 @@ Content-Type: application/json
 | 비관리자 접근 | `403` | `FORBIDDEN` | `관리자 권한이 필요합니다.` | PASS |
 | 존재하지 않는 콘텐츠 | `404` | `NOT_FOUND` | `존재하지 않는 콘텐츠입니다.` | PASS |
 | 중복 콘텐츠 생성 | `409` | `CONFLICT` | `이미 등록된 콘텐츠입니다.` | PASS |
+
+### 현재 HTTP semantics 기대 계약
+
+| Scenario | HTTP status | response code | response message | 판정 기준 |
+| --- | --- | --- | --- | --- |
+| `POST /api/admin/contents` | `201` | `SUCCESS` | `생성되었습니다.` | `Location: /api/contents/{contentId}` 포함 |
+| `DELETE /api/admin/contents/{contentId}` | `204` | body 없음 | body 없음 | HTTP status 성공 |
+| `POST /api/admin/places` | `201` | `SUCCESS` | `생성되었습니다.` | `Location: /api/places/{placeId}` 포함 |
+| `DELETE /api/admin/places/{placeId}` | `204` | body 없음 | body 없음 | HTTP status 성공 |
 
 ## 남은 범위
 

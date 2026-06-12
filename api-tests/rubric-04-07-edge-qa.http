@@ -1,0 +1,161 @@
+### Rubric #04/#06/#07 edge QA
+### 목적: 리뷰 오류 메시지, 회원가입 검증/중복, 프로필 저장 실패 복구 정책을 수동 검증합니다.
+### 실행 전 준비:
+### 1. backend를 실행합니다. 예: ./gradlew.bat bootRun --args="--server.port=18080"
+### 2. 사용자 A/B 토큰을 각각 발급해 아래 변수에 붙여 넣습니다.
+### 3. placeId/reviewId는 테스트 환경의 실제 값으로 교체합니다.
+
+@baseUrl = http://localhost:18080
+@api = {{baseUrl}}/api
+@userAToken = paste-user-a-token-here
+@userBToken = paste-user-b-token-here
+@placeId = P_0001
+@reviewId = paste-review-id-here
+@uniqueEmail = qa-signup-{{$timestamp}}@scenik.local
+@uniqueNickname = QA사용자{{$timestamp}}
+
+### #06 회원가입 성공
+### 기대: 200 SUCCESS, accessToken 반환, DB password_hash는 원문이 아닌 pbkdf2_sha256$... 형식
+POST {{api}}/auth/signup
+Content-Type: application/json
+
+{
+  "email": "{{uniqueEmail}}",
+  "password": "password123",
+  "nickname": "{{uniqueNickname}}",
+  "preferences": ["드라마", "서울"]
+}
+
+### #06 비밀번호 정책 실패
+### 기대: 400 VALIDATION_ERROR, fieldErrors에 password 메시지 포함
+POST {{api}}/auth/signup
+Content-Type: application/json
+
+{
+  "email": "short-password-{{$timestamp}}@scenik.local",
+  "password": "short",
+  "nickname": "짧은비밀번호{{$timestamp}}"
+}
+
+### #06 필수 필드 누락
+### 기대: 400 VALIDATION_ERROR, fieldErrors에 email/password/nickname 메시지 포함
+POST {{api}}/auth/signup
+Content-Type: application/json
+
+{
+  "email": "",
+  "password": "",
+  "nickname": ""
+}
+
+### #06 이메일 중복
+### 기대: 409 DUPLICATE_EMAIL
+POST {{api}}/auth/signup
+Content-Type: application/json
+
+{
+  "email": "admin@scenik.local",
+  "password": "password123",
+  "nickname": "중복이메일QA{{$timestamp}}"
+}
+
+### #06 닉네임 중복
+### 기대: 409 DUPLICATE_NICKNAME
+POST {{api}}/auth/signup
+Content-Type: application/json
+
+{
+  "email": "duplicate-nickname-{{$timestamp}}@scenik.local",
+  "password": "password123",
+  "nickname": "SceniKAdmin"
+}
+
+### #04 리뷰 목록
+### 기대: 200, X-Total-Count, 리뷰 배열
+GET {{api}}/places/{{placeId}}/reviews?page=0&size=20&sort=latest
+
+### #04 리뷰 작성 성공
+### 기대: 200, reviewId 반환, 장소 상세 평균/개수 갱신
+POST {{api}}/places/{{placeId}}/reviews
+Authorization: Bearer {{userAToken}}
+Content-Type: application/json
+
+{
+  "rating": 4.5,
+  "content": "Rubric #04 리뷰 QA입니다."
+}
+
+### #04 중복 리뷰 차단
+### 기대: 409 DUPLICATE_ACTION, 프론트는 내 리뷰 수정/삭제 안내 표시
+POST {{api}}/places/{{placeId}}/reviews
+Authorization: Bearer {{userAToken}}
+Content-Type: application/json
+
+{
+  "rating": 5,
+  "content": "중복 리뷰 QA입니다."
+}
+
+### #04 비로그인 리뷰 작성
+### 기대: 401 AUTH_REQUIRED
+POST {{api}}/places/{{placeId}}/reviews
+Content-Type: application/json
+
+{
+  "rating": 4,
+  "content": "비로그인 리뷰 QA입니다."
+}
+
+### #04 다른 사용자 리뷰 수정 차단
+### 기대: 403 FORBIDDEN, 프론트는 본인 리뷰만 수정 가능 안내 표시
+PATCH {{api}}/places/{{placeId}}/reviews/{{reviewId}}
+Authorization: Bearer {{userBToken}}
+Content-Type: application/json
+
+{
+  "rating": 3,
+  "content": "권한 없는 수정 QA입니다."
+}
+
+### #04 작성자 리뷰 수정 성공
+### 기대: 200, 평균/개수 갱신
+PATCH {{api}}/places/{{placeId}}/reviews/{{reviewId}}
+Authorization: Bearer {{userAToken}}
+Content-Type: application/json
+
+{
+  "rating": 5,
+  "content": "작성자 수정 QA입니다."
+}
+
+### #04 작성자 리뷰 삭제 성공
+### 기대: 204, 삭제 후 리뷰 개수/평균 갱신
+DELETE {{api}}/places/{{placeId}}/reviews/{{reviewId}}
+Authorization: Bearer {{userAToken}}
+
+### #07 내 프로필 조회
+### 기대: 200 SUCCESS, 현재 사용자 정보
+GET {{api}}/users/me
+Authorization: Bearer {{userAToken}}
+
+### #07 프로필 저장 성공
+### 기대: 200 SUCCESS, 응답 user 기준으로 frontend currentUser 동기화
+PATCH {{api}}/users/me
+Authorization: Bearer {{userAToken}}
+Content-Type: application/json
+
+{
+  "nickname": "프로필QA{{$timestamp}}",
+  "preferences": ["드라마", "서울", "감성 여행"]
+}
+
+### #07 프로필 검증 실패
+### 기대: 400 VALIDATION_ERROR, 프론트는 입력값 유지와 재시도 안내 표시
+PATCH {{api}}/users/me
+Authorization: Bearer {{userAToken}}
+Content-Type: application/json
+
+{
+  "nickname": "",
+  "preferences": ["드라마"]
+}

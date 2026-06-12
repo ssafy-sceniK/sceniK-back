@@ -12,6 +12,6 @@ public interface FollowMapper {
     int existsFollow(@Param("followerId") Long followerId, @Param("followingId") Long followingId);
     int countFollowers(@Param("userId") Long userId);
     int countFollowing(@Param("userId") Long userId);
-    List<User> findFollowers(@Param("userId") Long userId);
-    List<User> findFollowing(@Param("userId") Long userId);
+    List<User> findFollowers(@Param("userId") Long userId, @Param("actorUserId") Long actorUserId);
+    List<User> findFollowing(@Param("userId") Long userId, @Param("actorUserId") Long actorUserId);
 }

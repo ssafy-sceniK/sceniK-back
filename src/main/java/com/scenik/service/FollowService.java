@@ -40,15 +40,17 @@ public class FollowService {
 
     public List<FollowUserDto> followers(User actor, Long userId) {
         requireUser(userId);
-        return followMapper.findFollowers(userId).stream()
-                .map(user -> toDto(actor, user))
+        Long actorUserId = actor == null ? null : actor.getUserId();
+        return followMapper.findFollowers(userId, actorUserId).stream()
+                .map(this::toDto)
                 .toList();
     }
 
     public List<FollowUserDto> following(User actor, Long userId) {
         requireUser(userId);
-        return followMapper.findFollowing(userId).stream()
-                .map(user -> toDto(actor, user))
+        Long actorUserId = actor == null ? null : actor.getUserId();
+        return followMapper.findFollowing(userId, actorUserId).stream()
+                .map(this::toDto)
                 .toList();
     }
 
@@ -62,12 +64,12 @@ public class FollowService {
         );
     }
 
-    private FollowUserDto toDto(User actor, User user) {
+    private FollowUserDto toDto(User user) {
         return FollowUserDto.from(
                 user,
-                followMapper.countFollowers(user.getUserId()),
-                followMapper.countFollowing(user.getUserId()),
-                actor != null && followMapper.existsFollow(actor.getUserId(), user.getUserId()) > 0
+                user.getFollowerCount(),
+                user.getFollowingCount(),
+                user.getFollowedByMe()
         );
     }
 

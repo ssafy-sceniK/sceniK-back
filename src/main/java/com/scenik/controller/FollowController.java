@@ -5,12 +5,15 @@ import com.scenik.dto.FollowDtos.FollowStatusDto;
 import com.scenik.dto.FollowDtos.FollowUserDto;
 import com.scenik.service.AuthService;
 import com.scenik.service.FollowService;
+import com.scenik.util.ListQuerySupport;
 import java.util.List;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -40,24 +43,44 @@ public class FollowController {
     }
 
     @GetMapping("/api/users/{userId}/followers")
-    public ApiResponse<List<FollowUserDto>> followers(
+    public ResponseEntity<ApiResponse<List<FollowUserDto>>> followers(
             @RequestHeader(value = "Authorization", required = false) String authorization,
-            @PathVariable("userId") Long userId
+            @PathVariable("userId") Long userId,
+            @RequestParam(value = "page", required = false) Integer page,
+            @RequestParam(value = "size", required = false) Integer size
     ) {
-        return ApiResponse.ok(followService.followers(authService.requireUser(authorization), userId));
+        List<FollowUserDto> followers = followService.followers(authService.requireUser(authorization), userId);
+        List<FollowUserDto> paged = ListQuerySupport.paginate(followers, page, size);
+        return ResponseEntity.ok()
+                .header("X-Total-Count", String.valueOf(followers.size()))
+                .body(ApiResponse.ok(paged));
     }
 
     @GetMapping("/api/users/{userId}/following")
-    public ApiResponse<List<FollowUserDto>> following(
+    public ResponseEntity<ApiResponse<List<FollowUserDto>>> following(
             @RequestHeader(value = "Authorization", required = false) String authorization,
-            @PathVariable("userId") Long userId
+            @PathVariable("userId") Long userId,
+            @RequestParam(value = "page", required = false) Integer page,
+            @RequestParam(value = "size", required = false) Integer size
     ) {
-        return ApiResponse.ok(followService.following(authService.requireUser(authorization), userId));
+        List<FollowUserDto> following = followService.following(authService.requireUser(authorization), userId);
+        List<FollowUserDto> paged = ListQuerySupport.paginate(following, page, size);
+        return ResponseEntity.ok()
+                .header("X-Total-Count", String.valueOf(following.size()))
+                .body(ApiResponse.ok(paged));
     }
 
     @GetMapping("/api/users/me/following")
-    public ApiResponse<List<FollowUserDto>> myFollowing(@RequestHeader(value = "Authorization", required = false) String authorization) {
+    public ResponseEntity<ApiResponse<List<FollowUserDto>>> myFollowing(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestParam(value = "page", required = false) Integer page,
+            @RequestParam(value = "size", required = false) Integer size
+    ) {
         var user = authService.requireUser(authorization);
-        return ApiResponse.ok(followService.following(user, user.getUserId()));
+        List<FollowUserDto> following = followService.following(user, user.getUserId());
+        List<FollowUserDto> paged = ListQuerySupport.paginate(following, page, size);
+        return ResponseEntity.ok()
+                .header("X-Total-Count", String.valueOf(following.size()))
+                .body(ApiResponse.ok(paged));
     }
 }

@@ -57,6 +57,7 @@
 | 브라우저 live QA | [browser-live-qa-evidence.md](../evidence/browser-live-qa-evidence.md) |
 | 커뮤니티·댓글 | [community-comment-evidence.md](../evidence/community-comment-evidence.md) |
 | 목록·검색·정렬·페이징 | [list-search-sort-pagination-evidence.md](../evidence/list-search-sort-pagination-evidence.md) |
+| 상세 조회 null/empty 처리 | [detail-retrieval-null-empty-evidence.md](../evidence/detail-retrieval-null-empty-evidence.md) |
 
 ## QA
 

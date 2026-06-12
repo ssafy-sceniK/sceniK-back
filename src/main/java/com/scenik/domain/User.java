@@ -12,6 +12,9 @@ public class User {
     private String profileImageUrl;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private Integer followerCount;
+    private Integer followingCount;
+    private Boolean followedByMe;
 
     public Long getUserId() { return userId; }
     public void setUserId(Long userId) { this.userId = userId; }
@@ -31,4 +34,10 @@ public class User {
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+    public Integer getFollowerCount() { return followerCount; }
+    public void setFollowerCount(Integer followerCount) { this.followerCount = followerCount; }
+    public Integer getFollowingCount() { return followingCount; }
+    public void setFollowingCount(Integer followingCount) { this.followingCount = followingCount; }
+    public Boolean getFollowedByMe() { return followedByMe; }
+    public void setFollowedByMe(Boolean followedByMe) { this.followedByMe = followedByMe; }
 }

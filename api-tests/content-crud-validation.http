@@ -24,6 +24,7 @@
 ### - 로컬 MySQL 문제 해결 후 backend가 정상 기동되었습니다.
 ### - 8080 포트가 이미 사용 중이라 실제 검증은 http://localhost:18080/api 기준으로 수행했습니다.
 ### - Tomcat started on port 18080, Started ScenikApplication 확인.
+### - 아래 runtime 결과는 201 Created/204 No Content semantics 적용 전 수집한 기록입니다.
 ### - GET /api/contents: 200 SUCCESS, "요청이 성공했습니다." PASS
 ### - GET /api/places: 200 SUCCESS, "요청이 성공했습니다." PASS
 ### - POST /api/admin/contents: 200 SUCCESS, "생성되었습니다." PASS
@@ -39,6 +40,12 @@
 ### - 409 CONFLICT, "이미 등록된 콘텐츠입니다." PASS
 ### - 생성한 콘텐츠/장소/중복 검증용 콘텐츠는 delete 시나리오로 정리했습니다.
 ### - 실제 access token 값은 repository에 남기지 않았습니다.
+###
+### 현재 HTTP semantics 기대값:
+### - POST /api/admin/contents: 201 Created, Location: /api/contents/{contentId}, SUCCESS
+### - DELETE /api/admin/contents/{contentId}: 204 No Content, body 없음
+### - POST /api/admin/places: 201 Created, Location: /api/places/{placeId}, SUCCESS
+### - DELETE /api/admin/places/{placeId}: 204 No Content, body 없음
 
 @baseUrl = http://localhost:18080
 @api = {{baseUrl}}/api
@@ -100,8 +107,8 @@ Content-Type: application/json
 }
 
 ### 8. 관리자 콘텐츠 생성 - 정상
-# 기대: 200 OK
-# 현재 구현은 201 Created가 아니라 200 OK를 반환합니다.
+# 기대: 201 Created
+# 기대 header: Location: /api/contents/{{contentId}}
 # 기대 body: { "success": true, "code": "SUCCESS", "message": "생성되었습니다.", "data": ContentDto }
 POST {{api}}/admin/contents
 Authorization: Bearer {{accessToken}}
@@ -201,8 +208,8 @@ Content-Type: application/json
 }
 
 ### 15. 관리자 콘텐츠 삭제
-# 기대: 200 OK
-# 기대 body: { "success": true, "code": "SUCCESS", "message": "삭제되었습니다.", "data": null }
+# 기대: 204 No Content
+# 기대 body: 없음
 # 구현: contents.status = 'DELETED' soft delete
 # 참고: soft delete 후 같은 contentId 재생성은 DB unique key 때문에 충돌할 수 있으므로 반복 실행 시 새 contentId를 사용합니다.
 DELETE {{api}}/admin/contents/{{contentId}}
@@ -230,7 +237,8 @@ GET {{api}}/places/nearby?latitude=37.5665&longitude=126.9780&radiusKm=5&limit=5
 GET {{api}}/places/P_0001
 
 ### 18. 관리자 장소 생성 - 정상
-# 기대: 200 OK
+# 기대: 201 Created
+# 기대 header: Location: /api/places/{{placeId}}
 # 기대 body: { "success": true, "code": "SUCCESS", "message": "생성되었습니다.", "data": PlaceDto }
 POST {{api}}/admin/places
 Authorization: Bearer {{accessToken}}
@@ -270,8 +278,8 @@ Content-Type: application/json
 }
 
 ### 20. 관리자 장소 삭제
-# 기대: 200 OK
-# 기대 body: { "success": true, "code": "SUCCESS", "message": "삭제되었습니다.", "data": null }
+# 기대: 204 No Content
+# 기대 body: 없음
 # 구현: 장소 관련 참조를 정리한 뒤 places row를 삭제합니다.
 DELETE {{api}}/admin/places/{{placeId}}
 Authorization: Bearer {{accessToken}}

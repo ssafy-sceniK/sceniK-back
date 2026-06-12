@@ -72,7 +72,7 @@ Rubric #01은 아래 순서로 바로 추적할 수 있습니다.
 | HTTP QA | `backend/api-tests/content-crud-validation.http` | 관리자 token 발급 후 C/R/U/D, validation, not-found, 권한 오류 재현 순서 |
 | Controller | `src/main/java/com/scenik/controller/ContentController.java` | 공개 콘텐츠 Read endpoint가 `ApiResponse`로 응답하는지 확인 |
 | Controller | `src/main/java/com/scenik/controller/PlaceController.java` | 공개 장소 Read endpoint가 `ApiResponse`로 응답하는지 확인 |
-| Controller | `src/main/java/com/scenik/controller/AdminController.java` | 콘텐츠/장소 Create, Update, Delete endpoint가 `ApiResponse`로 응답하는지 확인 |
+| Controller | `src/main/java/com/scenik/controller/AdminController.java` | 콘텐츠/장소 Create/Update는 `ApiResponse`, Delete는 `204 No Content`로 응답하는지 확인 |
 | Service | `src/main/java/com/scenik/service/ContentService.java` | 공개 조회 결과 변환과 soft-deleted 콘텐츠 제외 흐름 |
 | Service | `src/main/java/com/scenik/service/PlaceService.java` | 장소 목록, 주변 장소, 상세 조회 결과 변환 |
 | Service | `src/main/java/com/scenik/service/AdminService.java` | `ROLE_ADMIN` 확인, 필수값/길이 검증, 중복/존재 여부 처리 |
@@ -98,12 +98,12 @@ Rubric #01은 아래 순서로 바로 추적할 수 있습니다.
 | `GET /api/places` | Read List | `200 OK`, `ApiResponse<List<PlaceDto>>`, `X-Total-Count` | `GlobalExceptionHandler.ErrorResponse` | `sort`, `page`, `size` query 검증 | `PlaceController.list`, `ListQuerySupport` |
 | `GET /api/places/nearby` | Read List | `200 OK`, `ApiResponse<List<PlaceDto>>` | `GlobalExceptionHandler.ErrorResponse` | 좌표 누락 시 빈 목록, `radiusKm`, `limit` 정규화 | `PlaceController.nearby`, `PlaceService.getNearbyPlaces` |
 | `GET /api/places/{placeId}` | Read Detail | `200 OK`, `ApiResponse<PlaceDto>` | `404 NOT_FOUND`, `success:false`, `data:null` | 존재하지 않는 `placeId` 처리 | `PlaceController.detail`, `PlaceService.getPlace` |
-| `POST /api/admin/contents` | Create | `200 OK`, `ApiResponse<ContentDto>` | `400 VALIDATION_ERROR`, `401 AUTH_REQUIRED`, `403 FORBIDDEN`, `409 CONFLICT` | `contentId`, `title`, `category` 필수 및 길이 검증 | `AdminController.createContent`, `AdminService.createContent` |
+| `POST /api/admin/contents` | Create | `201 Created`, `Location: /api/contents/{contentId}`, `ApiResponse<ContentDto>` | `400 VALIDATION_ERROR`, `401 AUTH_REQUIRED`, `403 FORBIDDEN`, `409 CONFLICT` | `contentId`, `title`, `category` 필수 및 길이 검증 | `AdminController.createContent`, `AdminService.createContent` |
 | `PATCH /api/admin/contents/{contentId}` | Update | `200 OK`, `ApiResponse<ContentDto>` | `400 VALIDATION_ERROR`, `401 AUTH_REQUIRED`, `403 FORBIDDEN`, `404 NOT_FOUND` | path `contentId` 존재/길이, `title`, `category` 필수 및 길이 검증 | `AdminController.updateContent`, `AdminService.updateContent` |
-| `DELETE /api/admin/contents/{contentId}` | Delete | `200 OK`, `ApiResponse<Void>`, `data:null` | `400 VALIDATION_ERROR`, `401 AUTH_REQUIRED`, `403 FORBIDDEN`, `404 NOT_FOUND` | path `contentId` 존재/길이 검증 | `AdminController.deleteContent`, `AdminService.deleteContent`, `ContentMapper.softDelete` |
-| `POST /api/admin/places` | Create | `200 OK`, `ApiResponse<PlaceDto>` | `400 VALIDATION_ERROR`, `401 AUTH_REQUIRED`, `403 FORBIDDEN`, `409 CONFLICT` | `placeId`, `name`, `region` 필수 및 길이 검증 | `AdminController.createPlace`, `AdminService.createPlace` |
+| `DELETE /api/admin/contents/{contentId}` | Delete | `204 No Content`, body 없음 | `400 VALIDATION_ERROR`, `401 AUTH_REQUIRED`, `403 FORBIDDEN`, `404 NOT_FOUND` | path `contentId` 존재/길이 검증 | `AdminController.deleteContent`, `AdminService.deleteContent`, `ContentMapper.softDelete` |
+| `POST /api/admin/places` | Create | `201 Created`, `Location: /api/places/{placeId}`, `ApiResponse<PlaceDto>` | `400 VALIDATION_ERROR`, `401 AUTH_REQUIRED`, `403 FORBIDDEN`, `409 CONFLICT` | `placeId`, `name`, `region` 필수 및 길이 검증 | `AdminController.createPlace`, `AdminService.createPlace` |
 | `PATCH /api/admin/places/{placeId}` | Update | `200 OK`, `ApiResponse<PlaceDto>` | `400 VALIDATION_ERROR`, `401 AUTH_REQUIRED`, `403 FORBIDDEN`, `404 NOT_FOUND` | path `placeId` 존재/길이, `name`, `region` 필수 및 길이 검증 | `AdminController.updatePlace`, `AdminService.updatePlace` |
-| `DELETE /api/admin/places/{placeId}` | Delete | `200 OK`, `ApiResponse<Void>`, `data:null` | `400 VALIDATION_ERROR`, `401 AUTH_REQUIRED`, `403 FORBIDDEN`, `404 NOT_FOUND` | path `placeId` 존재/길이 검증 | `AdminController.deletePlace`, `AdminService.deletePlace`, `PlaceMapper.delete*References` |
+| `DELETE /api/admin/places/{placeId}` | Delete | `204 No Content`, body 없음 | `400 VALIDATION_ERROR`, `401 AUTH_REQUIRED`, `403 FORBIDDEN`, `404 NOT_FOUND` | path `placeId` 존재/길이 검증 | `AdminController.deletePlace`, `AdminService.deletePlace`, `PlaceMapper.delete*References` |
 
 관리자 upsert/delete 성공 메시지는 콘텐츠와 장소 모두 action 기준으로 통일합니다.
 
@@ -111,13 +111,13 @@ Rubric #01은 아래 순서로 바로 추적할 수 있습니다.
 | --- | --- | --- |
 | Create | `생성되었습니다.` | 생성된 `ContentDto` 또는 `PlaceDto` |
 | Update | `수정되었습니다.` | 수정된 `ContentDto` 또는 `PlaceDto` |
-| Delete | `삭제되었습니다.` | `null` |
+| Delete | body 없음 | `204 No Content` |
 
 ### Consistency Verification Checklist
 
 | 확인 항목 | 상태 | 근거 |
 | --- | --- | --- |
-| `ApiResponse` 성공 응답 사용 | 확인 완료 | `ContentController`, `PlaceController`, `AdminController`의 공개 Read 및 관리자 콘텐츠/장소 CUD endpoint |
+| `ApiResponse` 성공 응답 사용 | 확인 완료 | 공개 Read와 관리자 Create/Update는 `ApiResponse`, 관리자 Delete는 `204 No Content` |
 | 표준 오류 응답 사용 | 확인 완료 | `GlobalExceptionHandler.ErrorResponse`가 `success:false`, `code`, `message`, `data:null`, `fieldErrors`를 반환 |
 | Validation 적용 | 확인 완료 | `AdminService`에서 필수값, 공백, 길이 초과를 `ResponseStatusException`으로 변환 |
 | HTTP status와 body code 정합성 | 확인 완료 | `400 VALIDATION_ERROR`, `401 AUTH_REQUIRED`, `403 FORBIDDEN`, `404 NOT_FOUND`, `409 CONFLICT` |
@@ -128,7 +128,7 @@ Rubric #01은 아래 순서로 바로 추적할 수 있습니다.
 
 ### 발견된 예외 및 정책 결정
 
-- 공개 콘텐츠 Read, 공개 장소 Read, 관리자 콘텐츠/장소 CUD는 표준 `ApiResponse` 계약으로 맞춰져 있습니다.
+- 공개 콘텐츠 Read, 공개 장소 Read, 관리자 콘텐츠/장소 Create/Update는 표준 `ApiResponse` 계약으로 맞춰져 있습니다. 관리자 Delete는 HTTP semantics를 우선해 `204 No Content`를 사용합니다.
 - 콘텐츠 `category`는 현재 allow-list enum이 아니라 자유 문자열 정책입니다. 따라서 “허용되지 않는 카테고리 값” 자체는 차단하지 않고, 누락/공백/길이 초과만 `VALIDATION_ERROR`로 처리합니다.
 - 콘텐츠 삭제는 원본 row를 물리 삭제하지 않고 `status = 'DELETED'`로 바꾸는 soft delete입니다. 삭제 후 공개 목록/상세 조회에서는 제외되며, 관리자 반복 delete는 기존 row 확인 후 같은 soft delete를 다시 수행할 수 있습니다.
 
@@ -228,7 +228,7 @@ Rubric #01은 아래 순서로 바로 추적할 수 있습니다.
 
 ### Response DTO: `ApiResponse<ContentDto>`
 
-공개 콘텐츠 조회와 관리자 생성/수정/삭제 응답은 공통 성공 응답 래퍼인 `ApiResponse`를 사용합니다. 실제 콘텐츠 데이터는 `data` 필드 안의 `ContentDto` shape로 제공됩니다.
+공개 콘텐츠 조회와 관리자 생성/수정 응답은 공통 성공 응답 래퍼인 `ApiResponse`를 사용합니다. 관리자 삭제는 HTTP semantics를 우선해 `204 No Content`와 빈 body를 반환합니다. 실제 콘텐츠 데이터는 `data` 필드 안의 `ContentDto` shape로 제공됩니다.
 
 ```json
 {
@@ -370,7 +370,13 @@ Content-Type: application/json
 }
 ```
 
-현재 구현상 예상 응답은 `201 Created`가 아니라 `200 OK`이며, 본문은 공통 성공 응답 래퍼입니다.
+예상 응답은 `201 Created`이며, `Location` header는 생성된 공개 상세 리소스 경로를 가리킵니다. 본문은 공통 성공 응답 래퍼입니다.
+
+```http
+HTTP/1.1 201 Created
+Location: /api/contents/C_ADMIN_QA_001
+Content-Type: application/json
+```
 
 ```json
 {
@@ -454,13 +460,8 @@ Authorization: Bearer {ROLE_ADMIN accessToken}
 
 예상 응답:
 
-```json
-{
-  "success": true,
-  "code": "SUCCESS",
-  "message": "삭제되었습니다.",
-  "data": null
-}
+```http
+HTTP/1.1 204 No Content
 ```
 
 삭제는 물리 삭제가 아니라 `contents.status = 'DELETED'`로 바꾸는 soft delete입니다. 공개 목록과 상세 조회는 `(status IS NULL OR status != 'DELETED')` 조건으로 삭제된 콘텐츠를 제외합니다.
@@ -545,13 +546,16 @@ Content-Type: application/json
 ### 현재 추가 개선 가능 항목
 
 - Admin CRUD는 `AdminService.requireAdmin()`에서 token과 `ROLE_ADMIN`을 검사합니다. 전체 인증 아키텍처를 Spring Security filter 기반 JWT/authority 구조로 통합하는 작업은 별도 보안 고도화 범위입니다.
-- `POST /api/admin/contents`는 현재 `200 OK`를 반환합니다. REST 관례상 `201 Created`와 `Location` header는 추가 개선 가능 항목입니다.
+- 관리자 생성 API는 REST 관례에 맞춰 `201 Created`와 `Location` header를 반환합니다.
+- 관리자 삭제 API는 삭제 성공 시 `204 No Content`를 반환합니다. 성공 body가 없는 예외 케이스이므로 프론트엔드는 응답 body unwrap에 의존하지 않고 성공 여부만 처리합니다.
 - `ContentUpsertRequest`는 Bean Validation annotation이 아니라 service의 수동 validation으로 검증합니다. evaluator에게는 `GlobalExceptionHandler`가 실제 한국어 error shape로 변환한다는 점을 함께 제시합니다.
 - 콘텐츠 카테고리는 현재 seed/category 목록과 관리자 입력을 모두 허용하는 자유 문자열입니다. 따라서 허용 목록 기반의 “invalid category” 검증은 현재 강제하지 않고, 누락/공백/길이 초과 카테고리만 `VALIDATION_ERROR`로 처리합니다.
 
 ### Runtime Smoke Test Result - 2026-06-12 10:05 KST
 
 로컬 MySQL 문제 해결 후 backend를 실제로 기동하고 CRUD smoke를 재실행했습니다. 8080 포트가 이미 사용 중이어서 이번 검증은 `http://localhost:18080/api` 기준으로 수행했습니다.
+
+> 참고: 아래 실제 runtime 결과는 `201 Created`/`204 No Content` semantics 적용 전 수집한 기록입니다. 현재 코드의 기대 계약은 생성 `201 Created + Location`, 삭제 `204 No Content`입니다. 새 계약은 `api-tests/content-crud-validation.http`에 반영되어 있으며, 다음 runtime smoke에서 재검증 대상입니다.
 
 #### 실행 환경 확인
 
@@ -579,6 +583,15 @@ Content-Type: application/json
 | Error | 비관리자 접근 | `POST /api/admin/contents` with `ROLE_USER` token | `403` | `FORBIDDEN` | `관리자 권한이 필요합니다.` | PASS |
 | Error | 존재하지 않는 콘텐츠 | `GET /api/contents/C_NOT_FOUND_RUNTIME` | `404` | `NOT_FOUND` | `존재하지 않는 콘텐츠입니다.` | PASS |
 | Error | 중복 콘텐츠 생성 | `POST /api/admin/contents` duplicate `contentId` | `409` | `CONFLICT` | `이미 등록된 콘텐츠입니다.` | PASS |
+
+#### 현재 HTTP semantics 기대 계약
+
+| Scenario | Endpoint | 기대 HTTP status | response body | 비고 |
+| --- | --- | --- | --- | --- |
+| 관리자 콘텐츠 생성 | `POST /api/admin/contents` | `201 Created` | `ApiResponse<ContentDto>` | `Location: /api/contents/{contentId}` |
+| 관리자 콘텐츠 삭제 | `DELETE /api/admin/contents/{contentId}` | `204 No Content` | body 없음 | 콘텐츠 soft delete |
+| 관리자 장소 생성 | `POST /api/admin/places` | `201 Created` | `ApiResponse<PlaceDto>` | `Location: /api/places/{placeId}` |
+| 관리자 장소 삭제 | `DELETE /api/admin/places/{placeId}` | `204 No Content` | body 없음 | 관련 참조 정리 후 삭제 |
 
 #### 실제 응답 body snippet
 
@@ -634,9 +647,9 @@ CRUD 리소스는 delete 시나리오로 정리했습니다. 403 검증에는 �
 | 2 | `GET /api/contents/{contentId}`와 `GET /api/contents/C_NOT_EXISTS` | 정상 ID는 `200 OK`, 없는 ID는 `404 NOT_FOUND` |
 | 3 | `POST /api/admin/contents` without token | `401 AUTH_REQUIRED`, `로그인이 필요합니다.` |
 | 4 | `POST /api/admin/contents` with `ROLE_USER` token | `403 FORBIDDEN`, `관리자 권한이 필요합니다.` |
-| 5 | `POST /api/admin/contents` with `ROLE_ADMIN` token | `200 OK`, 생성된 `ApiResponse<ContentDto>` |
+| 5 | `POST /api/admin/contents` with `ROLE_ADMIN` token | `201 Created`, `Location`, 생성된 `ApiResponse<ContentDto>` |
 | 6 | 같은 `contentId` 재생성, `title/category` 누락, 길이 초과 요청 | `409 CONFLICT`, `400 VALIDATION_ERROR` |
-| 7 | `PATCH /api/admin/contents/{contentId}`와 `DELETE /api/admin/contents/{contentId}` | 수정/삭제 모두 `200 OK`, 삭제는 `data: null`, soft delete |
+| 7 | `PATCH /api/admin/contents/{contentId}`와 `DELETE /api/admin/contents/{contentId}` | 수정은 `200 OK`, 삭제는 `204 No Content`, soft delete |
 | 8 | `/admin/contents`, `/admin/places` 브라우저 UI | admin 계정은 CRUD 가능, 비관리자 계정은 권한 필요 안내 |
 
 수동 실행용 REST Client 파일은 `api-tests/content-crud-validation.http`에 추가했습니다. 실제 access token은 로컬 실행 시에만 붙여 넣고 repository에는 커밋하지 않습니다.

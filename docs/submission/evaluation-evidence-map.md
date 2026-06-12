@@ -6,9 +6,9 @@
 
 | 루브릭 | 상태 | Backend 근거 | Frontend 근거 | 문서 근거 | 비고 |
 | --- | --- | --- | --- | --- | --- |
-| #01 핵심 데이터 관리 CRUD | 보강 완료, admin UI 제외 | `AdminController`, `ContentController`, `PlaceController`, `RouteController`, `CommunityController`, `PlaceReviewController`, `schema.sql` | 콘텐츠/장소/코스/커뮤니티/리뷰 화면, `CourseCrudPanel.vue`, `CourseSaveStatusPanel.vue`, `CourseDeleteActionSheet.vue`, `FormStatusNotice` | `core-crud-evidence.md`, `scenik-api-inventory.md`, `rubric-response.md` | 코스 저장 전 확인, 코스 관리 섹션, 수정 폼, 삭제 확인 sheet, 저장/수정/삭제 상태를 명시했습니다. admin 콘텐츠/장소 UI는 backend-only 범위입니다. |
-| #02 목록 조회·검색·정렬 | 부분 완료 | `ListQuerySupport`, `ContentController`, `PlaceController`, `CommunityController`, `RouteController`, `LikeVisitController` | `ContentListView.vue`, `PlaceListView.vue`, `CommunityView.vue`, `SimpleListView.vue` | `list-search-sort-pagination-evidence.md`, `list-search-sort-pagination.http` | 콘텐츠/장소/커뮤니티에 sort select, 결과 수, 더 보기 UI를 노출했습니다. |
-| #03 상세 정보 조회 | 부분 완료 | detail controllers, `GlobalExceptionHandler` | `ContentDetailView.vue`, `PlaceDetailView.vue`, `CommunityView.vue`, `CourseDetailView.vue`, `EmptyState.vue` | `final-rubric-live-qa-checklist.md`, `browser-live-qa-evidence.md` | invalid ID live QA 캡처가 필요합니다. |
+| #01 핵심 데이터 관리 CRUD | 보강 완료 | `AdminController`, `ContentController`, `PlaceController`, `RouteController`, `CommunityController`, `PlaceReviewController`, `schema.sql` | 콘텐츠/장소 관리자 UI, 코스/커뮤니티/리뷰 화면, `CourseCrudPanel.vue`, `CourseSaveStatusPanel.vue`, `CourseDeleteActionSheet.vue`, `FormStatusNotice` | `core-crud-evidence.md`, `scenik-api-inventory.md`, `rubric-response.md` | 관리자 콘텐츠/장소 CUD, REST HTTP semantics, 코스 저장/수정/삭제 상태를 명시했습니다. |
+| #02 목록 조회·검색·정렬 | 완료에 가까움 | `ListQuerySupport`, `ContentController`, `PlaceController`, `CommunityController`, `RouteController`, `LikeVisitController`, `schema.sql` indexes | `ContentListView.vue`, `PlaceListView.vue`, `CommunityView.vue`, `SimpleListView.vue` | `list-search-sort-pagination-evidence.md`, `list-search-sort-pagination.http` | query 조합, boundary QA, 동적 SQL, 인덱스 근거를 보강했습니다. |
+| #03 상세 정보 조회 | 완료에 가까움 | detail controllers, `GlobalExceptionHandler`, DTO null/empty 처리 | `ContentDetailView.vue`, `PlaceDetailView.vue`, `CommunityView.vue`, `CourseDetailView.vue`, `EmptyState.vue` | `detail-retrieval-null-empty-evidence.md`, `final-rubric-live-qa-checklist.md`, `browser-live-qa-evidence.md` | 관련 데이터 빈 배열/빈 상태 정책을 명시했습니다. |
 | #04 리뷰 작성·조회 | 구현 완료, live QA 필요 | `PlaceReviewController`, `PlaceReviewService`, `PlaceReviewMapper.xml`, `ReviewDtos`, `schema.sql`의 `place_reviews`, `PlaceMapper.xml` | `reviewApi.js`, `PlaceDetailView.vue`, `ContentDetailView.vue`, `MyPageView.vue`, `SimpleListView.vue`, `detail-map-panels.css` | `review-feature-evidence.md`, `browser-live-qa-evidence.md`, `final-rubric-live-qa-checklist.md` | 방문 리뷰 요약, 평점 분포, 중복 리뷰 안내, 콘텐츠 상세의 관련 장소 리뷰 안내 포함. |
 | #05 로그인·로그아웃 | 완료 | `AuthController`, `AuthService`, `AuthTokenMapper`, `GlobalExceptionHandler` | `authApi.js`, login/signup views, auth store, `MyPageView.vue`, `SettingsView.vue` | `auth-profile-evidence.md`, `rubric-response.md`, `final-rubric-live-qa-checklist.md` | Settings 세션 관리와 token revoke 흐름 포함. |
 | #06 회원가입 | 완료 | `AuthService.signup`, `AuthService.checkEmail`, `UserMapper`, `schema.sql`의 `uq_users_email`, `uq_users_nickname` | signup view/store, `authApi.checkEmailAvailability` | `auth-profile-evidence.md`, `rubric-response.md`, `final-rubric-live-qa-checklist.md` | 이메일 중복 확인과 backend 정책 기반 비밀번호 안내 포함. 이메일 인증은 future work입니다. |
@@ -106,6 +106,7 @@
   - `GET /api/places/{placeId}`
   - `GET /api/routes/{routeId}`
 - QA:
+  - `docs/evidence/detail-retrieval-null-empty-evidence.md`
   - `docs/evidence/browser-live-qa-evidence.md`
   - invalid ID, related data empty, fallback image, back/retry recovery 확인
 

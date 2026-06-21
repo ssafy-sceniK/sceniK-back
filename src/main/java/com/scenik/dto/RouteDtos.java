@@ -17,6 +17,7 @@ public final class RouteDtos {
             String contentId,
             List<String> contentIds,
             String region,
+            List<String> regions,
             @Min(value = 1, message = "여행 일수는 1일 이상이어야 합니다.")
             Integer durationDays,
             LocalDate startDate,
@@ -25,9 +26,11 @@ public final class RouteDtos {
             String transport,
             String companion,
             String style,
+            List<String> travelStyles,
             Integer budgetMin,
             Integer budgetMax,
-            String budget
+            String budget,
+            String hotelAddress
     ) {
     }
 
@@ -40,6 +43,7 @@ public final class RouteDtos {
             List<String> contentIds,
             String contentTitle,
             String region,
+            List<String> regions,
             Integer durationDays,
             Integer requestedDurationDays,
             LocalDate startDate,
@@ -48,6 +52,7 @@ public final class RouteDtos {
             String transport,
             String companion,
             String style,
+            List<String> travelStyles,
             Integer budgetMin,
             Integer budgetMax,
             String budget,

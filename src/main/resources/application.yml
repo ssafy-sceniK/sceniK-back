@@ -53,3 +53,10 @@ server:
 scenik:
   oauth:
     frontend-redirect-uri: ${OAUTH_FRONTEND_REDIRECT_URI:http://127.0.0.1:5173/oauth/callback}
+  ai:
+    gms:
+      base-url: ${GMS_BASE_URL:https://gms.ssafy.io/gmsapi/}
+      api-key: ${GMS_KEY:}
+      model: ${GMS_MODEL:gpt-5.4-mini}
+      connect-timeout-ms: ${GMS_CONNECT_TIMEOUT_MS:1000}
+      read-timeout-ms: ${GMS_READ_TIMEOUT_MS:5000}

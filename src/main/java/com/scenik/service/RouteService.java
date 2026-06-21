@@ -17,9 +17,12 @@ import com.scenik.mapper.RoutePlaceMapper;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +30,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class RouteService {
+    private static final Logger log = LoggerFactory.getLogger(RouteService.class);
+
     private final RouteMapper routeMapper;
     private final RoutePlaceMapper routePlaceMapper;
     private final PlaceMapper placeMapper;
@@ -48,7 +53,24 @@ public class RouteService {
     @Transactional
     public AiRouteDto createRoute(User user, AiRouteDto request) {
         AiRouteDto normalized = normalizeRouteRequest(request);
-        validateRouteRequest(normalized);
+        log.info("Route save request userId={} title={} region={} regions={} durationDays={} days={} candidates={} stops={}",
+                user.getUserId(),
+                normalized == null ? null : normalized.title(),
+                normalized == null ? null : normalized.region(),
+                normalized == null ? null : normalized.regions(),
+                normalized == null ? null : normalized.durationDays(),
+                normalized == null || normalized.days() == null ? 0 : normalized.days().size(),
+                normalized == null || normalized.candidatePlaces() == null ? 0 : normalized.candidatePlaces().size(),
+                normalized == null || normalized.days() == null ? 0 : normalized.days().stream().mapToInt(day -> day.places() == null ? 0 : day.places().size()).sum());
+        try {
+            validateRouteRequest(normalized);
+        } catch (ResponseStatusException error) {
+            log.warn("Route save validation failed userId={} status={} reason={}",
+                    user.getUserId(),
+                    error.getStatusCode(),
+                    error.getReason());
+            throw error;
+        }
         TravelRoute route = toRoute(user, "route-" + UUID.randomUUID(), normalized);
         routeMapper.insert(route);
         for (RouteDayDto day : normalized.days()) {
@@ -92,6 +114,7 @@ public class RouteService {
                 request.contentIds() == null ? existing.contentIds() : request.contentIds(),
                 request.contentTitle() == null ? existing.contentTitle() : request.contentTitle(),
                 request.region() == null ? existing.region() : request.region(),
+                request.regions() == null ? existing.regions() : request.regions(),
                 request.durationDays() == null ? existing.durationDays() : request.durationDays(),
                 request.requestedDurationDays() == null ? existing.requestedDurationDays() : request.requestedDurationDays(),
                 request.startDate() == null ? existing.startDate() : request.startDate(),
@@ -100,6 +123,7 @@ public class RouteService {
                 request.transport() == null ? existing.transport() : request.transport(),
                 request.companion() == null ? existing.companion() : request.companion(),
                 request.style() == null ? existing.style() : request.style(),
+                request.travelStyles() == null ? existing.travelStyles() : request.travelStyles(),
                 request.budgetMin() == null ? existing.budgetMin() : request.budgetMin(),
                 request.budgetMax() == null ? existing.budgetMax() : request.budgetMax(),
                 request.budget() == null ? existing.budget() : request.budget(),
@@ -314,6 +338,7 @@ public class RouteService {
                 request.contentIds(),
                 request.contentTitle(),
                 request.region(),
+                request.regions(),
                 request.durationDays(),
                 request.requestedDurationDays(),
                 request.startDate(),
@@ -322,6 +347,7 @@ public class RouteService {
                 request.transport(),
                 request.companion(),
                 request.style(),
+                request.travelStyles(),
                 request.budgetMin(),
                 request.budgetMax(),
                 request.budget(),
@@ -441,7 +467,8 @@ public class RouteService {
         route.setContentId(request.contentId());
         route.setContentIds(join(request.contentIds()));
         route.setContentTitle(request.contentTitle());
-        route.setRegion(request.region());
+        // TODO: Add a dedicated route regions table/column. For now, store selected regions as a comma-separated display string.
+        route.setRegion(regionForStorage(request));
         route.setDurationDays(request.durationDays());
         route.setRequestedDurationDays(request.requestedDurationDays());
         route.setStartDate(request.startDate());
@@ -449,7 +476,7 @@ public class RouteService {
         route.setDateRangeLabel(request.dateRangeLabel());
         route.setTransport(request.transport());
         route.setCompanion(request.companion());
-        route.setStyle(request.style());
+        route.setStyle(styleForStorage(request));
         route.setBudgetMin(request.budgetMin());
         route.setBudgetMax(request.budgetMax());
         route.setBudget(request.budget());
@@ -510,6 +537,7 @@ public class RouteService {
                 split(route.getContentIds()),
                 route.getContentTitle(),
                 route.getRegion(),
+                split(route.getRegion()),
                 route.getDurationDays(),
                 route.getRequestedDurationDays(),
                 route.getStartDate(),
@@ -518,6 +546,7 @@ public class RouteService {
                 route.getTransport(),
                 route.getCompanion(),
                 route.getStyle(),
+                splitStyles(route.getStyle()),
                 route.getBudgetMin(),
                 route.getBudgetMax(),
                 route.getBudget(),
@@ -540,6 +569,46 @@ public class RouteService {
     private List<String> split(String value) {
         if (value == null || value.isBlank()) return List.of();
         return List.of(value.split(","));
+    }
+
+    private String styleForStorage(AiRouteDto request) {
+        LinkedHashSet<String> styles = new LinkedHashSet<>();
+        if (request.travelStyles() != null) {
+            request.travelStyles().stream()
+                    .filter(value -> value != null && !value.isBlank())
+                    .map(String::trim)
+                    .forEach(styles::add);
+        }
+        if (request.style() != null && !request.style().isBlank()) {
+            for (String value : request.style().split("[,·]")) {
+                if (!value.isBlank()) styles.add(value.trim());
+            }
+        }
+        return styles.isEmpty() ? request.style() : String.join(",", styles);
+    }
+
+    private String regionForStorage(AiRouteDto request) {
+        LinkedHashSet<String> regions = new LinkedHashSet<>();
+        if (request.regions() != null) {
+            request.regions().stream()
+                    .filter(value -> value != null && !value.isBlank())
+                    .map(String::trim)
+                    .forEach(regions::add);
+        }
+        if (request.region() != null && !request.region().isBlank()) {
+            for (String value : request.region().split("[,·]")) {
+                if (!value.isBlank()) regions.add(value.trim());
+            }
+        }
+        return regions.isEmpty() ? request.region() : String.join(",", regions);
+    }
+
+    private List<String> splitStyles(String value) {
+        if (value == null || value.isBlank()) return List.of();
+        return List.of(value.split("[,·]")).stream()
+                .map(String::trim)
+                .filter(style -> !style.isBlank())
+                .toList();
     }
 
     private String firstText(String preferred, String fallback) {

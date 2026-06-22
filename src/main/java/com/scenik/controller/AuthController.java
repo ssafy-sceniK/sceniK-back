@@ -11,7 +11,9 @@ import com.scenik.dto.AuthDtos.UpdateUserRequest;
 import com.scenik.dto.UserDto;
 import com.scenik.service.AuthService;
 import com.scenik.service.OAuthService;
+import com.scenik.service.ProfileImageStorageService;
 import jakarta.validation.Valid;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -19,18 +21,24 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.view.RedirectView;
 
 @RestController
 public class AuthController {
     private final AuthService authService;
     private final OAuthService oauthService;
+    private final ProfileImageStorageService profileImageStorageService;
 
-    public AuthController(AuthService authService, OAuthService oauthService) {
+    public AuthController(
+            AuthService authService,
+            OAuthService oauthService,
+            ProfileImageStorageService profileImageStorageService
+    ) {
         this.authService = authService;
         this.oauthService = oauthService;
+        this.profileImageStorageService = profileImageStorageService;
     }
 
     @PostMapping("/api/auth/signup")
@@ -88,5 +96,14 @@ public class AuthController {
             @Valid @RequestBody UpdateUserRequest request
     ) {
         return ApiResponse.ok("프로필이 수정되었습니다.", authService.updateMe(authorization, request));
+    }
+
+    @PostMapping(value = "/api/users/me/profile-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<UserDto> uploadProfileImage(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestParam("file") MultipartFile file
+    ) {
+        String imageUrl = profileImageStorageService.store(file);
+        return ApiResponse.ok("프로필 이미지를 저장했습니다.", authService.updateProfileImage(authorization, imageUrl));
     }
 }

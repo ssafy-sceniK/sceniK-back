@@ -11,17 +11,29 @@ public record UserDto(
         String nickname,
         String role,
         String profileImageUrl,
+        String bio,
+        String authProvider,
+        String loginProvider,
         List<String> preferences,
+        Boolean preferencesCompleted,
         LocalDateTime createdAt
 ) {
     public static UserDto from(User user) {
+        List<String> preferences = split(user.getPreferences());
+        String provider = user.getAuthProvider() == null || user.getAuthProvider().isBlank()
+                ? "email"
+                : user.getAuthProvider();
         return new UserDto(
                 user.getUserId(),
                 user.getEmail(),
                 user.getNickname(),
                 user.getRole() == null || user.getRole().isBlank() ? "ROLE_USER" : user.getRole(),
                 user.getProfileImageUrl(),
-                split(user.getPreferences()),
+                user.getBio(),
+                provider,
+                provider,
+                preferences,
+                preferences.size() >= 3,
                 user.getCreatedAt()
         );
     }

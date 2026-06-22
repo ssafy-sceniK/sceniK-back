@@ -1,8 +1,12 @@
 package com.scenik.service;
 
 import com.scenik.domain.User;
+import com.scenik.dto.CommunityDtos.PostDto;
 import com.scenik.dto.FollowDtos.FollowStatusDto;
 import com.scenik.dto.FollowDtos.FollowUserDto;
+import com.scenik.dto.FollowDtos.PublicUserProfileDto;
+import com.scenik.dto.RouteDtos.AiRouteDto;
+import com.scenik.dto.UserDto;
 import com.scenik.mapper.FollowMapper;
 import com.scenik.mapper.UserMapper;
 import java.util.List;
@@ -64,6 +68,20 @@ public class FollowService {
         );
     }
 
+    public PublicUserProfileDto profile(User actor, Long targetUserId, List<AiRouteDto> savedCourses, List<PostDto> posts) {
+        User target = requireUser(targetUserId);
+        boolean followedByMe = actor != null && !actor.getUserId().equals(targetUserId)
+                && followMapper.existsFollow(actor.getUserId(), targetUserId) > 0;
+        return new PublicUserProfileDto(
+                UserDto.from(target),
+                followMapper.countFollowers(targetUserId),
+                followMapper.countFollowing(targetUserId),
+                followedByMe,
+                savedCourses == null ? List.of() : savedCourses,
+                posts == null ? List.of() : posts
+        );
+    }
+
     private FollowUserDto toDto(User user) {
         return FollowUserDto.from(
                 user,
@@ -80,9 +98,11 @@ public class FollowService {
         }
     }
 
-    private void requireUser(Long userId) {
-        if (userId == null || userMapper.findById(userId) == null) {
+    private User requireUser(Long userId) {
+        User user = userId == null ? null : userMapper.findById(userId);
+        if (user == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Target user was not found.");
         }
+        return user;
     }
 }

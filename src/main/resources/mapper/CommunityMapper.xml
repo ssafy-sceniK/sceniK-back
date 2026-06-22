@@ -13,6 +13,8 @@
     <result property="status" column="status" />
     <result property="likeCount" column="like_count" />
     <result property="liked" column="is_liked" />
+    <result property="scrapCount" column="scrap_count" />
+    <result property="scrapped" column="is_scrapped" />
     <result property="commentCount" column="comment_count" />
     <result property="createdAt" column="created_at" />
     <result property="updatedAt" column="updated_at" />
@@ -37,6 +39,13 @@
     <result property="userId" column="user_id" />
     <result property="title" column="title" />
     <result property="message" column="message" />
+    <result property="targetType" column="target_type" />
+    <result property="targetId" column="target_id" />
+    <result property="postId" column="post_id" />
+    <result property="commentId" column="comment_id" />
+    <result property="actorUserId" column="actor_user_id" />
+    <result property="routeId" column="route_id" />
+    <result property="placeId" column="place_id" />
     <result property="readAt" column="read_at" />
     <result property="createdAt" column="created_at" />
   </resultMap>
@@ -45,6 +54,7 @@
     SELECT cp.*,
            u.nickname AS user_nickname,
            COALESCE((SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = cp.post_id), 0) AS like_count,
+           COALESCE((SELECT COUNT(*) FROM post_scraps ps WHERE ps.post_id = cp.post_id), 0) AS scrap_count,
            COALESCE((SELECT COUNT(*) FROM comments c WHERE c.post_id = cp.post_id AND <include refid="VisibleCommentPredicate" />), 0) AS comment_count,
            CASE
              WHEN #{userId} IS NULL THEN FALSE
@@ -52,7 +62,14 @@
                SELECT 1 FROM post_likes pl2
                WHERE pl2.post_id = cp.post_id AND pl2.user_id = #{userId}
              )
-           END AS is_liked
+           END AS is_liked,
+           CASE
+             WHEN #{userId} IS NULL THEN FALSE
+             ELSE EXISTS(
+               SELECT 1 FROM post_scraps ps2
+               WHERE ps2.post_id = cp.post_id AND ps2.user_id = #{userId}
+             )
+           END AS is_scrapped
     FROM community_posts cp
     JOIN users u ON u.user_id = cp.user_id
   </sql>
@@ -173,6 +190,14 @@
     DELETE FROM post_likes WHERE user_id = #{userId} AND post_id = #{postId}
   </delete>
 
+  <insert id="insertPostScrap">
+    INSERT IGNORE INTO post_scraps (user_id, post_id) VALUES (#{userId}, #{postId})
+  </insert>
+
+  <delete id="deletePostScrap">
+    DELETE FROM post_scraps WHERE user_id = #{userId} AND post_id = #{postId}
+  </delete>
+
   <insert id="insertCommentLike">
     INSERT IGNORE INTO comment_likes (user_id, comment_id) VALUES (#{userId}, #{commentId})
   </insert>
@@ -191,8 +216,12 @@
   </insert>
 
   <insert id="insertNotification">
-    INSERT INTO notifications (notification_id, user_id, title, message)
-    VALUES (#{notificationId}, #{userId}, #{title}, #{message})
+    INSERT INTO notifications (
+      notification_id, user_id, title, message, target_type, target_id, post_id, comment_id, actor_user_id, route_id, place_id
+    )
+    VALUES (
+      #{notificationId}, #{userId}, #{title}, #{message}, #{targetType}, #{targetId}, #{postId}, #{commentId}, #{actorUserId}, #{routeId}, #{placeId}
+    )
   </insert>
 
   <select id="findNotificationsByUserId" resultMap="NotificationResultMap">

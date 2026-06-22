@@ -9,13 +9,22 @@
     <result property="role" column="role" />
     <result property="preferences" column="preferences" />
     <result property="profileImageUrl" column="profile_image_url" />
+    <result property="bio" column="bio" />
+    <result property="authProvider" column="auth_provider" />
     <result property="createdAt" column="created_at" />
     <result property="updatedAt" column="updated_at" />
   </resultMap>
 
   <sql id="UserSelect">
     SELECT u.*,
-           COALESCE(ur.role, 'ROLE_USER') AS role
+           COALESCE(ur.role, 'ROLE_USER') AS role,
+           COALESCE((
+             SELECT oa.provider
+             FROM oauth_accounts oa
+             WHERE oa.user_id = u.user_id
+             ORDER BY oa.updated_at DESC
+             LIMIT 1
+           ), 'email') AS auth_provider
     FROM users u
     LEFT JOIN user_roles ur ON ur.user_id = u.user_id
   </sql>
@@ -44,6 +53,7 @@
   <update id="updateProfile">
     UPDATE users
     SET nickname = #{nickname},
+        bio = #{bio},
         preferences = #{preferences}
     WHERE user_id = #{userId}
   </update>

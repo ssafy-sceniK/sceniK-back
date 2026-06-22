@@ -14,6 +14,8 @@ public class CommunityPost {
     private String status;
     private Integer likeCount;
     private Boolean liked;
+    private Integer scrapCount;
+    private Boolean scrapped;
     private Integer commentCount;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -40,6 +42,10 @@ public class CommunityPost {
     public void setLikeCount(Integer likeCount) { this.likeCount = likeCount; }
     public Boolean getLiked() { return liked; }
     public void setLiked(Boolean liked) { this.liked = liked; }
+    public Integer getScrapCount() { return scrapCount; }
+    public void setScrapCount(Integer scrapCount) { this.scrapCount = scrapCount; }
+    public Boolean getScrapped() { return scrapped; }
+    public void setScrapped(Boolean scrapped) { this.scrapped = scrapped; }
     public Integer getCommentCount() { return commentCount; }
     public void setCommentCount(Integer commentCount) { this.commentCount = commentCount; }
     public LocalDateTime getCreatedAt() { return createdAt; }

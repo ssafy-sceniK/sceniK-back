@@ -1,6 +1,9 @@
 package com.scenik.dto;
 
 import com.scenik.domain.User;
+import com.scenik.dto.CommunityDtos.PostDto;
+import com.scenik.dto.RouteDtos.AiRouteDto;
+import java.util.List;
 
 public final class FollowDtos {
     private FollowDtos() {
@@ -29,6 +32,16 @@ public final class FollowDtos {
             Boolean followedByMe,
             Integer followerCount,
             Integer followingCount
+    ) {
+    }
+
+    public record PublicUserProfileDto(
+            UserDto user,
+            Integer followerCount,
+            Integer followingCount,
+            Boolean followedByMe,
+            List<AiRouteDto> savedCourses,
+            List<PostDto> posts
     ) {
     }
 }

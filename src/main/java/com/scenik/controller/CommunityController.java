@@ -187,6 +187,22 @@ public class CommunityController {
         return communityService.unlikePost(authService.requireUser(authorization), postId);
     }
 
+    @PostMapping("/posts/{postId}/scraps")
+    public PostDto scrapPost(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable("postId") String postId
+    ) {
+        return communityService.scrapPost(authService.requireUser(authorization), postId);
+    }
+
+    @DeleteMapping("/posts/{postId}/scraps")
+    public PostDto unscrapPost(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable("postId") String postId
+    ) {
+        return communityService.unscrapPost(authService.requireUser(authorization), postId);
+    }
+
     @PostMapping("/posts/{postId}/reports")
     public ReportDto reportPost(
             @RequestHeader(value = "Authorization", required = false) String authorization,

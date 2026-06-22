@@ -19,6 +19,8 @@ public final class AuthDtos {
             @NotBlank(message = "닉네임을 입력해 주세요.")
             @Size(max = 50, message = "닉네임은 50자 이하로 입력해 주세요.")
             String nickname,
+            @Size(max = 255, message = "소개는 255자 이하로 입력해 주세요.")
+            String bio,
             List<String> preferences
     ) {
     }
@@ -44,6 +46,8 @@ public final class AuthDtos {
             @NotBlank(message = "닉네임을 입력해 주세요.")
             @Size(max = 50, message = "닉네임은 50자 이하로 입력해 주세요.")
             String nickname,
+            @Size(max = 255, message = "소개는 255자 이하로 입력해 주세요.")
+            String bio,
             List<String> preferences
     ) {
     }

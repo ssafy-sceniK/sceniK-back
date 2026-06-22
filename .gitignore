@@ -12,3 +12,4 @@ application-local.yml
 .backend-*.err
 *.out
 *.err
+uploads/

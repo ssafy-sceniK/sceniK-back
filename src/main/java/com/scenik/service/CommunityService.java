@@ -42,8 +42,13 @@ public class CommunityService {
     }
 
     public List<PostDto> listMyPosts(User user) {
-        return communityMapper.findPostsByAuthorId(user.getUserId(), user.getUserId()).stream()
-                .map(post -> toPostDto(post, false, user.getUserId()))
+        return listPostsByAuthor(user, user.getUserId());
+    }
+
+    public List<PostDto> listPostsByAuthor(User viewer, Long authorId) {
+        Long viewerUserId = viewer == null ? null : viewer.getUserId();
+        return communityMapper.findPostsByAuthorId(authorId, viewerUserId).stream()
+                .map(post -> toPostDto(post, false, viewerUserId))
                 .toList();
     }
 
@@ -126,7 +131,7 @@ public class CommunityService {
         comment.setContent(requireText(firstText(request.content(), request.text()), "content is required."));
         comment.setStatus("ACTIVE");
         communityMapper.insertComment(comment);
-        notifyPostOwner(post, user, "새 댓글", user.getNickname() + "님이 게시글에 댓글을 남겼습니다.");
+        notifyPostOwner(post, user, "새 댓글", user.getNickname() + "님이 게시글에 댓글을 남겼습니다.", "POST_COMMENT", postId, comment.getCommentId());
         return toCommentDto(requireComment(postId, comment.getCommentId(), user.getUserId()));
     }
 
@@ -165,7 +170,7 @@ public class CommunityService {
     public PostDto likePost(User user, String postId) {
         CommunityPost post = requirePost(postId, user.getUserId());
         communityMapper.insertPostLike(user.getUserId(), postId);
-        notifyPostOwner(post, user, "새 좋아요", user.getNickname() + "님이 게시글을 좋아합니다.");
+        notifyPostOwner(post, user, "새 좋아요", user.getNickname() + "님이 게시글을 좋아합니다.", "POST_LIKE", postId, null);
         return toPostDto(requirePost(postId, user.getUserId()), true, user.getUserId());
     }
 
@@ -173,6 +178,20 @@ public class CommunityService {
     public PostDto unlikePost(User user, String postId) {
         requirePost(postId, user.getUserId());
         communityMapper.deletePostLike(user.getUserId(), postId);
+        return toPostDto(requirePost(postId, user.getUserId()), true, user.getUserId());
+    }
+
+    @Transactional
+    public PostDto scrapPost(User user, String postId) {
+        requirePost(postId, user.getUserId());
+        communityMapper.insertPostScrap(user.getUserId(), postId);
+        return toPostDto(requirePost(postId, user.getUserId()), true, user.getUserId());
+    }
+
+    @Transactional
+    public PostDto unscrapPost(User user, String postId) {
+        requirePost(postId, user.getUserId());
+        communityMapper.deletePostScrap(user.getUserId(), postId);
         return toPostDto(requirePost(postId, user.getUserId()), true, user.getUserId());
     }
 
@@ -273,11 +292,23 @@ public class CommunityService {
         return comment;
     }
 
-    private void notifyPostOwner(CommunityPost post, User actor, String title, String message) {
+    private void notifyPostOwner(CommunityPost post, User actor, String title, String message, String targetType, String postId, String commentId) {
         if (post.getUserId() == null || post.getUserId().equals(actor.getUserId())) {
             return;
         }
-        communityMapper.insertNotification("notification-" + UUID.randomUUID(), post.getUserId(), title, message);
+        communityMapper.insertNotification(
+                "notification-" + UUID.randomUUID(),
+                post.getUserId(),
+                title,
+                message,
+                targetType,
+                postId,
+                postId,
+                commentId,
+                actor.getUserId(),
+                post.getRouteId(),
+                null
+        );
     }
 
     private String validatedRouteId(User user, String routeId) {
@@ -314,6 +345,9 @@ public class CommunityService {
                 ? communityMapper.findCommentsByPostId(post.getPostId(), viewerUserId).stream().map(this::toCommentDto).toList()
                 : List.of();
         Integer likeCount = post.getLikeCount() == null ? 0 : post.getLikeCount();
+        Integer scrapCount = post.getScrapCount() == null ? 0 : post.getScrapCount();
+        Boolean scrapped = Boolean.TRUE.equals(post.getScrapped());
+        List<Long> scrappedBy = scrapped && viewerUserId != null ? List.of(viewerUserId) : List.of();
         String nickname = firstText(post.getUserNickname(), "sceniK user");
         return new PostDto(
                 post.getPostId(),
@@ -332,6 +366,9 @@ public class CommunityService {
                 likeCount,
                 likeCount,
                 Boolean.TRUE.equals(post.getLiked()),
+                scrapCount,
+                scrapped,
+                scrappedBy,
                 post.getCommentCount() == null ? comments.size() : post.getCommentCount(),
                 comments,
                 post.getCreatedAt(),
@@ -377,8 +414,32 @@ public class CommunityService {
                 read,
                 read,
                 notification.getCreatedAt(),
-                dateLabel
+                dateLabel,
+                notification.getTargetType(),
+                notification.getTargetId(),
+                notification.getPostId(),
+                notification.getCommentId(),
+                notification.getActorUserId(),
+                notification.getRouteId(),
+                notification.getPlaceId(),
+                notificationTo(notification)
         );
+    }
+
+    private String notificationTo(Notification notification) {
+        if (notification.getPostId() != null && !notification.getPostId().isBlank()) {
+            return "/community/post/" + notification.getPostId();
+        }
+        if (notification.getRouteId() != null && !notification.getRouteId().isBlank()) {
+            return "/ai/courses/" + notification.getRouteId();
+        }
+        if (notification.getPlaceId() != null && !notification.getPlaceId().isBlank()) {
+            return "/places/" + notification.getPlaceId();
+        }
+        if (notification.getActorUserId() != null) {
+            return "/users/" + notification.getActorUserId();
+        }
+        return "/community";
     }
 
     private String requireText(String value, String message) {

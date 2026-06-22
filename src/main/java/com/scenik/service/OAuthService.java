@@ -50,7 +50,7 @@ public class OAuthService {
         String providerUserId = profile.providerUserId();
         OAuthAccount existingAccount = oauthAccountMapper.findByProviderUserId(normalizedProvider, providerUserId);
         if (existingAccount != null) {
-            updateProfileImage(existingAccount.getUserId(), profile.profileImageUrl());
+            seedProviderProfileImage(existingAccount.getUserId(), profile.profileImageUrl());
             return issueLoginCode(existingAccount.getUserId());
         }
 
@@ -63,7 +63,7 @@ public class OAuthService {
         if (user == null) {
             user = createOAuthUser(email, profile.displayName(), profile.profileImageUrl());
         } else {
-            updateProfileImage(user.getUserId(), profile.profileImageUrl());
+            seedProviderProfileImage(user.getUserId(), profile.profileImageUrl());
         }
 
         OAuthAccount account = new OAuthAccount();
@@ -126,9 +126,13 @@ public class OAuthService {
         return user;
     }
 
-    private void updateProfileImage(Long userId, String profileImageUrl) {
+    private void seedProviderProfileImage(Long userId, String profileImageUrl) {
         String normalized = optionalText(profileImageUrl);
-        if (normalized != null) {
+        if (normalized == null) {
+            return;
+        }
+        User user = userMapper.findById(userId);
+        if (user != null && optionalText(user.getProfileImageUrl()) == null) {
             userMapper.updateProfileImage(userId, normalized);
         }
     }

@@ -132,7 +132,15 @@ public class AuthService {
     public UserDto updateMe(String authorizationHeader, UpdateUserRequest request) {
         User user = requireUser(authorizationHeader);
         String nickname = requireText(request.nickname(), "Nickname is required.");
-        userMapper.updateProfile(user.getUserId(), nickname, UserDto.join(request.preferences()));
+        userMapper.updateProfile(user.getUserId(), nickname, trimOptional(request.bio()), UserDto.join(request.preferences()));
+        return UserDto.from(userMapper.findById(user.getUserId()));
+    }
+
+    @Transactional
+    public UserDto updateProfileImage(String authorizationHeader, String profileImageUrl) {
+        User user = requireUser(authorizationHeader);
+        String imageUrl = requireText(profileImageUrl, "Profile image URL is required.");
+        userMapper.updateProfileImage(user.getUserId(), imageUrl);
         return UserDto.from(userMapper.findById(user.getUserId()));
     }
 
@@ -189,6 +197,10 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email must be valid.");
         }
         return normalized;
+    }
+
+    private String trimOptional(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private String requireText(String value, String message) {

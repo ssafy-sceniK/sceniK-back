@@ -28,13 +28,15 @@ public interface CommunityMapper {
 
     int insertPostLike(@Param("userId") Long userId, @Param("postId") String postId);
     int deletePostLike(@Param("userId") Long userId, @Param("postId") String postId);
+    int insertPostScrap(@Param("userId") Long userId, @Param("postId") String postId);
+    int deletePostScrap(@Param("userId") Long userId, @Param("postId") String postId);
     int insertCommentLike(@Param("userId") Long userId, @Param("commentId") String commentId);
     int deleteCommentLike(@Param("userId") Long userId, @Param("commentId") String commentId);
 
     int existsReport(@Param("userId") Long userId, @Param("postId") String postId);
     int insertReport(@Param("reportId") String reportId, @Param("userId") Long userId, @Param("postId") String postId, @Param("reason") String reason);
 
-    int insertNotification(@Param("notificationId") String notificationId, @Param("userId") Long userId, @Param("title") String title, @Param("message") String message);
+    int insertNotification(@Param("notificationId") String notificationId, @Param("userId") Long userId, @Param("title") String title, @Param("message") String message, @Param("targetType") String targetType, @Param("targetId") String targetId, @Param("postId") String postId, @Param("commentId") String commentId, @Param("actorUserId") Long actorUserId, @Param("routeId") String routeId, @Param("placeId") String placeId);
     List<Notification> findNotificationsByUserId(@Param("userId") Long userId);
     Notification findNotificationById(@Param("userId") Long userId, @Param("notificationId") String notificationId);
     int countNotificationsByUserId(@Param("userId") Long userId);

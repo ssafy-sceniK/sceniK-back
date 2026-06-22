@@ -1,10 +1,14 @@
 package com.scenik.controller;
 
 import com.scenik.dto.ApiResponse;
+import com.scenik.domain.User;
 import com.scenik.dto.FollowDtos.FollowStatusDto;
 import com.scenik.dto.FollowDtos.FollowUserDto;
+import com.scenik.dto.FollowDtos.PublicUserProfileDto;
 import com.scenik.service.AuthService;
+import com.scenik.service.CommunityService;
 import com.scenik.service.FollowService;
+import com.scenik.service.RouteService;
 import com.scenik.util.ListQuerySupport;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
@@ -20,10 +24,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class FollowController {
     private final AuthService authService;
     private final FollowService followService;
+    private final RouteService routeService;
+    private final CommunityService communityService;
 
-    public FollowController(AuthService authService, FollowService followService) {
+    public FollowController(AuthService authService, FollowService followService, RouteService routeService, CommunityService communityService) {
         this.authService = authService;
         this.followService = followService;
+        this.routeService = routeService;
+        this.communityService = communityService;
     }
 
     @PostMapping("/api/users/{userId}/follow")
@@ -40,6 +48,20 @@ public class FollowController {
             @PathVariable("userId") Long userId
     ) {
         return ApiResponse.ok("팔로우를 취소했습니다.", followService.unfollow(authService.requireUser(authorization), userId));
+    }
+
+    @GetMapping("/api/users/{userId}/profile")
+    public ApiResponse<PublicUserProfileDto> profile(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable("userId") Long userId
+    ) {
+        User actor = authorization == null || authorization.isBlank() ? null : authService.requireUser(authorization);
+        return ApiResponse.ok(followService.profile(
+                actor,
+                userId,
+                routeService.listRoutesByUserId(userId),
+                communityService.listPostsByAuthor(actor, userId)
+        ));
     }
 
     @GetMapping("/api/users/{userId}/followers")

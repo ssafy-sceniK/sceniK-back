@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash VARCHAR(500) NOT NULL,
   preferences TEXT,
   profile_image_url VARCHAR(1000),
+  bio VARCHAR(255),
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uq_users_email (email),
@@ -94,6 +95,22 @@ SET @profile_image_migration = IF(
 PREPARE profile_image_statement FROM @profile_image_migration;
 EXECUTE profile_image_statement;
 DEALLOCATE PREPARE profile_image_statement;
+
+SET @user_bio_column_exists = (
+  SELECT COUNT(*)
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'users'
+    AND COLUMN_NAME = 'bio'
+);
+SET @user_bio_migration = IF(
+  @user_bio_column_exists = 0,
+  'ALTER TABLE users ADD COLUMN bio VARCHAR(255) AFTER profile_image_url',
+  'SELECT 1'
+);
+PREPARE user_bio_statement FROM @user_bio_migration;
+EXECUTE user_bio_statement;
+DEALLOCATE PREPARE user_bio_statement;
 
 CREATE TABLE IF NOT EXISTS user_roles (
   user_id BIGINT PRIMARY KEY,
@@ -313,6 +330,16 @@ CREATE TABLE IF NOT EXISTS post_likes (
   CONSTRAINT fk_post_likes_post FOREIGN KEY (post_id) REFERENCES community_posts(post_id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS post_scraps (
+  user_id BIGINT NOT NULL,
+  post_id VARCHAR(64) NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, post_id),
+  KEY idx_post_scraps_post_id (post_id),
+  CONSTRAINT fk_post_scraps_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+  CONSTRAINT fk_post_scraps_post FOREIGN KEY (post_id) REFERENCES community_posts(post_id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS comment_likes (
   user_id BIGINT NOT NULL,
   comment_id VARCHAR(64) NOT NULL,
@@ -340,8 +367,58 @@ CREATE TABLE IF NOT EXISTS notifications (
   user_id BIGINT NOT NULL,
   title VARCHAR(255) NOT NULL,
   message VARCHAR(700),
+  target_type VARCHAR(60),
+  target_id VARCHAR(64),
+  post_id VARCHAR(64),
+  comment_id VARCHAR(64),
+  actor_user_id BIGINT,
+  route_id VARCHAR(64),
+  place_id VARCHAR(64),
   read_at DATETIME,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   KEY idx_notifications_user_id (user_id),
   CONSTRAINT fk_notifications_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
+
+
+SET @notification_target_type_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'notifications' AND COLUMN_NAME = 'target_type');
+SET @notification_target_type_migration = IF(@notification_target_type_exists = 0, 'ALTER TABLE notifications ADD COLUMN target_type VARCHAR(60) AFTER message', 'SELECT 1');
+PREPARE notification_target_type_statement FROM @notification_target_type_migration;
+EXECUTE notification_target_type_statement;
+DEALLOCATE PREPARE notification_target_type_statement;
+
+SET @notification_target_id_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'notifications' AND COLUMN_NAME = 'target_id');
+SET @notification_target_id_migration = IF(@notification_target_id_exists = 0, 'ALTER TABLE notifications ADD COLUMN target_id VARCHAR(64) AFTER target_type', 'SELECT 1');
+PREPARE notification_target_id_statement FROM @notification_target_id_migration;
+EXECUTE notification_target_id_statement;
+DEALLOCATE PREPARE notification_target_id_statement;
+
+SET @notification_post_id_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'notifications' AND COLUMN_NAME = 'post_id');
+SET @notification_post_id_migration = IF(@notification_post_id_exists = 0, 'ALTER TABLE notifications ADD COLUMN post_id VARCHAR(64) AFTER target_id', 'SELECT 1');
+PREPARE notification_post_id_statement FROM @notification_post_id_migration;
+EXECUTE notification_post_id_statement;
+DEALLOCATE PREPARE notification_post_id_statement;
+
+SET @notification_comment_id_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'notifications' AND COLUMN_NAME = 'comment_id');
+SET @notification_comment_id_migration = IF(@notification_comment_id_exists = 0, 'ALTER TABLE notifications ADD COLUMN comment_id VARCHAR(64) AFTER post_id', 'SELECT 1');
+PREPARE notification_comment_id_statement FROM @notification_comment_id_migration;
+EXECUTE notification_comment_id_statement;
+DEALLOCATE PREPARE notification_comment_id_statement;
+
+SET @notification_actor_user_id_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'notifications' AND COLUMN_NAME = 'actor_user_id');
+SET @notification_actor_user_id_migration = IF(@notification_actor_user_id_exists = 0, 'ALTER TABLE notifications ADD COLUMN actor_user_id BIGINT AFTER comment_id', 'SELECT 1');
+PREPARE notification_actor_user_id_statement FROM @notification_actor_user_id_migration;
+EXECUTE notification_actor_user_id_statement;
+DEALLOCATE PREPARE notification_actor_user_id_statement;
+
+SET @notification_route_id_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'notifications' AND COLUMN_NAME = 'route_id');
+SET @notification_route_id_migration = IF(@notification_route_id_exists = 0, 'ALTER TABLE notifications ADD COLUMN route_id VARCHAR(64) AFTER actor_user_id', 'SELECT 1');
+PREPARE notification_route_id_statement FROM @notification_route_id_migration;
+EXECUTE notification_route_id_statement;
+DEALLOCATE PREPARE notification_route_id_statement;
+
+SET @notification_place_id_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'notifications' AND COLUMN_NAME = 'place_id');
+SET @notification_place_id_migration = IF(@notification_place_id_exists = 0, 'ALTER TABLE notifications ADD COLUMN place_id VARCHAR(64) AFTER route_id', 'SELECT 1');
+PREPARE notification_place_id_statement FROM @notification_place_id_migration;
+EXECUTE notification_place_id_statement;
+DEALLOCATE PREPARE notification_place_id_statement;

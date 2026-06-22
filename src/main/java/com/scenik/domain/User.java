@@ -10,6 +10,8 @@ public class User {
     private String role;
     private String preferences;
     private String profileImageUrl;
+    private String bio;
+    private String authProvider;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private Integer followerCount;
@@ -30,6 +32,10 @@ public class User {
     public void setPreferences(String preferences) { this.preferences = preferences; }
     public String getProfileImageUrl() { return profileImageUrl; }
     public void setProfileImageUrl(String profileImageUrl) { this.profileImageUrl = profileImageUrl; }
+    public String getBio() { return bio; }
+    public void setBio(String bio) { this.bio = bio; }
+    public String getAuthProvider() { return authProvider; }
+    public void setAuthProvider(String authProvider) { this.authProvider = authProvider; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

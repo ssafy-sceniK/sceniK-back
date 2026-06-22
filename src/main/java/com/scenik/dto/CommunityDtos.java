@@ -44,6 +44,9 @@ public final class CommunityDtos {
             Integer likeCount,
             Integer likes,
             Boolean isLiked,
+            Integer scrapCount,
+            Boolean isScrapped,
+            List<Long> scrappedBy,
             Integer commentCount,
             List<CommentDto> comments,
             LocalDateTime createdAt,
@@ -112,7 +115,15 @@ public final class CommunityDtos {
             Boolean isRead,
             Boolean read,
             LocalDateTime createdAt,
-            String time
+            String time,
+            String targetType,
+            String targetId,
+            String postId,
+            String commentId,
+            Long actorUserId,
+            String routeId,
+            String placeId,
+            String to
     ) {
     }
 }

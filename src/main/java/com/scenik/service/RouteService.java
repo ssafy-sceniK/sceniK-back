@@ -43,7 +43,11 @@ public class RouteService {
     }
 
     public List<AiRouteDto> listMyRoutes(User user) {
-        return routeMapper.findByUserId(user.getUserId()).stream().map(this::toDto).toList();
+        return listRoutesByUserId(user.getUserId());
+    }
+
+    public List<AiRouteDto> listRoutesByUserId(Long userId) {
+        return routeMapper.findByUserId(userId).stream().map(this::toDto).toList();
     }
 
     public AiRouteDto getRoute(User user, String routeId) {

@@ -397,6 +397,7 @@ public class RouteService {
                 stop.latitude() == null ? place.getLatitude() : stop.latitude(),
                 stop.longitude() == null ? place.getLongitude() : stop.longitude(),
                 firstText(stop.thumbnailUrl(), place.getImageUrl()),
+                firstText(stop.category(), place.getCategory()),
                 firstText(stop.recommendedTime(), "10:00"),
                 reason,
                 reason,

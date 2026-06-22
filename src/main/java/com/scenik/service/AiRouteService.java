@@ -12,6 +12,7 @@ import com.scenik.mapper.AiRouteMapper;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -90,23 +91,28 @@ public class AiRouteService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Selected content is required.");
         }
         int requestedDays = Math.max(1, request.durationDays() == null ? 1 : request.durationDays());
-        int targetCount = Math.max(24, requestedDays * 6);
+        int targetCount = Math.max(36, requestedDays * 10);
         List<String> regions = normalizeRegions(request);
         String regionLabel = regionLabel(regions);
         List<CandidatePlace> selectedContentCandidates = deduplicate(aiRouteMapper.findCandidatePlaces(contentIds, null, targetCount));
         logSelectedContentCandidateCounts(contentIds, regions, selectedContentCandidates);
         List<CandidatePlace> candidates = filterByRegions(selectedContentCandidates, regions);
+        int regionFilteredCount = candidates.size();
+        int targetStopCount = targetStopCount(requestedDays);
+        int minimumStopCount = minimumStopCount(requestedDays);
+        candidates = supplementCandidatePlaces(candidates, selectedContentCandidates, regions, targetStopCount, targetCount);
         log.info(
                 "AI route candidate filtering contentIds={} selectedRegions={} contentPlaceCount={} regionFilteredCount={} finalPromptCount={}",
                 contentIds,
                 regions,
                 selectedContentCandidates.size(),
-                candidates.size(),
+                regionFilteredCount,
                 candidates.size()
         );
         if (candidates.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "선택한 콘텐츠와 지역에 해당하는 장소가 부족합니다.");
         }
+        candidates = sortCandidatesForItinerary(candidates);
         if (offset > 0 && candidates.size() > 1) {
             Collections.rotate(candidates, -(offset % candidates.size()));
         }
@@ -146,7 +152,7 @@ public class AiRouteService {
                 request.budgetMin(),
                 request.budgetMax(),
                 request.budget(),
-                "sceniK DB에 등록된 검증 장소만 사용했습니다. 임의 장소는 포함하지 않습니다.",
+                trustMessage(candidates.size(), minimumStopCount),
                 "AI",
                 false,
                 candidateDtos,
@@ -183,13 +189,15 @@ public class AiRouteService {
 
     private GmsChatRequest buildGmsRequest(AiRouteRequest request, List<CandidatePlace> candidates, int dayCount) throws JsonProcessingException {
         int minPlacesPerDay = minPlacesPerDay(candidates, dayCount);
+        int preferredPlacesPerDay = preferredPlacesPerDay(candidates, dayCount);
         Map<String, Object> routeContext = new LinkedHashMap<>();
         routeContext.put("contentIds", normalizeContentIds(request));
         routeContext.put("region", regionLabel(normalizeRegions(request)));
         routeContext.put("regions", normalizeRegions(request));
         routeContext.put("durationDays", dayCount);
         routeContext.put("minPlacesPerDay", minPlacesPerDay);
-        routeContext.put("preferredPlacesPerDay", candidates.size() >= dayCount * 3 ? 3 : minPlacesPerDay);
+        routeContext.put("preferredPlacesPerDay", preferredPlacesPerDay);
+        routeContext.put("targetStopCount", Math.min(candidates.size(), targetStopCount(dayCount)));
         routeContext.put("startDate", request.startDate());
         routeContext.put("endDate", request.endDate());
         routeContext.put("dateRangeLabel", request.dateRangeLabel());
@@ -202,6 +210,8 @@ public class AiRouteService {
         routeContext.put("budget", request.budget());
         routeContext.put("hotelAddress", request.hotelAddress());
         routeContext.put("candidatePlaces", candidates.stream().map(this::promptCandidate).toList());
+        routeContext.put("visitWorthyCategories", List.of("촬영지", "관광지", "궁궐", "전통마을", "거리", "카페", "공원", "문화시설"));
+        routeContext.put("lowerPriorityCategories", List.of("학교", "호텔", "일반 상점", "업무시설"));
 
         String userPrompt = """
                 아래 JSON 컨텍스트만 근거로 한국어 여행 코스를 생성하세요.
@@ -212,15 +222,20 @@ public class AiRouteService {
                 - 없는 장소, 없는 주소, 임의 촬영지, 임의 식당, 임의 카페를 만들지 마세요.
                 - 사용자가 선택한 여행 지역은 routeContext.regions 입니다.
                 - 반드시 routeContext.regions 중 하나에 속한 장소만 사용하세요.
-                - candidatePlaces는 사용자가 선택한 콘텐츠와 직접 연결된 장소만 포함합니다. candidatePlaces 밖의 장소를 절대 사용하지 마세요.
+                - candidatePlaces에는 선택 콘텐츠와 같은 지역의 검증 보강 장소가 함께 포함될 수 있습니다. candidatePlaces 밖의 장소를 절대 사용하지 마세요.
                 - candidatePlaces에 있더라도 routeContext.regions 밖의 장소, 주소, 동선을 임의로 추가하지 마세요.
                 - 선택하지 않은 지역의 장소는 사용하지 마세요.
-                - 선택한 travelStyles 중 하나라도 만족하는 장소를 우선 배치하되, 선택하지 않은 콘텐츠의 장소를 추가하지 마세요.
+                - 선택한 travelStyles 중 하나라도 만족하는 장소를 우선 배치하고, 부족하면 같은 지역 후보 중 동선이 자연스러운 장소를 사용하세요.
                 - 정확히 durationDays 개의 day를 생성하세요. 2박 3일이면 반드시 3일차까지 생성하세요.
                 - 각 day는 최소 minPlacesPerDay개 이상의 장소를 포함하세요.
-                - 후보가 충분하면 하루 3~4개 장소를 오전, 점심, 오후, 저녁 흐름으로 배치하세요.
+                - 가능한 한 preferredPlacesPerDay에 가깝게 장소를 배치하세요.
+                - 후보가 충분하면 1일 코스는 3~5개, 2일 코스는 하루 3~4개, 3일 코스는 하루 2~4개 장소로 구성하세요.
+                - 매일 같은 시간표를 반복하지 말고 오전, 점심 전후, 오후, 저녁 흐름이 자연스럽게 보이도록 시간을 다르게 배치하세요.
+                - visitWorthyCategories에 가까운 장소를 우선하고, 학교/호텔/일반 상점은 콘텐츠 연결성이 강하거나 대체 후보가 없을 때만 사용하세요.
+                - recommendReason은 장소별로 한 문장만 작성하고, contentId나 DB 검증 정책을 쓰지 마세요.
+                - travelTip에는 운영 시간 확인 같은 공통 경고를 반복하지 말고, 장소 주변 동선이나 휴식 포인트가 있을 때만 짧게 작성하세요.
                 - 장소 간 이동 흐름이 자연스럽도록 가까운 지역끼리 묶으세요.
-                - hotelAddress가 비어 있지 않으면 각 일차 travelTip/recommendReason에 숙소 출발 또는 숙소 복귀 흐름을 반영하세요.
+                - hotelAddress가 비어 있지 않으면 전체 동선 판단에만 참고하고, 모든 장소 설명에 숙소 문구를 반복하지 마세요.
                 - budget, region, style, travelStyles, transport, companion 조건을 추천 이유와 이동 팁에 반영하세요.
                 - 같은 placeId를 두 번 쓰지 마세요.
                 - 출력은 설명 없이 JSON 객체만 반환하세요.
@@ -308,12 +323,13 @@ public class AiRouteService {
                         place.getLatitude(),
                         place.getLongitude(),
                         place.getImageUrl(),
-                        firstText(planStop.recommendedTime(), recommendedTime(visitOrder - 1)),
+                        placeCategory(place),
+                        normalizedRecommendedTime(planStop.recommendedTime(), dayIndex, visitOrder - 1),
                         placeCategory(place),
                         placeCategory(place),
                         positiveOrDefault(planStop.estimatedStayMinutes(), 60),
                         Math.max(0, planStop.estimatedTravelMinutes() == null ? (visitOrder == 1 ? 0 : 25) : planStop.estimatedTravelMinutes()),
-                        firstText(planStop.travelTip(), "방문 전 운영 시간과 현지 이동편을 확인하세요.")
+                        usefulTravelTip(planStop.travelTip(), place, dayIndex, visitOrder - 1, planDay.places().size())
                 ));
             }
             if (stops.size() < minPlacesPerDay) {
@@ -332,13 +348,10 @@ public class AiRouteService {
         for (int i = 0; i < dayCount; i++) {
             groups.add(new ArrayList<>());
         }
-        List<CandidatePlace> selectedPlaces = candidates.stream()
-                .limit(Math.min(candidates.size(), Math.max(dayCount, Math.min(candidates.size(), dayCount * 4))))
-                .sorted((left, right) -> {
-                    int regionCompare = firstText(left.getRegion(), "").compareTo(firstText(right.getRegion(), ""));
-                    if (regionCompare != 0) return regionCompare;
-                    return firstText(left.getRelatedContentTitle(), "").compareTo(firstText(right.getRelatedContentTitle(), ""));
-                })
+        int maxStopCount = Math.min(candidates.size(), Math.max(dayCount, Math.min(candidates.size(), dayCount * 4)));
+        List<CandidatePlace> selectedPlaces = sortCandidatesForItinerary(candidates).stream()
+                .limit(maxStopCount)
+                .sorted(routeOrderComparator())
                 .toList();
         int placesPerDay = Math.max(1, (int) Math.ceil(selectedPlaces.size() / (double) dayCount));
         for (int index = 0; index < selectedPlaces.size(); index++) {
@@ -363,12 +376,13 @@ public class AiRouteService {
                         place.getLatitude(),
                         place.getLongitude(),
                         place.getImageUrl(),
-                        recommendedTime(placeIndex),
                         placeCategory(place),
-                        placeCategory(place),
+                        recommendedTime(dayIndex, placeIndex),
+                        placeReason(place, style),
+                        placeReason(place, style),
                         60,
                         placeIndex == 0 ? 0 : 25,
-                        travelTipWithHotel(place, placeIndex, places.size(), hotelAddress)
+                        usefulTravelTip(null, place, dayIndex, placeIndex, places.size())
                 ));
             }
             days.add(new RouteDayDto(dayNumber, estimateTravelTime(stops), stops));
@@ -500,13 +514,18 @@ public class AiRouteService {
                 .filter(place -> place.getRelatedContentId() != null && place.getRelatedContentTitle() != null)
                 .collect(Collectors.toMap(CandidatePlace::getRelatedContentId, CandidatePlace::getRelatedContentTitle, (left, right) -> left, LinkedHashMap::new));
         List<String> titles = contentIds.stream()
-                .map(contentId -> firstText(titlesById.get(contentId), contentId))
+                .map(contentId -> firstText(titlesById.get(contentId), "선택 콘텐츠"))
+                .filter(title -> !looksLikeContentId(title))
                 .distinct()
                 .toList();
         if (titles.isEmpty()) {
             return firstText(candidates.get(0).getRelatedContentTitle(), "선택 콘텐츠");
         }
         return String.join(" · ", titles);
+    }
+
+    private boolean looksLikeContentId(String value) {
+        return value != null && value.matches("C_[A-Z]+_\\d+");
     }
 
     private List<String> normalizeTravelStyles(AiRouteRequest request) {
@@ -536,9 +555,103 @@ public class AiRouteService {
     }
 
     private List<CandidatePlace> appendUnique(List<CandidatePlace> base, List<CandidatePlace> additional) {
-        List<CandidatePlace> merged = new ArrayList<>(base);
-        merged.addAll(additional);
+        List<CandidatePlace> merged = new ArrayList<>(base == null ? List.of() : base);
+        if (additional != null) merged.addAll(additional);
         return deduplicate(merged);
+    }
+
+    private List<CandidatePlace> sortCandidatesForItinerary(List<CandidatePlace> candidates) {
+        return candidates.stream()
+                .sorted(Comparator.comparingInt(this::placeVisitScore).reversed()
+                        .thenComparing(routeOrderComparator()))
+                .toList();
+    }
+
+    private Comparator<CandidatePlace> routeOrderComparator() {
+        return Comparator
+                .comparing((CandidatePlace place) -> firstText(place.getRegion(), ""))
+                .thenComparingDouble(place -> coordinateOrZero(place.getLatitude()))
+                .thenComparingDouble(place -> coordinateOrZero(place.getLongitude()))
+                .thenComparing(place -> firstText(place.getRelatedContentTitle(), ""))
+                .thenComparing(place -> firstText(place.getName(), ""));
+    }
+
+    private int placeVisitScore(CandidatePlace place) {
+        String text = (firstText(place.getCategory(), "") + " " + firstText(place.getName(), "")).toLowerCase();
+        int score = 50;
+        if (containsAny(text, List.of("촬영", "관광", "명소", "궁", "전통", "마을", "거리", "카페", "공원", "문화", "박물관", "미술관", "시장", "해변", "숲"))) {
+            score += 35;
+        }
+        if (containsAny(text, List.of("학교", "대학교", "고등학교", "호텔", "모텔", "숙소", "상점", "매장", "오피스", "회사", "병원", "아파트"))) {
+            score -= 35;
+        }
+        if (place.getLatitude() != null && place.getLongitude() != null) score += 5;
+        if (place.getSceneDescription() != null && !place.getSceneDescription().isBlank()) score += 5;
+        return score;
+    }
+
+    private boolean containsAny(String text, List<String> needles) {
+        return needles.stream().anyMatch(text::contains);
+    }
+
+    private double coordinateOrZero(Double value) {
+        return value == null ? 0.0 : value;
+    }
+
+    private List<CandidatePlace> supplementCandidatePlaces(
+            List<CandidatePlace> candidates,
+            List<CandidatePlace> selectedContentCandidates,
+            List<String> requestedRegions,
+            int targetStopCount,
+            int queryLimit
+    ) {
+        if (candidates.size() >= targetStopCount) {
+            return candidates;
+        }
+
+        List<CandidatePlace> supplemented = new ArrayList<>(candidates);
+        for (String region : supplementRegions(candidates, selectedContentCandidates, requestedRegions)) {
+            if (supplemented.size() >= targetStopCount) break;
+            supplemented = appendUnique(supplemented, aiRouteMapper.findCandidatePlaces(null, region, Math.max(queryLimit, targetStopCount * 4)));
+        }
+
+        supplemented = filterByRegions(supplemented, requestedRegions);
+        if (supplemented.size() > candidates.size()) {
+            log.info(
+                    "AI route supplemented candidates selectedCount={} supplementedCount={} targetStopCount={} regions={}",
+                    candidates.size(),
+                    supplemented.size(),
+                    targetStopCount,
+                    requestedRegions
+            );
+        }
+        return supplemented;
+    }
+
+    private List<String> supplementRegions(List<CandidatePlace> candidates, List<CandidatePlace> selectedContentCandidates, List<String> requestedRegions) {
+        LinkedHashSet<String> regions = new LinkedHashSet<>();
+        if (requestedRegions != null) {
+            requestedRegions.stream()
+                    .filter(region -> region != null && !region.isBlank())
+                    .forEach(regions::add);
+        }
+        if (!regions.isEmpty()) {
+            return new ArrayList<>(regions);
+        }
+
+        appendCandidateRegions(regions, candidates);
+        appendCandidateRegions(regions, selectedContentCandidates);
+        return new ArrayList<>(regions);
+    }
+
+    private void appendCandidateRegions(LinkedHashSet<String> regions, List<CandidatePlace> candidates) {
+        if (candidates == null) return;
+        candidates.stream()
+                .map(CandidatePlace::getRegion)
+                .filter(region -> region != null && !region.isBlank())
+                .map(this::normalizeRegion)
+                .filter(region -> !region.isBlank())
+                .forEach(regions::add);
     }
 
     private String placeCategory(CandidatePlace place) {
@@ -549,25 +662,97 @@ public class AiRouteService {
         return candidates.size() >= dayCount * 2 ? 2 : 1;
     }
 
-    private String travelTipWithHotel(CandidatePlace place, int placeIndex, int dayPlaceCount, String hotelAddress) {
-        String base = place.getRegion() + " 방문 전 운영 시간과 현지 이동편을 확인하세요.";
-        if (hotelAddress == null || hotelAddress.isBlank()) {
-            return base;
-        }
-        if (placeIndex == 0) {
-            return "숙소(" + hotelAddress + ")에서 출발해 " + place.getName() + "로 이동하는 흐름을 기준으로 구성했습니다. " + base;
-        }
-        if (placeIndex == dayPlaceCount - 1) {
-            return place.getName() + " 방문 후 숙소(" + hotelAddress + ") 복귀 동선을 확인하세요. " + base;
-        }
-        return base;
+    private int preferredPlacesPerDay(List<CandidatePlace> candidates, int dayCount) {
+        return candidates.size() >= dayCount * 3 ? 3 : minPlacesPerDay(candidates, dayCount);
     }
 
-    private String recommendedTime(int index) {
-        if (index == 0) return "10:00";
-        if (index == 1) return "12:30";
-        if (index == 2) return "15:30";
-        return "18:30";
+    private int targetStopCount(int requestedDays) {
+        if (requestedDays <= 1) return 4;
+        if (requestedDays == 2) return 6;
+        return requestedDays * 3;
+    }
+
+    private int minimumStopCount(int requestedDays) {
+        if (requestedDays <= 1) return 3;
+        if (requestedDays == 2) return 6;
+        return requestedDays * 2;
+    }
+
+    private String trustMessage(int candidateCount, int targetStopCount) {
+        if (candidateCount < targetStopCount) {
+            return "선택한 지역의 검증된 장소가 충분하지 않아 가능한 장소만으로 코스를 구성했습니다.";
+        }
+        return "검증된 sceniK 장소로만 구성한 코스입니다.";
+    }
+
+    private String placeReason(CandidatePlace place, String style) {
+        String scene = firstText(place.getSceneDescription(), "");
+        if (!scene.isBlank() && !isGenericTravelTip(scene)) {
+            return trimSentence(scene, 74);
+        }
+        String contentTitle = contentTitleForDisplay(place);
+        String category = placeCategory(place);
+        if (!contentTitle.isBlank()) {
+            return contentTitle + "의 분위기와 이어지는 " + category + " 코스 포인트입니다.";
+        }
+        return firstText(style, "감성 여행") + "에 맞춰 " + place.getName() + "의 분위기를 둘러보기 좋은 장소입니다.";
+    }
+
+    private String usefulTravelTip(String proposed, CandidatePlace place, int dayIndex, int placeIndex, int dayPlaceCount) {
+        String cleaned = firstText(proposed, "").trim();
+        if (!cleaned.isBlank() && !isGenericTravelTip(cleaned)) {
+            return trimSentence(cleaned, 82);
+        }
+        String region = firstText(place.getRegion(), "해당 지역");
+        if (placeIndex == 0) {
+            return place.getName() + "에서 하루를 시작하면 " + region + " 동선을 잡기 좋습니다.";
+        }
+        if (placeIndex == dayPlaceCount - 1) {
+            return place.getName() + "에서 여유 있게 마무리하고 주변 식사나 휴식 시간을 잡아보세요.";
+        }
+        return place.getName() + " 주변을 짧게 둘러본 뒤 다음 장소로 이어가면 동선이 자연스럽습니다.";
+    }
+
+    private boolean isGenericTravelTip(String value) {
+        String text = value == null ? "" : value.toLowerCase();
+        return text.isBlank()
+                || text.contains("opening hours")
+                || text.contains("transit")
+                || text.contains("운영 시간")
+                || text.contains("현지 이동편")
+                || text.contains("방문 전")
+                || text.contains("숙소(");
+    }
+
+    private String contentTitleForDisplay(CandidatePlace place) {
+        String title = firstText(place.getRelatedContentTitle(), "");
+        return looksLikeContentId(title) ? "" : title;
+    }
+
+    private String trimSentence(String value, int maxLength) {
+        String text = value == null ? "" : value.replaceAll("\\s+", " ").trim();
+        if (text.length() <= maxLength) return text;
+        return text.substring(0, Math.max(0, maxLength - 3)).trim() + "...";
+    }
+
+    private String normalizedRecommendedTime(String proposed, int dayIndex, int index) {
+        String time = firstText(proposed, "").trim();
+        if (!time.isBlank() && !isTemplateTime(time)) return time;
+        return recommendedTime(dayIndex, index);
+    }
+
+    private boolean isTemplateTime(String time) {
+        return List.of("10:00", "12:30", "15:30", "18:30").contains(time);
+    }
+
+    private String recommendedTime(int dayIndex, int index) {
+        String[][] slots = {
+                {"09:30", "11:40", "14:20", "17:10"},
+                {"10:00", "13:00", "15:40", "18:00"},
+                {"09:40", "12:10", "14:50", "17:30"}
+        };
+        String[] daySlots = slots[Math.floorMod(dayIndex, slots.length)];
+        return daySlots[Math.min(index, daySlots.length - 1)];
     }
 
     private String estimateTravelTime(List<RouteStopDto> stops) {
@@ -588,7 +773,7 @@ public class AiRouteService {
         String transport = firstText(request.transport(), "이동 조건");
         String style = styleLabel(request);
         String hotel = request.hotelAddress() == null || request.hotelAddress().isBlank() ? "" : " 숙소 위치를 출발·복귀 기준으로 참고했습니다.";
-        return dateText + " 동안 " + contentTitle + "와 연결된 " + region + " 검증 장소를 " + transport + ", " + style + " 조건에 맞춰 구성한 코스입니다." + hotel;
+        return "선택한 콘텐츠와 여행 조건을 바탕으로 " + region + "에서 " + dateText + " 동안 " + transport + ", " + style + "에 맞춰 구성한 코스입니다." + hotel;
     }
 
     private String firstText(String preferred, String fallback) {

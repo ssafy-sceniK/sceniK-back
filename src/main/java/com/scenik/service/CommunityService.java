@@ -117,9 +117,10 @@ public class CommunityService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Comment request is required.");
         }
         String parentCommentId = trimToNull(request.parentCommentId());
+        CommunityComment parentComment = null;
         if (parentCommentId != null) {
-            CommunityComment parent = requireComment(postId, parentCommentId, user.getUserId());
-            if (parent.getParentCommentId() != null && !parent.getParentCommentId().isBlank()) {
+            parentComment = requireComment(postId, parentCommentId, user.getUserId());
+            if (parentComment.getParentCommentId() != null && !parentComment.getParentCommentId().isBlank()) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Nested replies are not supported.");
             }
         }
@@ -132,6 +133,7 @@ public class CommunityService {
         comment.setStatus("ACTIVE");
         communityMapper.insertComment(comment);
         notifyPostOwner(post, user, "새 댓글", user.getNickname() + "님이 게시글에 댓글을 남겼습니다.", "POST_COMMENT", postId, comment.getCommentId());
+        notifyParentCommentOwner(post, parentComment, user, comment.getCommentId());
         return toCommentDto(requireComment(postId, comment.getCommentId(), user.getUserId()));
     }
 
@@ -304,6 +306,31 @@ public class CommunityService {
                 targetType,
                 postId,
                 postId,
+                commentId,
+                actor.getUserId(),
+                post.getRouteId(),
+                null
+        );
+    }
+
+    private void notifyParentCommentOwner(CommunityPost post, CommunityComment parentComment, User actor, String commentId) {
+        if (parentComment == null || parentComment.getUserId() == null) {
+            return;
+        }
+        if (parentComment.getUserId().equals(actor.getUserId())) {
+            return;
+        }
+        if (post.getUserId() != null && post.getUserId().equals(parentComment.getUserId())) {
+            return;
+        }
+        communityMapper.insertNotification(
+                "notification-" + UUID.randomUUID(),
+                parentComment.getUserId(),
+                "새 답글",
+                actor.getNickname() + "님이 내 댓글에 답글을 남겼습니다.",
+                "COMMENT_REPLY",
+                post.getPostId(),
+                post.getPostId(),
                 commentId,
                 actor.getUserId(),
                 post.getRouteId(),

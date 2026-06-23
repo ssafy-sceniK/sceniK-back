@@ -63,4 +63,10 @@
     SET profile_image_url = #{profileImageUrl}
     WHERE user_id = #{userId}
   </update>
+
+  <update id="clearProfileImage">
+    UPDATE users
+    SET profile_image_url = NULL
+    WHERE user_id = #{userId}
+  </update>
 </mapper>

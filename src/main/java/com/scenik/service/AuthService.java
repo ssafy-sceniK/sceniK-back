@@ -143,6 +143,12 @@ public class AuthService {
         userMapper.updateProfileImage(user.getUserId(), imageUrl);
         return UserDto.from(userMapper.findById(user.getUserId()));
     }
+    @Transactional
+    public UserDto deleteProfileImage(String authorizationHeader) {
+        User user = requireUser(authorizationHeader);
+        userMapper.clearProfileImage(user.getUserId());
+        return UserDto.from(userMapper.findById(user.getUserId()));
+    }
 
     private String issueToken(Long userId) {
         byte[] tokenBytes = new byte[32];

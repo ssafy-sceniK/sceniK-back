@@ -15,6 +15,7 @@ import com.scenik.service.ProfileImageStorageService;
 import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -105,5 +106,11 @@ public class AuthController {
     ) {
         String imageUrl = profileImageStorageService.store(file);
         return ApiResponse.ok("프로필 이미지를 저장했습니다.", authService.updateProfileImage(authorization, imageUrl));
+    }
+    @DeleteMapping("/api/users/me/profile-image")
+    public ApiResponse<UserDto> deleteProfileImage(
+            @RequestHeader(value = "Authorization", required = false) String authorization
+    ) {
+        return ApiResponse.ok("프로필 이미지를 삭제했습니다.", authService.deleteProfileImage(authorization));
     }
 }

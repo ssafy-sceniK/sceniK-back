@@ -12,4 +12,5 @@ public interface UserMapper {
     int insert(User user);
     int updateProfile(@Param("userId") Long userId, @Param("nickname") String nickname, @Param("bio") String bio, @Param("preferences") String preferences);
     int updateProfileImage(@Param("userId") Long userId, @Param("profileImageUrl") String profileImageUrl);
+    int clearProfileImage(@Param("userId") Long userId);
 }

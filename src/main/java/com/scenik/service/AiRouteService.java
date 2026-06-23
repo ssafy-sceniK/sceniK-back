@@ -70,7 +70,7 @@ public class AiRouteService {
     }
 
     public AiRouteDto generateRoute(AiRouteRequest request) {
-        AiRouteRequest normalizedRequest = request == null ? new AiRouteRequest(null, List.of(), null, List.of(), 1, null, null, null, null, null, null, List.of(), null, null, null, null) : request;
+        AiRouteRequest normalizedRequest = request == null ? new AiRouteRequest(null, List.of(), null, List.of(), 1, null, null, null, null, List.of(), List.of(), null, null, List.of(), null, null, null, null) : request;
         String generationId = "gen-" + UUID.randomUUID();
         generationCache.put(generationId, new GenerationState(normalizedRequest, new AtomicInteger(0)));
         return generateRoute(normalizedRequest, generationId, 0);
@@ -146,6 +146,8 @@ public class AiRouteService {
                 request.endDate(),
                 request.dateRangeLabel(),
                 request.transport(),
+                request.transportModes(),
+                request.carDays(),
                 request.companion(),
                 request.style(),
                 normalizeTravelStyles(request),
@@ -202,6 +204,8 @@ public class AiRouteService {
         routeContext.put("endDate", request.endDate());
         routeContext.put("dateRangeLabel", request.dateRangeLabel());
         routeContext.put("transport", request.transport());
+        routeContext.put("transportModes", request.transportModes());
+        routeContext.put("carDays", request.carDays());
         routeContext.put("companion", request.companion());
         routeContext.put("style", request.style());
         routeContext.put("travelStyles", normalizeTravelStyles(request));
@@ -236,7 +240,8 @@ public class AiRouteService {
                 - travelTip에는 운영 시간 확인 같은 공통 경고를 반복하지 말고, 장소 주변 동선이나 휴식 포인트가 있을 때만 짧게 작성하세요.
                 - 장소 간 이동 흐름이 자연스럽도록 가까운 지역끼리 묶으세요.
                 - hotelAddress가 비어 있지 않으면 전체 동선 판단에만 참고하고, 모든 장소 설명에 숙소 문구를 반복하지 마세요.
-                - budget, region, style, travelStyles, transport, companion 조건을 추천 이유와 이동 팁에 반영하세요.
+                - budget, region, style, travelStyles, transport, transportModes, carDays, companion 조건을 추천 이유와 이동 팁에 반영하세요.
+                - carDays에 포함된 Day는 차량 이동을 우선 고려하고, 포함되지 않은 Day는 대중교통 이동을 기준으로 동선을 구성하세요.
                 - 같은 placeId를 두 번 쓰지 마세요.
                 - 출력은 설명 없이 JSON 객체만 반환하세요.
                 - JSON 형식: {"summary":"...","days":[{"dayNumber":1,"estimatedTravelTime":"이동 약 60분","places":[{"placeId":"P_001","visitOrder":1,"recommendedTime":"10:00","recommendReason":"...","estimatedStayMinutes":60,"estimatedTravelMinutes":0,"travelTip":"..."}]}]}

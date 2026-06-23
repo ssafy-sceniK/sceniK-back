@@ -19,9 +19,7 @@ public class ProfileImageStorageService {
     private static final long MAX_IMAGE_SIZE_BYTES = 5L * 1024L * 1024L;
     private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
             "image/jpeg",
-            "image/png",
-            "image/webp",
-            "image/gif"
+            "image/png"
     );
 
     private final Path uploadDirectory = Paths.get("uploads", "profile")
@@ -55,17 +53,12 @@ public class ProfileImageStorageService {
         }
         String contentType = file.getContentType() == null ? "" : file.getContentType().toLowerCase(Locale.ROOT);
         if (!ALLOWED_CONTENT_TYPES.contains(contentType)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "JPG, PNG, WEBP, GIF 이미지만 업로드할 수 있습니다.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "JPG 또는 PNG 이미지만 사용할 수 있습니다.");
         }
     }
 
     private String extensionFor(MultipartFile file) {
         String contentType = file.getContentType() == null ? "" : file.getContentType().toLowerCase(Locale.ROOT);
-        return switch (contentType) {
-            case "image/png" -> ".png";
-            case "image/webp" -> ".webp";
-            case "image/gif" -> ".gif";
-            default -> ".jpg";
-        };
+        return "image/png".equals(contentType) ? ".png" : ".jpg";
     }
 }

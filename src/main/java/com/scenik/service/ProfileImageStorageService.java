@@ -9,6 +9,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -22,9 +23,13 @@ public class ProfileImageStorageService {
             "image/png"
     );
 
-    private final Path uploadDirectory = Paths.get("uploads", "profile")
-            .toAbsolutePath()
-            .normalize();
+    private final Path uploadDirectory;
+
+    public ProfileImageStorageService(@Value("${scenik.upload-dir:uploads}") String uploadRoot) {
+        this.uploadDirectory = Paths.get(uploadRoot, "profile")
+                .toAbsolutePath()
+                .normalize();
+    }
 
     public String store(MultipartFile file) {
         validate(file);

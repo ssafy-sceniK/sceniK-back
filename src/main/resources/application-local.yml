@@ -1,0 +1,22 @@
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/scenik?serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:password}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  sql:
+    init:
+      mode: always
+      encoding: UTF-8
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_OAUTH_CLIENT_ID:not-configured}
+            client-secret: ${GOOGLE_OAUTH_CLIENT_SECRET:not-configured}
+            redirect-uri: "${OAUTH_BASE_URL:http://localhost:8080}/login/oauth2/code/{registrationId}"
+          kakao:
+            client-id: ${KAKAO_OAUTH_CLIENT_ID:not-configured}
+            client-secret: ${KAKAO_OAUTH_CLIENT_SECRET:}
+            redirect-uri: "${OAUTH_BASE_URL:http://localhost:8080}/login/oauth2/code/{registrationId}"

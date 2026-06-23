@@ -6,7 +6,6 @@ logs/
 .env
 .env.*
 !.env.example
-application-local.yml
 *.log
 .backend-*.out
 .backend-*.err

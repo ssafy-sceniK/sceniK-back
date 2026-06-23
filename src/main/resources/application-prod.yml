@@ -1,0 +1,26 @@
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  sql:
+    init:
+      # Production data is migrated and seeded explicitly, never at application startup.
+      mode: never
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_OAUTH_CLIENT_ID}
+            client-secret: ${GOOGLE_OAUTH_CLIENT_SECRET}
+            redirect-uri: "${OAUTH_BASE_URL}/login/oauth2/code/{registrationId}"
+          kakao:
+            client-id: ${KAKAO_OAUTH_CLIENT_ID}
+            client-secret: ${KAKAO_OAUTH_CLIENT_SECRET}
+            redirect-uri: "${OAUTH_BASE_URL}/login/oauth2/code/{registrationId}"
+
+scenik:
+  oauth:
+    frontend-redirect-uri: ${OAUTH_FRONTEND_REDIRECT_URI}

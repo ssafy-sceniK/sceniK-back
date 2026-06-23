@@ -12,6 +12,7 @@ public interface CommunityMapper {
     List<CommunityPost> findPosts(@Param("userId") Long userId);
     List<CommunityPost> findPostsByAuthorId(@Param("authorId") Long authorId, @Param("userId") Long userId);
     CommunityPost findPostById(@Param("postId") String postId, @Param("userId") Long userId);
+    int countActivePostsByRouteId(@Param("routeId") String routeId);
     int insertPost(CommunityPost post);
     int updatePost(CommunityPost post);
     int softDeletePost(@Param("postId") String postId);

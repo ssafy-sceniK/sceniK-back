@@ -11,6 +11,7 @@ import com.scenik.dto.RouteDtos.RoutePlaceReorderItem;
 import com.scenik.dto.RouteDtos.RoutePlaceReorderRequest;
 import com.scenik.dto.RouteDtos.RoutePlaceRequest;
 import com.scenik.dto.RouteDtos.RouteStopDto;
+import com.scenik.mapper.CommunityMapper;
 import com.scenik.mapper.PlaceMapper;
 import com.scenik.mapper.RouteMapper;
 import com.scenik.mapper.RoutePlaceMapper;
@@ -35,11 +36,13 @@ public class RouteService {
     private final RouteMapper routeMapper;
     private final RoutePlaceMapper routePlaceMapper;
     private final PlaceMapper placeMapper;
+    private final CommunityMapper communityMapper;
 
-    public RouteService(RouteMapper routeMapper, RoutePlaceMapper routePlaceMapper, PlaceMapper placeMapper) {
+    public RouteService(RouteMapper routeMapper, RoutePlaceMapper routePlaceMapper, PlaceMapper placeMapper, CommunityMapper communityMapper) {
         this.routeMapper = routeMapper;
         this.routePlaceMapper = routePlaceMapper;
         this.placeMapper = placeMapper;
+        this.communityMapper = communityMapper;
     }
 
     public List<AiRouteDto> listMyRoutes(User user) {
@@ -50,8 +53,8 @@ public class RouteService {
         return routeMapper.findByUserId(userId).stream().map(this::toDto).toList();
     }
 
-    public AiRouteDto getRoute(User user, String routeId) {
-        return toDto(requireOwnedRoute(user, routeId));
+    public AiRouteDto getRoute(Long userId, String routeId) {
+        return toDto(requireReadableRoute(userId, routeId));
     }
 
     @Transactional
@@ -211,6 +214,21 @@ public class RouteService {
             routePlaceMapper.updateOrder(item.routePlaceId(), item.dayNumber(), item.visitOrder());
         }
         return toDto(route);
+    }
+
+
+    private TravelRoute requireReadableRoute(Long userId, String routeId) {
+        TravelRoute route = routeMapper.findById(routeId);
+        if (route == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Route was not found.");
+        }
+        if (userId != null && route.getUserId().equals(userId)) {
+            return route;
+        }
+        if (communityMapper.countActivePostsByRouteId(routeId) > 0) {
+            return route;
+        }
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Route is not shared publicly.");
     }
 
     private TravelRoute requireOwnedRoute(User user, String routeId) {

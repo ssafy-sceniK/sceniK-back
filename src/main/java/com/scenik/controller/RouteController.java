@@ -62,7 +62,7 @@ public class RouteController {
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @PathVariable("routeId") String routeId
     ) {
-        return routeService.getRoute(authService.requireUser(authorization), routeId);
+        return routeService.getRoute(authService.optionalUserId(authorization), routeId);
     }
 
     @PatchMapping("/api/routes/{routeId}")

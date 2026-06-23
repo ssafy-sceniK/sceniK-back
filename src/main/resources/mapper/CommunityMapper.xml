@@ -107,6 +107,13 @@
       AND (cp.status IS NULL OR cp.status != 'DELETED')
   </select>
 
+
+  <select id="countActivePostsByRouteId" resultType="int">
+    SELECT COUNT(*)
+    FROM community_posts
+    WHERE route_id = #{routeId}
+      AND (status IS NULL OR status != 'DELETED')
+  </select>
   <insert id="insertPost" parameterType="com.scenik.domain.CommunityPost">
     INSERT INTO community_posts (post_id, user_id, title, content, region, route_id, image_url, status)
     VALUES (#{postId}, #{userId}, #{title}, #{content}, #{region}, #{routeId}, #{imageUrl}, #{status})

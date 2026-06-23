@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS users (
   preferences TEXT,
   profile_image_url VARCHAR(1000),
   bio VARCHAR(255),
+  language VARCHAR(20) DEFAULT 'ko',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uq_users_email (email),
@@ -111,6 +112,22 @@ SET @user_bio_migration = IF(
 PREPARE user_bio_statement FROM @user_bio_migration;
 EXECUTE user_bio_statement;
 DEALLOCATE PREPARE user_bio_statement;
+
+SET @user_language_column_exists = (
+  SELECT COUNT(*)
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'users'
+    AND COLUMN_NAME = 'language'
+);
+SET @user_language_migration = IF(
+  @user_language_column_exists = 0,
+  'ALTER TABLE users ADD COLUMN language VARCHAR(20) DEFAULT ''ko'' AFTER bio',
+  'SELECT 1'
+);
+PREPARE user_language_statement FROM @user_language_migration;
+EXECUTE user_language_statement;
+DEALLOCATE PREPARE user_language_statement;
 
 CREATE TABLE IF NOT EXISTS user_roles (
   user_id BIGINT PRIMARY KEY,
@@ -252,6 +269,7 @@ CREATE TABLE IF NOT EXISTS place_reviews (
   user_id BIGINT NOT NULL,
   rating DECIMAL(2, 1),
   content TEXT NOT NULL,
+  language VARCHAR(20) DEFAULT 'ko',
   status VARCHAR(20) DEFAULT 'ACTIVE',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -262,11 +280,28 @@ CREATE TABLE IF NOT EXISTS place_reviews (
   CONSTRAINT fk_place_reviews_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
 
+SET @place_review_language_column_exists = (
+  SELECT COUNT(*)
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'place_reviews'
+    AND COLUMN_NAME = 'language'
+);
+SET @place_review_language_migration = IF(
+  @place_review_language_column_exists = 0,
+  'ALTER TABLE place_reviews ADD COLUMN language VARCHAR(20) DEFAULT ''ko'' AFTER content',
+  'SELECT 1'
+);
+PREPARE place_review_language_statement FROM @place_review_language_migration;
+EXECUTE place_review_language_statement;
+DEALLOCATE PREPARE place_review_language_statement;
+
 CREATE TABLE IF NOT EXISTS community_posts (
   post_id VARCHAR(64) PRIMARY KEY,
   user_id BIGINT NOT NULL,
   title VARCHAR(255) NOT NULL,
   content TEXT NOT NULL,
+  language VARCHAR(20) DEFAULT 'ko',
   region VARCHAR(80),
   route_id VARCHAR(64),
   image_url VARCHAR(1000),
@@ -297,12 +332,40 @@ PREPARE community_post_image_statement FROM @community_post_image_migration;
 EXECUTE community_post_image_statement;
 DEALLOCATE PREPARE community_post_image_statement;
 
+CREATE TABLE IF NOT EXISTS community_post_images (
+  image_id VARCHAR(64) PRIMARY KEY,
+  post_id VARCHAR(64) NOT NULL,
+  image_url VARCHAR(1000) NOT NULL,
+  file_name VARCHAR(255),
+  sort_order INT DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_community_post_images_post_order (post_id, sort_order),
+  CONSTRAINT fk_community_post_images_post FOREIGN KEY (post_id) REFERENCES community_posts(post_id) ON DELETE CASCADE
+);
+
+SET @community_post_language_column_exists = (
+  SELECT COUNT(*)
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'community_posts'
+    AND COLUMN_NAME = 'language'
+);
+SET @community_post_language_migration = IF(
+  @community_post_language_column_exists = 0,
+  'ALTER TABLE community_posts ADD COLUMN language VARCHAR(20) DEFAULT ''ko'' AFTER content',
+  'SELECT 1'
+);
+PREPARE community_post_language_statement FROM @community_post_language_migration;
+EXECUTE community_post_language_statement;
+DEALLOCATE PREPARE community_post_language_statement;
+
 CREATE TABLE IF NOT EXISTS comments (
   comment_id VARCHAR(64) PRIMARY KEY,
   post_id VARCHAR(64) NOT NULL,
   user_id BIGINT NOT NULL,
   parent_comment_id VARCHAR(64),
   content TEXT NOT NULL,
+  language VARCHAR(20) DEFAULT 'ko',
   status VARCHAR(40) DEFAULT 'ACTIVE',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -311,6 +374,43 @@ CREATE TABLE IF NOT EXISTS comments (
   CONSTRAINT fk_comments_post FOREIGN KEY (post_id) REFERENCES community_posts(post_id) ON DELETE CASCADE,
   CONSTRAINT fk_comments_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
   CONSTRAINT fk_comments_parent FOREIGN KEY (parent_comment_id) REFERENCES comments(comment_id) ON DELETE SET NULL
+);
+
+SET @comment_language_column_exists = (
+  SELECT COUNT(*)
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'comments'
+    AND COLUMN_NAME = 'language'
+);
+SET @comment_language_migration = IF(
+  @comment_language_column_exists = 0,
+  'ALTER TABLE comments ADD COLUMN language VARCHAR(20) DEFAULT ''ko'' AFTER content',
+  'SELECT 1'
+);
+PREPARE comment_language_statement FROM @comment_language_migration;
+EXECUTE comment_language_statement;
+DEALLOCATE PREPARE comment_language_statement;
+
+CREATE TABLE IF NOT EXISTS translation_cache (
+  translation_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT,
+  resource_type VARCHAR(40) NOT NULL,
+  resource_id VARCHAR(80) NOT NULL,
+  field_name VARCHAR(40) NOT NULL,
+  source_language VARCHAR(20) NOT NULL,
+  target_language VARCHAR(20) NOT NULL,
+  source_hash CHAR(64) NOT NULL,
+  source_text TEXT NOT NULL,
+  translated_text TEXT NOT NULL,
+  provider VARCHAR(40) DEFAULT 'gms',
+  model VARCHAR(120),
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_translation_cache_source (resource_type, resource_id, field_name, source_language, target_language, source_hash),
+  KEY idx_translation_cache_resource (resource_type, resource_id),
+  KEY idx_translation_cache_user_id (user_id),
+  CONSTRAINT fk_translation_cache_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS post_tags (

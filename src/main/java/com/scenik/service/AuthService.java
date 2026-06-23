@@ -50,6 +50,7 @@ public class AuthService {
         user.setNickname(nickname);
         user.setPasswordHash(passwordService.hashPassword(request.password()));
         user.setPreferences(UserDto.join(request.preferences()));
+        user.setLanguage(normalizeLanguage(request.language()));
         try {
             userMapper.insert(user);
         } catch (DuplicateKeyException ex) {
@@ -132,7 +133,8 @@ public class AuthService {
     public UserDto updateMe(String authorizationHeader, UpdateUserRequest request) {
         User user = requireUser(authorizationHeader);
         String nickname = requireText(request.nickname(), "Nickname is required.");
-        userMapper.updateProfile(user.getUserId(), nickname, trimOptional(request.bio()), UserDto.join(request.preferences()));
+        String language = normalizeLanguage(firstText(request.language(), user.getLanguage()));
+        userMapper.updateProfile(user.getUserId(), nickname, trimOptional(request.bio()), UserDto.join(request.preferences()), language);
         return UserDto.from(userMapper.findById(user.getUserId()));
     }
 
@@ -203,6 +205,16 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email must be valid.");
         }
         return normalized;
+    }
+
+    private String normalizeLanguage(String language) {
+        if (language == null || language.isBlank()) return "ko";
+        String lower = language.trim().replace('_', '-').toLowerCase();
+        if (lower.startsWith("ko")) return "ko";
+        if (lower.startsWith("en")) return "en";
+        if (lower.startsWith("ja")) return "ja";
+        if (lower.equals("zh-cn") || lower.startsWith("zh-hans") || lower.startsWith("zh")) return "zh-CN";
+        return "ko";
     }
 
     private String trimOptional(String value) {

@@ -12,6 +12,7 @@ public record UserDto(
         String role,
         String profileImageUrl,
         String bio,
+        String language,
         String authProvider,
         String loginProvider,
         List<String> preferences,
@@ -30,6 +31,7 @@ public record UserDto(
                 user.getRole() == null || user.getRole().isBlank() ? "ROLE_USER" : user.getRole(),
                 user.getProfileImageUrl(),
                 user.getBio(),
+                normalizeLanguage(user.getLanguage()),
                 provider,
                 provider,
                 preferences,
@@ -46,5 +48,15 @@ public record UserDto(
     private static List<String> split(String values) {
         if (values == null || values.isBlank()) return List.of();
         return Arrays.stream(values.split(",")).map(String::trim).filter(item -> !item.isBlank()).toList();
+    }
+
+    private static String normalizeLanguage(String language) {
+        if (language == null || language.isBlank()) return "ko";
+        String lower = language.trim().replace('_', '-').toLowerCase();
+        if (lower.startsWith("ko")) return "ko";
+        if (lower.startsWith("en")) return "en";
+        if (lower.startsWith("ja")) return "ja";
+        if (lower.equals("zh-cn") || lower.startsWith("zh-hans") || lower.startsWith("zh")) return "zh-CN";
+        return "ko";
     }
 }

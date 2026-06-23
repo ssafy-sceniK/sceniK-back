@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.scenik.mapper.TranslationCacheMapper">
+  <resultMap id="TranslationCacheResultMap" type="com.scenik.domain.TranslationCache">
+    <id property="translationId" column="translation_id" />
+    <result property="userId" column="user_id" />
+    <result property="resourceType" column="resource_type" />
+    <result property="resourceId" column="resource_id" />
+    <result property="fieldName" column="field_name" />
+    <result property="sourceLanguage" column="source_language" />
+    <result property="targetLanguage" column="target_language" />
+    <result property="sourceHash" column="source_hash" />
+    <result property="sourceText" column="source_text" />
+    <result property="translatedText" column="translated_text" />
+    <result property="provider" column="provider" />
+    <result property="model" column="model" />
+    <result property="createdAt" column="created_at" />
+    <result property="updatedAt" column="updated_at" />
+  </resultMap>
+
+  <select id="findLatest" resultMap="TranslationCacheResultMap">
+    SELECT *
+    FROM translation_cache
+    WHERE resource_type = #{resourceType}
+      AND resource_id = #{resourceId}
+      AND field_name = #{fieldName}
+      AND source_language = #{sourceLanguage}
+      AND target_language = #{targetLanguage}
+      AND source_hash = #{sourceHash}
+    ORDER BY updated_at DESC
+    LIMIT 1
+  </select>
+
+  <insert id="insert" parameterType="com.scenik.domain.TranslationCache" useGeneratedKeys="true" keyProperty="translationId" keyColumn="translation_id">
+    INSERT INTO translation_cache (
+      user_id, resource_type, resource_id, field_name, source_language, target_language,
+      source_hash, source_text, translated_text, provider, model
+    )
+    VALUES (
+      #{userId}, #{resourceType}, #{resourceId}, #{fieldName}, #{sourceLanguage}, #{targetLanguage},
+      #{sourceHash}, #{sourceText}, #{translatedText}, #{provider}, #{model}
+    )
+    ON DUPLICATE KEY UPDATE
+      user_id = VALUES(user_id),
+      source_text = VALUES(source_text),
+      translated_text = VALUES(translated_text),
+      provider = VALUES(provider),
+      model = VALUES(model),
+      updated_at = CURRENT_TIMESTAMP
+  </insert>
+</mapper>

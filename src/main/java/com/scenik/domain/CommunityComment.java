@@ -9,6 +9,7 @@ public class CommunityComment {
     private String userNickname;
     private String parentCommentId;
     private String content;
+    private String language;
     private String status;
     private Integer likeCount;
     private Boolean liked;
@@ -27,6 +28,8 @@ public class CommunityComment {
     public void setParentCommentId(String parentCommentId) { this.parentCommentId = parentCommentId; }
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
+    public String getLanguage() { return language; }
+    public void setLanguage(String language) { this.language = language; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
     public Integer getLikeCount() { return likeCount; }

@@ -11,6 +11,7 @@ public class User {
     private String preferences;
     private String profileImageUrl;
     private String bio;
+    private String language;
     private String authProvider;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -34,6 +35,8 @@ public class User {
     public void setProfileImageUrl(String profileImageUrl) { this.profileImageUrl = profileImageUrl; }
     public String getBio() { return bio; }
     public void setBio(String bio) { this.bio = bio; }
+    public String getLanguage() { return language; }
+    public void setLanguage(String language) { this.language = language; }
     public String getAuthProvider() { return authProvider; }
     public void setAuthProvider(String authProvider) { this.authProvider = authProvider; }
     public LocalDateTime getCreatedAt() { return createdAt; }

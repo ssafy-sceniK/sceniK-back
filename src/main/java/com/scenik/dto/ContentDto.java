@@ -21,9 +21,17 @@ public record ContentDto(
         Integer likeCount,
         Integer viewCount,
         Integer relatedPlaceCount,
-        Boolean isLiked
+        Boolean isLiked,
+        String originalTitle,
+        String originalCategory,
+        String originalSubcategory,
+        String originalDescription,
+        String originalCastNames,
+        List<String> originalTags,
+        String locale
 ) {
     public static ContentDto from(Content content) {
+        List<String> tags = splitTags(content.getTags());
         return new ContentDto(
                 content.getContentId(),
                 content.getTitle(),
@@ -37,15 +45,22 @@ public record ContentDto(
                 Boolean.TRUE.equals(content.getPopular()),
                 content.getCountry(),
                 content.getOttPlatform(),
-                splitTags(content.getTags()),
+                tags,
                 content.getLikeCount() == null ? 0 : content.getLikeCount(),
                 content.getViewCount() == null ? 0 : content.getViewCount(),
                 content.getRelatedPlaceCount() == null ? 0 : content.getRelatedPlaceCount(),
-                Boolean.TRUE.equals(content.getLiked())
+                Boolean.TRUE.equals(content.getLiked()),
+                null,
+                null,
+                null,
+                null,
+                null,
+                List.of(),
+                "ko"
         );
     }
 
-    private static List<String> splitTags(String tags) {
+    public static List<String> splitTags(String tags) {
         if (tags == null || tags.isBlank()) return List.of();
         return Arrays.stream(tags.split(",")).map(String::trim).filter(item -> !item.isBlank()).toList();
     }

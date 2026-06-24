@@ -17,6 +17,22 @@ The endpoint requires an authenticated user and accepts:
 - `community_posts.language`, `comments.language`, and `place_reviews.language` store detected source language for user-generated text.
 - Language detection supports `ko`, `en`, `ja`, and `zh-CN` with deterministic Unicode-script heuristics.
 
+## API Locale Integration
+
+- Frontend requests now send the selected locale through `Accept-Language`.
+- `ContentController` and `PlaceController` read `Accept-Language` and pass it into service methods.
+- `SystemLocalizationService` normalizes browser headers such as `en-US,en;q=0.8` to `en`, `ja-JP` to `ja`, and `zh-CN`/`zh` to `zh-CN`.
+- Existing response fields remain backward compatible: `title`, `category`, `tags`, `placeName`, `region`, and `category` contain localized display values when available.
+- Original source values are preserved in added fields such as `originalTitle`, `originalCategory`, `originalTags`, `originalPlaceName`, `originalRegion`, and `locale`.
+- Korean remains the fallback when the header is missing, unsupported, or a specific translation is unavailable.
+
+## System Data Coverage
+
+- All 22 seeded content IDs have localized title mappings for `en`, `ja`, and `zh-CN` in `SystemLocalizationService`.
+- High-impact category, region, theme, travel-style, budget, weather, companion, and tag labels are mapped in the same service.
+- Place names and place descriptions still fall back to source text unless a later translation source is added.
+- The current implementation uses a static server-side translation catalog rather than DB translation columns or a `system_translations` table, because this is the lowest-risk extension for the current schema and existing admin CRUD APIs.
+
 ## Translation Cache
 
 `translation_cache` stores translated text by resource type, resource id, field, source language, target language, and SHA-256 source hash.
@@ -25,4 +41,10 @@ If the source text changes, the hash changes and the next request creates a new 
 ## Provider Behavior
 
 The translation service uses the existing GMS OpenAI-compatible chat completions configuration.
-If `GMS_KEY` is not configured, translation requests return `503` while the rest of the product continues to work.
+If `GMS_KEY` is not configured, user-generated translation requests return `503` while the rest of the product continues to work.
+
+## Remaining Gaps
+
+- DB/source seed data still does not contain per-record translated place names or descriptions for all 281 places.
+- Content descriptions and cast metadata are not fully translated.
+- Browser QA for locale switching and dark mode fit has not been completed in this pass.

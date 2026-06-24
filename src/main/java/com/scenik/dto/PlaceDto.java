@@ -27,7 +27,14 @@ public record PlaceDto(
         Integer reviewCount,
         Double averageRating,
         List<RelatedContentDto> relatedContents,
-        Boolean verified
+        Boolean verified,
+        String originalName,
+        String originalPlaceName,
+        String originalRegion,
+        String originalDistrict,
+        String originalCategory,
+        String originalDescription,
+        String locale
 ) {
     public static PlaceDto from(Place place) {
         return from(place, List.of());
@@ -58,7 +65,14 @@ public record PlaceDto(
                 place.getReviewCount() == null ? 0 : place.getReviewCount(),
                 place.getAverageRating() == null ? 0.0 : place.getAverageRating(),
                 relatedContents == null ? List.of() : relatedContents,
-                true
+                true,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "ko"
         );
     }
 }

@@ -30,7 +30,7 @@ The endpoint requires an authenticated user and accepts:
 
 - All 22 seeded content IDs have localized title mappings for `en`, `ja`, and `zh-CN` in `SystemLocalizationService`.
 - High-impact category, region, theme, travel-style, budget, weather, companion, and tag labels are mapped in the same service.
-- Place names and place descriptions still fall back to source text unless a later translation source is added.
+- Place names use explicit official/common mappings for high-priority visible places, and otherwise fall back safely to the Korean source name.
 - The current implementation uses a static server-side translation catalog rather than DB translation columns or a `system_translations` table, because this is the lowest-risk extension for the current schema and existing admin CRUD APIs.
 
 ## Translation Cache
@@ -65,6 +65,8 @@ SystemLocalizationService now localizes place system fields before API DTOs are 
 - Place DTO display fields keep backward-compatible names: placeName, name, category, region, district, and description contain display-ready values for the requested locale.
 - originalPlaceName, originalRegion, originalDistrict, originalCategory, and originalDescription preserve the Korean source values.
 - Place names fall back to the Korean source name unless an explicit safe mapping exists.
+- High-priority place-name mappings now cover official/common names such as Lotte World Tower Seoul Sky, Bukchon Asian Cultural Art Museum, Korean Stone Art Museum, BaekInje''s House Museum, Choi Sunu House, Korea Furniture Museum, major palaces, parks, museums, beaches, and visible AI-course/home/detail route places.
+- Full concatenated romanization is avoided for common facility suffixes such as museum, park, palace, beach, station, school, village, observatory, and cultural space.
 - Place descriptions use a generated localized fallback for en, ja, and zh-CN when no per-place official localized description exists.
 - Generated descriptions use localized category, district, region, and related system content title parsed from the source bracket prefix.
 - Korean remains the fallback locale for missing or unsupported Accept-Language values.

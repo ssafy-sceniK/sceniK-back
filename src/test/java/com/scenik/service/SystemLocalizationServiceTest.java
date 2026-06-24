@@ -74,4 +74,35 @@ class SystemLocalizationServiceTest {
         assertThat(dto.originalDescription()).isEqualTo("[오징어게임] 마지막 장면 관련 장소.");
     }
 
+    @Test
+    void localizesHighPriorityPlaceNamesWithOfficialOrCommonNames() {
+        Place lotteSeoulSky = new Place();
+        lotteSeoulSky.setPlaceId("P_0219");
+        lotteSeoulSky.setPlaceName("롯데월드타워 서울스카이");
+        lotteSeoulSky.setRegion("서울");
+        lotteSeoulSky.setDistrict("송파구");
+        lotteSeoulSky.setCategory("전망대");
+        lotteSeoulSky.setDescription("[롯데월드타워 서울스카이] 전망대.");
+
+        PlaceDto englishDto = localizationService.localize(PlaceDto.from(lotteSeoulSky), "en-US,en;q=0.8");
+        PlaceDto japaneseDto = localizationService.localize(PlaceDto.from(lotteSeoulSky), "ja-JP,ja;q=0.8");
+        PlaceDto chineseDto = localizationService.localize(PlaceDto.from(lotteSeoulSky), "zh-CN,zh;q=0.8");
+
+        assertThat(englishDto.placeName()).isEqualTo("Lotte World Tower Seoul Sky");
+        assertThat(japaneseDto.placeName()).isEqualTo("ロッテワールドタワー ソウルスカイ");
+        assertThat(chineseDto.placeName()).isEqualTo("乐天世界塔首尔天空");
+
+        Place bukchonMuseum = new Place();
+        bukchonMuseum.setPlaceId("P_0256");
+        bukchonMuseum.setPlaceName("북촌동양문화박물관");
+        bukchonMuseum.setRegion("서울");
+        bukchonMuseum.setDistrict("종로구");
+        bukchonMuseum.setCategory("관광지");
+        bukchonMuseum.setDescription("[북촌동양문화박물관] 관광지.");
+
+        PlaceDto museumDto = localizationService.localize(PlaceDto.from(bukchonMuseum), "en-US,en;q=0.8");
+
+        assertThat(museumDto.placeName()).isEqualTo("Bukchon Asian Cultural Art Museum");
+        assertThat(museumDto.originalPlaceName()).isEqualTo("북촌동양문화박물관");
+    }
 }

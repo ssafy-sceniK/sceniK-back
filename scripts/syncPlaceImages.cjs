@@ -1,11 +1,13 @@
-﻿const fs = require('fs');
+const fs = require('fs');
 const path = require('path');
 
 const root = path.resolve(__dirname, '..');
 const csvPath = path.join(root, 'data', 'seed', 'places.csv');
 const sqlPath = path.join(root, 'src', 'main', 'resources', 'data.sql');
 const updateSqlPath = path.join(root, 'build', 'place-image-update.sql');
-const emptyImageValues = new Set(['', '-', 'null', 'NULL', 'N/A']);
+const emptyImageValues = new Set(['', '-', 'null', 'NULL', 'N/A', 'n/a']);
+const samplePlaceIds = ['P_0150', 'P_0167', 'P_0168', 'P_0169', 'P_0170', 'P_0171', 'P_0172', 'P_0173'];
+const writeDataSql = process.argv.includes('--write-data-sql');
 
 function parseCsv(text) {
   const source = text.replace(/^\uFEFF/, '');
@@ -49,6 +51,24 @@ function sqlString(value) {
   return `'${String(value).replaceAll("'", "''")}'`;
 }
 
+function isEmptyImage(value) {
+  return emptyImageValues.has(String(value ?? '').trim());
+}
+
+function isValidImageUrl(value) {
+  const source = String(value ?? '').trim();
+  if (isEmptyImage(source)) return false;
+  if (/^(file|data):/i.test(source)) return false;
+  if (/^[a-zA-Z]:[\\/]/.test(source)) return false;
+  if (source.startsWith('/')) return false;
+  try {
+    const url = new URL(source);
+    return url.protocol === 'https:' || url.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
+
 function splitTuple(line) {
   const start = line.indexOf('(');
   const end = line.lastIndexOf(')');
@@ -77,6 +97,13 @@ function splitTuple(line) {
   return { fields, suffix: line.slice(end + 1) };
 }
 
+function sqlTupleStringValue(value) {
+  const text = String(value ?? '').trim();
+  if (/^NULL$/i.test(text)) return '';
+  if (text.startsWith("'") && text.endsWith("'")) return text.slice(1, -1).replaceAll("''", "'");
+  return text;
+}
+
 const csvPlaces = parseCsv(fs.readFileSync(csvPath, 'utf8'));
 const duplicateIds = csvPlaces
   .map((place) => place.place_id?.trim())
@@ -92,14 +119,17 @@ const imageRows = csvPlaces
     imageUrl: place.image_url?.trim() ?? '',
   }))
   .filter((place) => place.placeId);
-const validImageRows = imageRows.filter((place) => !emptyImageValues.has(place.imageUrl));
-const skippedEmpty = imageRows.length - validImageRows.length;
+const rowsWithImage = imageRows.filter((place) => !isEmptyImage(place.imageUrl));
+const validImageRows = rowsWithImage.filter((place) => isValidImageUrl(place.imageUrl));
+const invalidImageRows = rowsWithImage.filter((place) => !isValidImageUrl(place.imageUrl));
+const skippedEmpty = imageRows.length - rowsWithImage.length;
 const imageByPlaceId = new Map(validImageRows.map((place) => [place.placeId, place.imageUrl]));
 
 const dataSql = fs.readFileSync(sqlPath, 'utf8');
 const sqlLines = dataSql.split('\n');
 let matchedInDataSql = 0;
 let updatedDataSqlRows = 0;
+let dataSqlRowsWithImage = 0;
 const seenDataSqlPlaceIds = new Set();
 
 const updatedSqlLines = sqlLines.map((line) => {
@@ -113,6 +143,8 @@ const updatedSqlLines = sqlLines.map((line) => {
 
   matchedInDataSql += 1;
   seenDataSqlPlaceIds.add(placeId);
+  const currentImage = sqlTupleStringValue(tuple.fields[10]);
+  if (!isEmptyImage(currentImage)) dataSqlRowsWithImage += 1;
 
   const nextImageValue = sqlString(imageUrl);
   if (tuple.fields[10] !== nextImageValue) {
@@ -122,30 +154,43 @@ const updatedSqlLines = sqlLines.map((line) => {
   return `(${tuple.fields.join(', ')})${tuple.suffix}`;
 });
 
-fs.writeFileSync(sqlPath, updatedSqlLines.join('\n'), 'utf8');
+if (writeDataSql) {
+  fs.writeFileSync(sqlPath, updatedSqlLines.join('\n'), 'utf8');
+}
+
 fs.mkdirSync(path.dirname(updateSqlPath), { recursive: true });
 const updateStatements = validImageRows.map((place) => (
-  `UPDATE places SET image_url = ${sqlString(place.imageUrl)} WHERE place_id = ${sqlString(place.placeId)};`
+  `UPDATE places SET image_url = ${sqlString(place.imageUrl)} WHERE place_id = ${sqlString(place.placeId)} AND (image_url IS NULL OR TRIM(image_url) = '' OR image_url IN ('-', 'null', 'NULL', 'N/A', 'n/a'));`
 ));
 const verificationSql = [
   '',
   '-- Verification helpers:',
   'SELECT COUNT(*) AS total_places FROM places;',
-  "SELECT COUNT(*) AS places_with_image_url FROM places WHERE image_url IS NOT NULL AND TRIM(image_url) <> '';",
-  "SELECT place_id, place_name, image_url FROM places WHERE place_id IN ('P_0001', 'P_0003', 'P_0005', 'P_0281') ORDER BY place_id;",
+  "SELECT COUNT(*) AS places_with_image_url FROM places WHERE image_url IS NOT NULL AND TRIM(image_url) <> '' AND image_url NOT IN ('-', 'null', 'NULL', 'N/A', 'n/a');",
+  `SELECT place_id, place_name, image_url FROM places WHERE place_id IN (${samplePlaceIds.map(sqlString).join(', ')}) ORDER BY place_id;`,
+  `SELECT COUNT(*) AS missing_sample_image_url FROM places WHERE place_id IN (${samplePlaceIds.map(sqlString).join(', ')}) AND (image_url IS NULL OR TRIM(image_url) = '' OR image_url IN ('-', 'null', 'NULL', 'N/A', 'n/a'));`,
 ];
 fs.writeFileSync(updateSqlPath, `${updateStatements.join('\n')}\n${verificationSql.join('\n')}\n`, 'utf8');
 
 const skippedMissingInDataSql = validImageRows.filter((place) => !seenDataSqlPlaceIds.has(place.placeId));
+const samples = validImageRows
+  .filter((place) => samplePlaceIds.includes(place.placeId))
+  .map((place) => ({ placeId: place.placeId, placeName: place.placeName, imageUrl: place.imageUrl }));
+
 console.log(JSON.stringify({
   csvRows: imageRows.length,
-  csvRowsWithImageUrl: validImageRows.length,
+  csvRowsWithImageUrl: rowsWithImage.length,
+  csvRowsWithValidImageUrl: validImageRows.length,
   skippedBecauseImageUrlEmpty: skippedEmpty,
-  matchedInDataSql,
-  updatedDataSqlRows,
-  skippedBecauseNoMatchingDataSqlPlace: skippedMissingInDataSql.length,
+  skippedBecauseImageUrlInvalid: invalidImageRows.length,
   duplicatePlaceIds: 0,
+  matchedInDataSql,
+  dataSqlRowsWithImage,
+  updatedDataSqlRows: writeDataSql ? updatedDataSqlRows : 0,
+  pendingDataSqlUpdatesIfWritten: writeDataSql ? 0 : updatedDataSqlRows,
+  skippedBecauseNoMatchingDataSqlPlace: skippedMissingInDataSql.length,
+  generatedProductionUpdateStatements: updateStatements.length,
   updateSqlPath,
-  sampleUpdatedPlaceIds: validImageRows.slice(0, 5).map((place) => place.placeId),
+  sampleFailingPlaceRows: samples,
+  mode: writeDataSql ? 'write-data-sql' : 'dry-run',
 }, null, 2));
-

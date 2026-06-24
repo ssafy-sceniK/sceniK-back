@@ -78,3 +78,20 @@ If `mysql` CLI is available, apply the generated SQL manually:
 ```powershell
 mysql --default-character-set=utf8mb4 -u <user> -p <database> < build\place-image-update.sql
 ```
+
+## Re-verification on 2026-06-24 after localization pass
+
+No image URL import logic changed in the localization pass. A quote-aware CSV/data.sql verification was rerun.
+
+| Metric | Count |
+| --- | ---: |
+| CSV rows | 281 |
+| CSV rows with non-empty image_url | 281 |
+| data.sql image_url matches | 281 |
+| Missing CSV image URLs | 0 |
+| Missing data.sql image URL matches | 0 |
+| Place categories represented | 40 |
+| Place regions represented | 15 |
+| Place districts represented | 89 |
+
+Frontend mock data was also checked for representative place IDs P_0001, P_0257, P_0261, and P_0281.

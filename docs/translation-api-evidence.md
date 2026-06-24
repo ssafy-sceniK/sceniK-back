@@ -48,3 +48,28 @@ If `GMS_KEY` is not configured, user-generated translation requests return `503`
 - DB/source seed data still does not contain per-record translated place names or descriptions for all 281 places.
 - Content descriptions and cast metadata are not fully translated.
 - Browser QA for locale switching and dark mode fit has not been completed in this pass.
+
+## Place System Localization Update on 2026-06-24
+
+SystemLocalizationService now localizes place system fields before API DTOs are returned.
+
+| Item | Result |
+| --- | ---: |
+| Seeded places checked | 281 |
+| Place categories covered | 40 |
+| Place regions covered | 15 |
+| Place districts covered | 89 |
+
+### Behavior
+
+- Place DTO display fields keep backward-compatible names: placeName, name, category, region, district, and description contain display-ready values for the requested locale.
+- originalPlaceName, originalRegion, originalDistrict, originalCategory, and originalDescription preserve the Korean source values.
+- Place names fall back to the Korean source name unless an explicit safe mapping exists.
+- Place descriptions use a generated localized fallback for en, ja, and zh-CN when no per-place official localized description exists.
+- Generated descriptions use localized category, district, region, and related system content title parsed from the source bracket prefix.
+- Korean remains the fallback locale for missing or unsupported Accept-Language values.
+
+### Test evidence
+
+- SystemLocalizationServiceTest covers English generated place descriptions, district localization, category localization, and original field preservation.
+- Existing content localization tests still cover title/category/tag localization and original values.

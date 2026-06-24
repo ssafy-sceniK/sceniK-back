@@ -52,4 +52,26 @@ class SystemLocalizationServiceTest {
         assertThat(dto.originalPlaceName()).isEqualTo("킨텍스");
         assertThat(dto.originalCategory()).isEqualTo("촬영지");
     }
+
+    @Test
+    void localizesPlaceDistrictAndGeneratedDescriptionForNonKoreanLocale() {
+        Place place = new Place();
+        place.setPlaceId("P_0001");
+        place.setPlaceName("킨텍스");
+        place.setRegion("경기");
+        place.setDistrict("고양시");
+        place.setCategory("촬영지");
+        place.setDescription("[오징어게임] 마지막 장면 관련 장소.");
+
+        PlaceDto dto = localizationService.localize(PlaceDto.from(place), "en-US,en;q=0.8");
+
+        assertThat(dto.locale()).isEqualTo("en");
+        assertThat(dto.placeName()).isEqualTo("킨텍스");
+        assertThat(dto.region()).isEqualTo("Gyeonggi");
+        assertThat(dto.district()).isEqualTo("Goyang City");
+        assertThat(dto.category()).isEqualTo("Filming location");
+        assertThat(dto.description()).isEqualTo("A verified filming location in Goyang City, Gyeonggi connected to Squid Game.");
+        assertThat(dto.originalDescription()).isEqualTo("[오징어게임] 마지막 장면 관련 장소.");
+    }
+
 }

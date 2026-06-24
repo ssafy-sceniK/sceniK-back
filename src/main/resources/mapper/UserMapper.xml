@@ -11,6 +11,8 @@
     <result property="profileImageUrl" column="profile_image_url" />
     <result property="bio" column="bio" />
     <result property="language" column="language" />
+    <result property="status" column="status" />
+    <result property="deletedAt" column="deleted_at" />
     <result property="authProvider" column="auth_provider" />
     <result property="createdAt" column="created_at" />
     <result property="updatedAt" column="updated_at" />
@@ -70,5 +72,43 @@
     UPDATE users
     SET profile_image_url = NULL
     WHERE user_id = #{userId}
+  </update>
+
+  <update id="updatePassword">
+    UPDATE users
+    SET password_hash = #{passwordHash}
+    WHERE user_id = #{userId}
+      AND (status IS NULL OR status != 'DELETED')
+  </update>
+
+  <delete id="deleteFollows">DELETE FROM follows WHERE follower_id = #{userId} OR following_id = #{userId}</delete>
+  <delete id="deleteRoutes">DELETE FROM travel_routes WHERE user_id = #{userId}</delete>
+  <delete id="deleteContentLikes">DELETE FROM content_likes WHERE user_id = #{userId}</delete>
+  <delete id="deletePlaceLikes">DELETE FROM place_likes WHERE user_id = #{userId}</delete>
+  <delete id="deleteVisitStatuses">DELETE FROM visit_status WHERE user_id = #{userId}</delete>
+  <delete id="deletePlaceReviews">DELETE FROM place_reviews WHERE user_id = #{userId}</delete>
+  <delete id="deletePostLikes">DELETE FROM post_likes WHERE user_id = #{userId}</delete>
+  <delete id="deletePostScraps">DELETE FROM post_scraps WHERE user_id = #{userId}</delete>
+  <delete id="deleteCommentLikes">DELETE FROM comment_likes WHERE user_id = #{userId}</delete>
+  <delete id="deleteReports">DELETE FROM reports WHERE user_id = #{userId}</delete>
+  <delete id="deleteNotifications">DELETE FROM notifications WHERE user_id = #{userId}</delete>
+  <update id="clearTranslationCacheUser">UPDATE translation_cache SET user_id = NULL WHERE user_id = #{userId}</update>
+  <delete id="deleteOAuthAccounts">DELETE FROM oauth_accounts WHERE user_id = #{userId}</delete>
+  <delete id="deleteOAuthLoginCodes">DELETE FROM oauth_login_codes WHERE user_id = #{userId}</delete>
+  <delete id="deleteRoles">DELETE FROM user_roles WHERE user_id = #{userId}</delete>
+
+  <update id="anonymizeAndDeactivate">
+    UPDATE users
+    SET email = #{email},
+        nickname = #{nickname},
+        password_hash = #{passwordHash},
+        preferences = NULL,
+        profile_image_url = NULL,
+        bio = NULL,
+        language = 'ko',
+        status = 'DELETED',
+        deleted_at = CURRENT_TIMESTAMP
+    WHERE user_id = #{userId}
+      AND (status IS NULL OR status != 'DELETED')
   </update>
 </mapper>

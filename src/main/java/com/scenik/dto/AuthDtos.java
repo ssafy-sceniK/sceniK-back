@@ -38,6 +38,20 @@ public final class AuthDtos {
     public record RefreshTokenRequest(@NotBlank(message = "로그인이 필요합니다.") String refreshToken) {
     }
 
+    public record PasswordResetRequest(
+            @NotBlank(message = "이메일을 입력해 주세요.")
+            @Email(message = "올바른 이메일 형식이 아닙니다.")
+            String email
+    ) {
+    }
+
+    public record PasswordResetConfirmRequest(
+            @NotBlank(message = "비밀번호 재설정 토큰이 필요합니다.") String token,
+            @NotBlank(message = "비밀번호를 입력해 주세요.")
+            @Size(min = 8, message = "비밀번호는 8자 이상이어야 합니다.") String password
+    ) {
+    }
+
     public record OAuthCodeExchangeRequest(
             @NotBlank(message = "OAuth 로그인 코드가 필요합니다.") String code
     ) {

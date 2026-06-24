@@ -100,7 +100,7 @@ public class FollowService {
 
     private User requireUser(Long userId) {
         User user = userId == null ? null : userMapper.findById(userId);
-        if (user == null) {
+        if (user == null || "DELETED".equalsIgnoreCase(user.getStatus())) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Target user was not found.");
         }
         return user;

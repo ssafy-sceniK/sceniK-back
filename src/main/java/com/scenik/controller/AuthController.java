@@ -5,6 +5,8 @@ import com.scenik.dto.AuthDtos.AuthResponse;
 import com.scenik.dto.AuthDtos.EmailAvailabilityResponse;
 import com.scenik.dto.AuthDtos.LoginRequest;
 import com.scenik.dto.AuthDtos.OAuthCodeExchangeRequest;
+import com.scenik.dto.AuthDtos.PasswordResetConfirmRequest;
+import com.scenik.dto.AuthDtos.PasswordResetRequest;
 import com.scenik.dto.AuthDtos.RefreshTokenRequest;
 import com.scenik.dto.AuthDtos.SignupRequest;
 import com.scenik.dto.AuthDtos.UpdateUserRequest;
@@ -12,6 +14,7 @@ import com.scenik.dto.UserDto;
 import com.scenik.service.AuthService;
 import com.scenik.service.OAuthService;
 import com.scenik.service.ProfileImageStorageService;
+import com.scenik.service.PasswordResetService;
 import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -31,15 +34,18 @@ public class AuthController {
     private final AuthService authService;
     private final OAuthService oauthService;
     private final ProfileImageStorageService profileImageStorageService;
+    private final PasswordResetService passwordResetService;
 
     public AuthController(
             AuthService authService,
             OAuthService oauthService,
-            ProfileImageStorageService profileImageStorageService
+            ProfileImageStorageService profileImageStorageService,
+            PasswordResetService passwordResetService
     ) {
         this.authService = authService;
         this.oauthService = oauthService;
         this.profileImageStorageService = profileImageStorageService;
+        this.passwordResetService = passwordResetService;
     }
 
     @PostMapping("/api/auth/signup")
@@ -70,6 +76,18 @@ public class AuthController {
     @GetMapping("/api/auth/check-email")
     public ApiResponse<EmailAvailabilityResponse> checkEmail(@RequestParam("email") String email) {
         return ApiResponse.ok(authService.checkEmail(email));
+    }
+
+    @PostMapping("/api/auth/password-reset/request")
+    public ApiResponse<Void> requestPasswordReset(@Valid @RequestBody PasswordResetRequest request) {
+        passwordResetService.requestReset(request.email());
+        return ApiResponse.okMessage("입력한 이메일로 재설정 안내를 보냈습니다.");
+    }
+
+    @PostMapping("/api/auth/password-reset/confirm")
+    public ApiResponse<Void> confirmPasswordReset(@Valid @RequestBody PasswordResetConfirmRequest request) {
+        passwordResetService.confirmReset(request.token(), request.password());
+        return ApiResponse.okMessage("비밀번호가 재설정되었습니다. 다시 로그인해 주세요.");
     }
 
     @PostMapping("/api/auth/logout")
@@ -112,5 +130,13 @@ public class AuthController {
             @RequestHeader(value = "Authorization", required = false) String authorization
     ) {
         return ApiResponse.ok("프로필 이미지를 삭제했습니다.", authService.deleteProfileImage(authorization));
+    }
+
+    @DeleteMapping("/api/users/me")
+    public ResponseEntity<ApiResponse<Void>> deleteMe(
+            @RequestHeader(value = "Authorization", required = false) String authorization
+    ) {
+        authService.deleteMe(authorization);
+        return ResponseEntity.ok(ApiResponse.okMessage("회원 탈퇴가 완료되었습니다."));
     }
 }

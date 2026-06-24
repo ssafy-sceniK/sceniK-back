@@ -75,11 +75,37 @@ CREATE TABLE IF NOT EXISTS users (
   profile_image_url VARCHAR(1000),
   bio VARCHAR(255),
   language VARCHAR(20) DEFAULT 'ko',
+  status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+  deleted_at DATETIME NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uq_users_email (email),
   UNIQUE KEY uq_users_nickname (nickname)
 );
+
+SET @user_status_column_exists = (
+  SELECT COUNT(*)
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'users'
+    AND COLUMN_NAME = 'status'
+);
+SET @user_status_migration = IF(@user_status_column_exists = 0, 'ALTER TABLE users ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT ''ACTIVE'' AFTER language', 'SELECT 1');
+PREPARE user_status_statement FROM @user_status_migration;
+EXECUTE user_status_statement;
+DEALLOCATE PREPARE user_status_statement;
+
+SET @user_deleted_at_column_exists = (
+  SELECT COUNT(*)
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'users'
+    AND COLUMN_NAME = 'deleted_at'
+);
+SET @user_deleted_at_migration = IF(@user_deleted_at_column_exists = 0, 'ALTER TABLE users ADD COLUMN deleted_at DATETIME NULL AFTER status', 'SELECT 1');
+PREPARE user_deleted_at_statement FROM @user_deleted_at_migration;
+EXECUTE user_deleted_at_statement;
+DEALLOCATE PREPARE user_deleted_at_statement;
 
 SET @profile_image_column_exists = (
   SELECT COUNT(*)
@@ -161,6 +187,18 @@ CREATE TABLE IF NOT EXISTS oauth_accounts (
   UNIQUE KEY uq_oauth_accounts_user_provider (user_id, provider),
   KEY idx_oauth_accounts_user_id (user_id),
   CONSTRAINT fk_oauth_accounts_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+  password_reset_token_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT NOT NULL,
+  token_hash VARCHAR(120) NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  expires_at DATETIME NOT NULL,
+  used_at DATETIME NULL,
+  UNIQUE KEY uq_password_reset_tokens_hash (token_hash),
+  KEY idx_password_reset_tokens_user_id (user_id),
+  CONSTRAINT fk_password_reset_tokens_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS oauth_login_codes (

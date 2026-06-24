@@ -28,11 +28,18 @@ public class AuthService {
     private final UserMapper userMapper;
     private final AuthTokenMapper authTokenMapper;
     private final PasswordService passwordService;
+    private final ProfileImageStorageService profileImageStorageService;
 
-    public AuthService(UserMapper userMapper, AuthTokenMapper authTokenMapper, PasswordService passwordService) {
+    public AuthService(
+            UserMapper userMapper,
+            AuthTokenMapper authTokenMapper,
+            PasswordService passwordService,
+            ProfileImageStorageService profileImageStorageService
+    ) {
         this.userMapper = userMapper;
         this.authTokenMapper = authTokenMapper;
         this.passwordService = passwordService;
+        this.profileImageStorageService = profileImageStorageService;
     }
 
     @Transactional
@@ -63,7 +70,7 @@ public class AuthService {
     @Transactional
     public AuthResponse login(LoginRequest request) {
         User user = userMapper.findByEmail(normalizeEmail(request.email()));
-        if (user == null || !passwordService.verifyPassword(request.password(), user.getPasswordHash())) {
+        if (user == null || isDeleted(user) || !passwordService.verifyPassword(request.password(), user.getPasswordHash())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password.");
         }
         String token = issueToken(user.getUserId());
@@ -86,6 +93,7 @@ public class AuthService {
         if (user == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User was not found.");
         }
+        requireActiveUser(user);
         return user;
     }
 
@@ -114,6 +122,7 @@ public class AuthService {
         if (user == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User was not found.");
         }
+        requireActiveUser(user);
         authTokenMapper.revokeByHash(hashToken(rawToken));
         String newToken = issueToken(user.getUserId());
         return new AuthResponse(newToken, newToken, UserDto.from(user));
@@ -125,6 +134,7 @@ public class AuthService {
         if (user == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User was not found.");
         }
+        requireActiveUser(user);
         String token = issueToken(userId);
         return new AuthResponse(token, token, UserDto.from(user));
     }
@@ -150,6 +160,35 @@ public class AuthService {
         User user = requireUser(authorizationHeader);
         userMapper.clearProfileImage(user.getUserId());
         return UserDto.from(userMapper.findById(user.getUserId()));
+    }
+
+    @Transactional
+    public void deleteMe(String authorizationHeader) {
+        User user = requireUser(authorizationHeader);
+        Long userId = user.getUserId();
+        profileImageStorageService.deleteManagedImage(user.getProfileImageUrl());
+        authTokenMapper.revokeByUserId(userId);
+        userMapper.deleteFollows(userId);
+        userMapper.deleteRoutes(userId);
+        userMapper.deleteContentLikes(userId);
+        userMapper.deletePlaceLikes(userId);
+        userMapper.deleteVisitStatuses(userId);
+        userMapper.deletePlaceReviews(userId);
+        userMapper.deletePostLikes(userId);
+        userMapper.deletePostScraps(userId);
+        userMapper.deleteCommentLikes(userId);
+        userMapper.deleteReports(userId);
+        userMapper.deleteNotifications(userId);
+        userMapper.clearTranslationCacheUser(userId);
+        userMapper.deleteOAuthLoginCodes(userId);
+        userMapper.deleteOAuthAccounts(userId);
+        userMapper.deleteRoles(userId);
+        userMapper.anonymizeAndDeactivate(
+                userId,
+                "deleted-" + userId + "@deleted.scenik.local",
+                "deleted-user-" + userId,
+                "deleted$" + userId
+        );
     }
 
     private String issueToken(Long userId) {
@@ -188,6 +227,16 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired token.");
         }
         return token;
+    }
+
+    private void requireActiveUser(User user) {
+        if (isDeleted(user)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User account is deactivated.");
+        }
+    }
+
+    private boolean isDeleted(User user) {
+        return user != null && "DELETED".equalsIgnoreCase(user.getStatus());
     }
 
     private String hashToken(String rawToken) {

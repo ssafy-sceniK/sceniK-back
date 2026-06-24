@@ -63,7 +63,7 @@
 
   <sql id="PostSelect">
     SELECT cp.*,
-           u.nickname AS user_nickname,
+           CASE WHEN u.status = 'DELETED' THEN '탈퇴한 사용자' ELSE u.nickname END AS user_nickname,
            COALESCE((SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = cp.post_id), 0) AS like_count,
            COALESCE((SELECT COUNT(*) FROM post_scraps ps WHERE ps.post_id = cp.post_id), 0) AS scrap_count,
            COALESCE((SELECT COUNT(*) FROM comments c WHERE c.post_id = cp.post_id AND <include refid="VisibleCommentPredicate" />), 0) AS comment_count,
@@ -176,7 +176,7 @@
 
   <sql id="CommentSelect">
     SELECT c.*,
-           u.nickname AS user_nickname,
+           CASE WHEN u.status = 'DELETED' THEN '탈퇴한 사용자' ELSE u.nickname END AS user_nickname,
            COALESCE((SELECT COUNT(*) FROM comment_likes cl WHERE cl.comment_id = c.comment_id), 0) AS like_count,
            CASE
              WHEN #{userId} IS NULL THEN FALSE

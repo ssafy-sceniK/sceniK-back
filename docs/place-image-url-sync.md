@@ -57,5 +57,6 @@ After execution, run the verification queries appended at the bottom of `build/p
 - `P_0171` Aqua Planet Ilsan
 - `P_0172` Sayuwon
 - `P_0173` Chungju Geonji Village
+- `P_0262` BTS Bus Stop
 
 Do not report production DB completion unless the SQL was executed on production and the verification queries passed.

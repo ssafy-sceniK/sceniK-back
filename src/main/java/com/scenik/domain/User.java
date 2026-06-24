@@ -12,6 +12,8 @@ public class User {
     private String profileImageUrl;
     private String bio;
     private String language;
+    private String status;
+    private LocalDateTime deletedAt;
     private String authProvider;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -37,6 +39,10 @@ public class User {
     public void setBio(String bio) { this.bio = bio; }
     public String getLanguage() { return language; }
     public void setLanguage(String language) { this.language = language; }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+    public LocalDateTime getDeletedAt() { return deletedAt; }
+    public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }
     public String getAuthProvider() { return authProvider; }
     public void setAuthProvider(String authProvider) { this.authProvider = authProvider; }
     public LocalDateTime getCreatedAt() { return createdAt; }

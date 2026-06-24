@@ -49,6 +49,21 @@ public class ProfileImageStorageService {
         }
     }
 
+    public void deleteManagedImage(String imageUrl) {
+        if (imageUrl == null || !imageUrl.startsWith("/api/uploads/profile/")) {
+            return;
+        }
+        String fileName = imageUrl.substring("/api/uploads/profile/".length());
+        if (fileName.isBlank() || fileName.contains("/") || fileName.contains("\\")) {
+            return;
+        }
+        try {
+            Files.deleteIfExists(uploadDirectory.resolve(fileName).normalize());
+        } catch (IOException ignored) {
+            // The database anonymization must not fail because an old upload is already absent.
+        }
+    }
+
     private void validate(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "업로드할 프로필 이미지를 선택해 주세요.");

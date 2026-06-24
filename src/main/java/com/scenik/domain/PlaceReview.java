@@ -9,6 +9,7 @@ public class PlaceReview {
     private String nickname;
     private Double rating;
     private String content;
+    private String language;
     private String status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -25,6 +26,8 @@ public class PlaceReview {
     public void setRating(Double rating) { this.rating = rating; }
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
+    public String getLanguage() { return language; }
+    public void setLanguage(String language) { this.language = language; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
     public LocalDateTime getCreatedAt() { return createdAt; }

@@ -15,10 +15,12 @@ import org.springframework.web.server.ResponseStatusException;
 public class PlaceReviewService {
     private final PlaceReviewMapper placeReviewMapper;
     private final PlaceMapper placeMapper;
+    private final LanguageDetectionService languageDetectionService;
 
-    public PlaceReviewService(PlaceReviewMapper placeReviewMapper, PlaceMapper placeMapper) {
+    public PlaceReviewService(PlaceReviewMapper placeReviewMapper, PlaceMapper placeMapper, LanguageDetectionService languageDetectionService) {
         this.placeReviewMapper = placeReviewMapper;
         this.placeMapper = placeMapper;
+        this.languageDetectionService = languageDetectionService;
     }
 
     public List<ReviewDto> listByPlace(String placeId) {
@@ -42,6 +44,7 @@ public class PlaceReviewService {
         review.setUserId(user.getUserId());
         review.setRating(request.rating());
         review.setContent(request.content().trim());
+        review.setLanguage(languageDetectionService.detect(review.getContent(), user.getLanguage()));
         placeReviewMapper.insert(review);
         return ReviewDto.from(placeReviewMapper.findById(review.getReviewId()));
     }
@@ -57,6 +60,7 @@ public class PlaceReviewService {
 
         existing.setRating(request.rating());
         existing.setContent(request.content().trim());
+        existing.setLanguage(languageDetectionService.detect(existing.getContent(), user.getLanguage()));
         placeReviewMapper.update(existing);
         return ReviewDto.from(placeReviewMapper.findById(reviewId));
     }

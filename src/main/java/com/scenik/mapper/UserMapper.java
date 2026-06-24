@@ -10,7 +10,7 @@ public interface UserMapper {
     User findByEmail(@Param("email") String email);
     User findByNickname(@Param("nickname") String nickname);
     int insert(User user);
-    int updateProfile(@Param("userId") Long userId, @Param("nickname") String nickname, @Param("bio") String bio, @Param("preferences") String preferences);
+    int updateProfile(@Param("userId") Long userId, @Param("nickname") String nickname, @Param("bio") String bio, @Param("preferences") String preferences, @Param("language") String language);
     int updateProfileImage(@Param("userId") Long userId, @Param("profileImageUrl") String profileImageUrl);
     int clearProfileImage(@Param("userId") Long userId);
 }

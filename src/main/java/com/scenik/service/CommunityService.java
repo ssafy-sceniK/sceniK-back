@@ -2,12 +2,14 @@ package com.scenik.service;
 
 import com.scenik.domain.CommunityComment;
 import com.scenik.domain.CommunityPost;
+import com.scenik.domain.CommunityPostImage;
 import com.scenik.domain.Notification;
 import com.scenik.domain.TravelRoute;
 import com.scenik.domain.User;
 import com.scenik.dto.CommunityDtos.CommentDto;
 import com.scenik.dto.CommunityDtos.CommentRequest;
 import com.scenik.dto.CommunityDtos.NotificationDto;
+import com.scenik.dto.CommunityDtos.PostAttachmentDto;
 import com.scenik.dto.CommunityDtos.PostDto;
 import com.scenik.dto.CommunityDtos.PostRequest;
 import com.scenik.dto.CommunityDtos.ReportDto;
@@ -16,6 +18,8 @@ import com.scenik.mapper.CommunityMapper;
 import com.scenik.mapper.RouteMapper;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -29,11 +33,13 @@ public class CommunityService {
     private final AuthService authService;
     private final CommunityMapper communityMapper;
     private final RouteMapper routeMapper;
+    private final LanguageDetectionService languageDetectionService;
 
-    public CommunityService(AuthService authService, CommunityMapper communityMapper, RouteMapper routeMapper) {
+    public CommunityService(AuthService authService, CommunityMapper communityMapper, RouteMapper routeMapper, LanguageDetectionService languageDetectionService) {
         this.authService = authService;
         this.communityMapper = communityMapper;
         this.routeMapper = routeMapper;
+        this.languageDetectionService = languageDetectionService;
     }
 
     public List<PostDto> listPosts(String authorization) {
@@ -62,17 +68,20 @@ public class CommunityService {
         if (request == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Post request is required.");
         }
+        List<PostAttachmentDto> attachments = normalizedAttachments(request.attachments(), request.imageUrl());
         CommunityPost post = new CommunityPost();
         post.setPostId("post-" + UUID.randomUUID());
         post.setUserId(user.getUserId());
         post.setTitle(requireText(request.title(), "title is required."));
         post.setContent(requireText(firstText(request.content(), request.body()), "content is required."));
+        post.setLanguage(languageDetectionService.detect(post.getTitle() + " " + post.getContent(), user.getLanguage()));
         post.setRegion(firstText(request.region(), "Korea"));
         post.setRouteId(validatedRouteId(user, request.routeId()));
-        post.setImageUrl(trimToNull(request.imageUrl()));
+        post.setImageUrl(primaryImageUrl(attachments));
         post.setStatus("ACTIVE");
         communityMapper.insertPost(post);
         replaceTags(post.getPostId(), request.tags());
+        replaceImages(post.getPostId(), attachments);
         return toPostDto(requirePost(post.getPostId(), user.getUserId()), true, user.getUserId());
     }
 
@@ -82,18 +91,25 @@ public class CommunityService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Post request is required.");
         }
         CommunityPost existing = requireOwnedPost(user, postId);
+        List<PostAttachmentDto> attachments = request.attachments() == null && request.imageUrl() == null
+                ? null
+                : normalizedAttachments(request.attachments(), request.imageUrl());
         CommunityPost post = new CommunityPost();
         post.setPostId(postId);
         post.setUserId(existing.getUserId());
         post.setTitle(requireText(firstText(request.title(), existing.getTitle()), "title is required."));
         post.setContent(requireText(firstText(firstText(request.content(), request.body()), existing.getContent()), "content is required."));
+        post.setLanguage(languageDetectionService.detect(post.getTitle() + " " + post.getContent(), user.getLanguage()));
         post.setRegion(firstText(request.region(), existing.getRegion()));
         post.setRouteId(request.routeId() == null ? existing.getRouteId() : validatedRouteId(user, request.routeId()));
-        post.setImageUrl(request.imageUrl() == null ? existing.getImageUrl() : trimToNull(request.imageUrl()));
+        post.setImageUrl(attachments == null ? existing.getImageUrl() : primaryImageUrl(attachments));
         post.setStatus(firstText(existing.getStatus(), "ACTIVE"));
         communityMapper.updatePost(post);
         if (request.tags() != null) {
             replaceTags(postId, request.tags());
+        }
+        if (attachments != null) {
+            replaceImages(postId, attachments);
         }
         return toPostDto(requirePost(postId, user.getUserId()), true, user.getUserId());
     }
@@ -130,6 +146,7 @@ public class CommunityService {
         comment.setUserId(user.getUserId());
         comment.setParentCommentId(parentCommentId);
         comment.setContent(requireText(firstText(request.content(), request.text()), "content is required."));
+        comment.setLanguage(languageDetectionService.detect(comment.getContent(), user.getLanguage()));
         comment.setStatus("ACTIVE");
         communityMapper.insertComment(comment);
         notifyPostOwner(post, user, "새 댓글", user.getNickname() + "님이 게시글에 댓글을 남겼습니다.", "POST_COMMENT", postId, comment.getCommentId());
@@ -144,6 +161,7 @@ public class CommunityService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Comment request is required.");
         }
         existing.setContent(requireText(firstText(request.content(), request.text()), "content is required."));
+        existing.setLanguage(languageDetectionService.detect(existing.getContent(), user.getLanguage()));
         communityMapper.updateComment(existing);
         return toCommentDto(requireComment(postId, commentId, user.getUserId()));
     }
@@ -366,8 +384,57 @@ public class CommunityService {
                 .forEach(tag -> communityMapper.insertTag(postId, tag));
     }
 
+    private List<PostAttachmentDto> normalizedAttachments(List<PostAttachmentDto> attachments, String imageUrl) {
+        LinkedHashSet<String> seenUrls = new LinkedHashSet<>();
+        List<PostAttachmentDto> normalized = new ArrayList<>();
+        if (attachments != null) {
+            for (PostAttachmentDto attachment : attachments) {
+                if (attachment == null) continue;
+                addAttachment(normalized, seenUrls, firstText(firstText(attachment.imageUrl(), attachment.url()), attachment.thumbnailUrl()), attachment.name());
+            }
+        }
+        addAttachment(normalized, seenUrls, imageUrl, "이미지 URL");
+        return normalized.stream().limit(10).toList();
+    }
+
+    private void addAttachment(List<PostAttachmentDto> attachments, LinkedHashSet<String> seenUrls, String imageUrl, String name) {
+        String normalizedUrl = trimToNull(imageUrl);
+        if (normalizedUrl == null || seenUrls.contains(normalizedUrl)) {
+            return;
+        }
+        seenUrls.add(normalizedUrl);
+        attachments.add(new PostAttachmentDto(null, null, normalizedUrl, normalizedUrl, normalizedUrl, "image", trimToNull(name)));
+    }
+
+    private String primaryImageUrl(List<PostAttachmentDto> attachments) {
+        return attachments.isEmpty() ? null : attachments.get(0).imageUrl();
+    }
+
+    private void replaceImages(String postId, List<PostAttachmentDto> attachments) {
+        communityMapper.deleteImagesByPostId(postId);
+        for (int index = 0; index < attachments.size(); index += 1) {
+            PostAttachmentDto attachment = attachments.get(index);
+            communityMapper.insertPostImage("post-image-" + UUID.randomUUID(), postId, attachment.imageUrl(), attachment.name(), index);
+        }
+    }
+
+    private PostAttachmentDto toPostAttachmentDto(CommunityPostImage image) {
+        return new PostAttachmentDto(
+                image.getImageId(),
+                image.getImageId(),
+                image.getImageUrl(),
+                image.getImageUrl(),
+                image.getImageUrl(),
+                "image",
+                image.getFileName()
+        );
+    }
+
     private PostDto toPostDto(CommunityPost post, boolean includeComments, Long viewerUserId) {
         List<String> tags = communityMapper.findTagsByPostId(post.getPostId());
+        List<PostAttachmentDto> attachments = communityMapper.findImagesByPostId(post.getPostId()).stream()
+                .map(this::toPostAttachmentDto)
+                .toList();
         List<CommentDto> comments = includeComments
                 ? communityMapper.findCommentsByPostId(post.getPostId(), viewerUserId).stream().map(this::toCommentDto).toList()
                 : List.of();
@@ -386,9 +453,11 @@ public class CommunityService {
                 post.getTitle(),
                 post.getContent(),
                 post.getContent(),
+                post.getLanguage(),
                 post.getRegion(),
                 post.getRouteId(),
                 post.getImageUrl(),
+                attachments,
                 tags,
                 likeCount,
                 likeCount,
@@ -417,6 +486,7 @@ public class CommunityService {
                 nickname,
                 comment.getContent(),
                 comment.getContent(),
+                comment.getLanguage(),
                 likeCount,
                 likeCount,
                 likedByMe,

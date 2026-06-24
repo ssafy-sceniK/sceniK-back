@@ -17,6 +17,7 @@ public final class ReviewDtos {
             String nickname,
             Double rating,
             String content,
+            String language,
             LocalDateTime createdAt,
             LocalDateTime updatedAt
     ) {
@@ -28,6 +29,7 @@ public final class ReviewDtos {
                     review.getNickname(),
                     review.getRating(),
                     review.getContent(),
+                    review.getLanguage(),
                     review.getCreatedAt(),
                     review.getUpdatedAt()
             );

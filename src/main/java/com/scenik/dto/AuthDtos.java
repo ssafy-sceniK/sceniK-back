@@ -21,7 +21,8 @@ public final class AuthDtos {
             String nickname,
             @Size(max = 255, message = "소개는 255자 이하로 입력해 주세요.")
             String bio,
-            List<String> preferences
+            List<String> preferences,
+            String language
     ) {
     }
 
@@ -48,7 +49,8 @@ public final class AuthDtos {
             String nickname,
             @Size(max = 255, message = "소개는 255자 이하로 입력해 주세요.")
             String bio,
-            List<String> preferences
+            List<String> preferences,
+            String language
     ) {
     }
 

@@ -7,6 +7,7 @@
     <result property="userNickname" column="user_nickname" />
     <result property="title" column="title" />
     <result property="content" column="content" />
+    <result property="language" column="language" />
     <result property="region" column="region" />
     <result property="routeId" column="route_id" />
     <result property="imageUrl" column="image_url" />
@@ -20,6 +21,15 @@
     <result property="updatedAt" column="updated_at" />
   </resultMap>
 
+  <resultMap id="CommunityPostImageResultMap" type="com.scenik.domain.CommunityPostImage">
+    <id property="imageId" column="image_id" />
+    <result property="postId" column="post_id" />
+    <result property="imageUrl" column="image_url" />
+    <result property="fileName" column="file_name" />
+    <result property="sortOrder" column="sort_order" />
+    <result property="createdAt" column="created_at" />
+  </resultMap>
+
   <resultMap id="CommunityCommentResultMap" type="com.scenik.domain.CommunityComment">
     <id property="commentId" column="comment_id" />
     <result property="postId" column="post_id" />
@@ -27,6 +37,7 @@
     <result property="userNickname" column="user_nickname" />
     <result property="parentCommentId" column="parent_comment_id" />
     <result property="content" column="content" />
+    <result property="language" column="language" />
     <result property="status" column="status" />
     <result property="likeCount" column="like_count" />
     <result property="liked" column="is_liked" />
@@ -115,14 +126,15 @@
       AND (status IS NULL OR status != 'DELETED')
   </select>
   <insert id="insertPost" parameterType="com.scenik.domain.CommunityPost">
-    INSERT INTO community_posts (post_id, user_id, title, content, region, route_id, image_url, status)
-    VALUES (#{postId}, #{userId}, #{title}, #{content}, #{region}, #{routeId}, #{imageUrl}, #{status})
+    INSERT INTO community_posts (post_id, user_id, title, content, language, region, route_id, image_url, status)
+    VALUES (#{postId}, #{userId}, #{title}, #{content}, #{language}, #{region}, #{routeId}, #{imageUrl}, #{status})
   </insert>
 
   <update id="updatePost" parameterType="com.scenik.domain.CommunityPost">
     UPDATE community_posts
     SET title = #{title},
         content = #{content},
+        language = #{language},
         region = #{region},
         route_id = #{routeId},
         image_url = #{imageUrl},
@@ -144,6 +156,22 @@
 
   <insert id="insertTag">
     INSERT IGNORE INTO post_tags (post_id, tag) VALUES (#{postId}, #{tag})
+  </insert>
+
+  <select id="findImagesByPostId" resultMap="CommunityPostImageResultMap">
+    SELECT image_id, post_id, image_url, file_name, sort_order, created_at
+    FROM community_post_images
+    WHERE post_id = #{postId}
+    ORDER BY sort_order ASC, created_at ASC
+  </select>
+
+  <delete id="deleteImagesByPostId">
+    DELETE FROM community_post_images WHERE post_id = #{postId}
+  </delete>
+
+  <insert id="insertPostImage">
+    INSERT INTO community_post_images (image_id, post_id, image_url, file_name, sort_order)
+    VALUES (#{imageId}, #{postId}, #{imageUrl}, #{fileName}, #{sortOrder})
   </insert>
 
   <sql id="CommentSelect">
@@ -175,13 +203,14 @@
   </select>
 
   <insert id="insertComment" parameterType="com.scenik.domain.CommunityComment">
-    INSERT INTO comments (comment_id, post_id, user_id, parent_comment_id, content, status)
-    VALUES (#{commentId}, #{postId}, #{userId}, #{parentCommentId}, #{content}, #{status})
+    INSERT INTO comments (comment_id, post_id, user_id, parent_comment_id, content, language, status)
+    VALUES (#{commentId}, #{postId}, #{userId}, #{parentCommentId}, #{content}, #{language}, #{status})
   </insert>
 
   <update id="updateComment" parameterType="com.scenik.domain.CommunityComment">
     UPDATE comments
-    SET content = #{content}
+    SET content = #{content},
+        language = #{language}
     WHERE comment_id = #{commentId}
   </update>
 

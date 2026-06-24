@@ -10,6 +10,7 @@
     <result property="preferences" column="preferences" />
     <result property="profileImageUrl" column="profile_image_url" />
     <result property="bio" column="bio" />
+    <result property="language" column="language" />
     <result property="authProvider" column="auth_provider" />
     <result property="createdAt" column="created_at" />
     <result property="updatedAt" column="updated_at" />
@@ -46,15 +47,16 @@
   </select>
 
   <insert id="insert" parameterType="com.scenik.domain.User" useGeneratedKeys="true" keyProperty="userId" keyColumn="user_id">
-    INSERT INTO users (email, nickname, password_hash, preferences, profile_image_url)
-    VALUES (#{email}, #{nickname}, #{passwordHash}, #{preferences}, #{profileImageUrl})
+    INSERT INTO users (email, nickname, password_hash, preferences, profile_image_url, language)
+    VALUES (#{email}, #{nickname}, #{passwordHash}, #{preferences}, #{profileImageUrl}, #{language})
   </insert>
 
   <update id="updateProfile">
     UPDATE users
     SET nickname = #{nickname},
         bio = #{bio},
-        preferences = #{preferences}
+        preferences = #{preferences},
+        language = #{language}
     WHERE user_id = #{userId}
   </update>
 

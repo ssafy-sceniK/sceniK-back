@@ -105,4 +105,41 @@ class SystemLocalizationServiceTest {
         assertThat(museumDto.placeName()).isEqualTo("Bukchon Asian Cultural Art Museum");
         assertThat(museumDto.originalPlaceName()).isEqualTo("북촌동양문화박물관");
     }
+
+    @Test
+    void localizesAdditionalBrandAndFacilityPlaceNamesWithoutBrokenRomanization() {
+        assertEnglishPlaceName("P_0020", "\uADF8\uB79C\uB4DC \uC6CC\uCEE4\uD790 \uC11C\uC6B8", "Grand Walkerhill Seoul");
+        assertEnglishPlaceName("P_0039", "\uACBD\uC6D0\uC7AC \uBC14\uC774 \uC6CC\uCEE4\uD790", "Gyeongwonjae Ambassador Incheon");
+        assertEnglishPlaceName("P_0064", "\uB86F\uB370\uBC31\uD654\uC810 \uAC15\uB0A8\uC810", "Lotte Department Store Gangnam Branch");
+        assertEnglishPlaceName("P_0083", "\uC6B8\uD504\uAC15 \uC2A4\uD14C\uC774\uD06C \uD558\uC6B0\uC2A4", "Wolfgang's Steakhouse");
+        assertEnglishPlaceName("P_0114", "\uC624\uD06C\uC6B0\uB4DC\uD504\uB9AC\uBBF8\uC5B4 \uC778\uCC9C", "Oakwood Premier Incheon");
+        assertEnglishPlaceName("P_0138", "\uC624\uB959\uB3C4 \uC2A4\uCE74\uC774\uC6CC\uD06C", "Oryukdo Skywalk");
+        assertEnglishPlaceName("P_0167", "\uBB38\uACBD \uC6A9\uB450\uB9AC \uC288\uD37C \uC138\uD2B8", "Mungyeong Yongdu-ri Super Set");
+        assertEnglishPlaceName("P_0169", "\uBB38\uACBD \uC5D0\uCF54\uC6D4\uB4DC", "Mungyeong Eco World");
+        assertEnglishPlaceName("P_0170", "\uADF8\uB79C\uB4DC \uC6CC\uCEE4\uD790 \uC11C\uC6B8 \uC560\uC2A4\uD1A4\uD558\uC6B0\uC2A4", "Grand Walkerhill Seoul Aston House");
+        assertEnglishPlaceName("P_0168", "\uBB38\uACBD \uCCA0\uB85C\uC790\uC804\uAC70 \uAD6C\uB791\uB9AC\uC5ED", "Mungyeong Rail Bike Gurang-ri Station");
+        assertEnglishPlaceName("P_0171", "\uC544\uCFE0\uC544\uD50C\uB77C\uB137 \uC77C\uC0B0", "Aqua Planet Ilsan");
+        assertEnglishPlaceName("P_0172", "\uC0AC\uC720\uC6D0", "Sayuwon");
+        assertEnglishPlaceName("P_0173", "\uCDA9\uC8FC \uAC74\uC9C0\uB9C8\uC744", "Chungju Geonji Village");
+        assertEnglishPlaceName("P_0262", "BTS \uBC84\uC2A4\uC815\uB958\uC7A5", "BTS Bus Stop");
+
+        Place ecoWorld = place("P_0169", "\uBB38\uACBD \uC5D0\uCF54\uC6D4\uB4DC");
+        assertThat(localizationService.localize(PlaceDto.from(ecoWorld), "ja-JP").placeName())
+                .isEqualTo("\u805E\u6176\u30A8\u30B3\u30EF\u30FC\u30EB\u30C9");
+        assertThat(localizationService.localize(PlaceDto.from(ecoWorld), "zh-CN").placeName())
+                .isEqualTo("\u95FB\u5E86\u751F\u6001\u4E16\u754C");
+    }
+
+    private void assertEnglishPlaceName(String placeId, String placeName, String expected) {
+        assertThat(localizationService.localize(PlaceDto.from(place(placeId, placeName)), "en-US,en;q=0.8").placeName())
+                .isEqualTo(expected);
+    }
+
+    private Place place(String placeId, String placeName) {
+        Place place = new Place();
+        place.setPlaceId(placeId);
+        place.setPlaceName(placeName);
+        return place;
+    }
+
 }

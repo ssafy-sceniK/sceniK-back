@@ -12,9 +12,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -32,6 +32,7 @@ public class PlaceController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<PlaceDto>>> list(
             @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestHeader(value = "Accept-Language", required = false) String acceptLanguage,
             @RequestParam(value = "region", required = false) String region,
             @RequestParam(value = "district", required = false) String district,
             @RequestParam(value = "category", required = false) String category,
@@ -42,7 +43,7 @@ public class PlaceController {
             @RequestParam(value = "size", required = false) Integer size
     ) {
         ListQuerySupport.validateSort(sort, Set.of("popular", "name", "region"));
-        List<PlaceDto> places = placeService.getPlaces(region, district, firstText(category, theme), keyword, authService.optionalUserId(authorization));
+        List<PlaceDto> places = placeService.getPlaces(region, district, firstText(category, theme), keyword, authService.optionalUserId(authorization), acceptLanguage);
         places = sortPlaces(places, ListQuerySupport.normalizeSort(sort));
         List<PlaceDto> paged = ListQuerySupport.paginate(places, page, size);
         return ResponseEntity.ok()
@@ -53,20 +54,22 @@ public class PlaceController {
     @GetMapping("/nearby")
     public ApiResponse<List<PlaceDto>> nearby(
             @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestHeader(value = "Accept-Language", required = false) String acceptLanguage,
             @RequestParam(value = "latitude", required = false) Double latitude,
             @RequestParam(value = "longitude", required = false) Double longitude,
             @RequestParam(value = "radiusKm", required = false) Double radiusKm,
             @RequestParam(value = "limit", required = false) Integer limit
     ) {
-        return ApiResponse.ok(placeService.getNearbyPlaces(latitude, longitude, radiusKm, limit, authService.optionalUserId(authorization)));
+        return ApiResponse.ok(placeService.getNearbyPlaces(latitude, longitude, radiusKm, limit, authService.optionalUserId(authorization), acceptLanguage));
     }
 
     @GetMapping("/{placeId}")
     public ApiResponse<PlaceDto> detail(
             @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestHeader(value = "Accept-Language", required = false) String acceptLanguage,
             @PathVariable("placeId") String placeId
     ) {
-        var place = placeService.getPlace(placeId, authService.optionalUserId(authorization));
+        var place = placeService.getPlace(placeId, authService.optionalUserId(authorization), acceptLanguage);
         if (place == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Place was not found.");
         }

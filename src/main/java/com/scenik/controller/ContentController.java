@@ -14,9 +14,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -34,6 +34,7 @@ public class ContentController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<ContentDto>>> list(
             @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestHeader(value = "Accept-Language", required = false) String acceptLanguage,
             @RequestParam(value = "category", required = false) String category,
             @RequestParam(value = "keyword", required = false) String keyword,
             @RequestParam(value = "popular", required = false) Boolean popular,
@@ -44,7 +45,7 @@ public class ContentController {
         ListQuerySupport.validateSort(sort, Set.of("popular", "latest"));
         String normalizedSort = ListQuerySupport.normalizeSort(sort);
         Boolean popularOnly = popular != null ? popular : ("popular".equalsIgnoreCase(sort) ? Boolean.TRUE : null);
-        List<ContentDto> contents = contentService.getContents(category, keyword, popularOnly, authService.optionalUserId(authorization));
+        List<ContentDto> contents = contentService.getContents(category, keyword, popularOnly, authService.optionalUserId(authorization), acceptLanguage);
         if ("popular".equals(normalizedSort)) {
             contents = contents.stream()
                     .sorted(Comparator.comparingInt((ContentDto content) -> content.likeCount() == null ? 0 : content.likeCount()).reversed())
@@ -57,23 +58,27 @@ public class ContentController {
     }
 
     @GetMapping("/categories")
-    public ApiResponse<List<ContentCategoryDto>> categories() {
-        return ApiResponse.ok(contentService.getCategories());
+    public ApiResponse<List<ContentCategoryDto>> categories(
+            @RequestHeader(value = "Accept-Language", required = false) String acceptLanguage
+    ) {
+        return ApiResponse.ok(contentService.getCategories(acceptLanguage));
     }
 
     @GetMapping("/popular")
     public ApiResponse<List<ContentDto>> popular(
-            @RequestHeader(value = "Authorization", required = false) String authorization
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestHeader(value = "Accept-Language", required = false) String acceptLanguage
     ) {
-        return ApiResponse.ok(contentService.getContents(null, null, Boolean.TRUE, authService.optionalUserId(authorization)));
+        return ApiResponse.ok(contentService.getContents(null, null, Boolean.TRUE, authService.optionalUserId(authorization), acceptLanguage));
     }
 
     @GetMapping("/{contentId}")
     public ApiResponse<ContentDto> detail(
             @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestHeader(value = "Accept-Language", required = false) String acceptLanguage,
             @PathVariable("contentId") String contentId
     ) {
-        var content = contentService.getContent(contentId, authService.optionalUserId(authorization));
+        var content = contentService.getContent(contentId, authService.optionalUserId(authorization), acceptLanguage);
         if (content == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Content was not found.");
         }
@@ -81,7 +86,10 @@ public class ContentController {
     }
 
     @GetMapping("/{contentId}/places")
-    public ApiResponse<List<PlaceDto>> relatedPlaces(@PathVariable("contentId") String contentId) {
-        return ApiResponse.ok(contentService.getRelatedPlaces(contentId));
+    public ApiResponse<List<PlaceDto>> relatedPlaces(
+            @RequestHeader(value = "Accept-Language", required = false) String acceptLanguage,
+            @PathVariable("contentId") String contentId
+    ) {
+        return ApiResponse.ok(contentService.getRelatedPlaces(contentId, acceptLanguage));
     }
 }

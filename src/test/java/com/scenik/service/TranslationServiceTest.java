@@ -101,7 +101,7 @@ class TranslationServiceTest {
                 """);
 
         try {
-            TranslationService service = newService(server, "gpt-5-nano", "gpt-5.4-mini");
+            TranslationService service = newService(server, "gpt-5-nano", "gpt-5.4");
             stubPost();
 
             TranslationResponse response = service.translate(user(), new TranslationRequest("POST", "post-1", "content", "en", null, null));

@@ -40,7 +40,7 @@ scenik:
     gms:
       base-url: ${GMS_BASE_URL:https://gms.ssafy.io/gmsapi/}
       api-key: ${GMS_KEY:}
-      model: ${GMS_MODEL:gpt-5.4-mini}
+      model: ${GMS_MODEL:gpt-5.4}
       translation-model: ${GMS_TRANSLATION_MODEL:gemini-2.5-flash-lite}
       translation-fallback-model: ${GMS_TRANSLATION_FALLBACK_MODEL:}
       connect-timeout-ms: ${GMS_CONNECT_TIMEOUT_MS:1000}

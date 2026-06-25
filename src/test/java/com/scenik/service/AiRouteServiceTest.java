@@ -415,6 +415,47 @@ class AiRouteServiceTest {
     }
 
     @Test
+    void llmFourOneSevenOneDayPatternIsRebalancedWhenPlacesAreCompact() throws Exception {
+        List<String> contentIds = List.of("C_DRAMA_BALANCED");
+        List<CandidatePlace> places = List.of(
+                place("P_B_01", "C_DRAMA_BALANCED", "Balanced Drama", "Seoul", "Seoul Gangnam-gu Spot 1", 37.5000, 127.0000),
+                place("P_B_02", "C_DRAMA_BALANCED", "Balanced Drama", "Seoul", "Seoul Gangnam-gu Spot 2", 37.5010, 127.0010),
+                place("P_B_03", "C_DRAMA_BALANCED", "Balanced Drama", "Seoul", "Seoul Gangnam-gu Spot 3", 37.5020, 127.0020),
+                place("P_B_04", "C_DRAMA_BALANCED", "Balanced Drama", "Seoul", "Seoul Gangnam-gu Spot 4", 37.5030, 127.0030),
+                place("P_B_05", "C_DRAMA_BALANCED", "Balanced Drama", "Seoul", "Seoul Gangnam-gu Spot 5", 37.5040, 127.0040),
+                place("P_B_06", "C_DRAMA_BALANCED", "Balanced Drama", "Seoul", "Seoul Gangnam-gu Spot 6", 37.5050, 127.0050),
+                place("P_B_07", "C_DRAMA_BALANCED", "Balanced Drama", "Seoul", "Seoul Gangnam-gu Spot 7", 37.5060, 127.0060),
+                place("P_B_08", "C_DRAMA_BALANCED", "Balanced Drama", "Seoul", "Seoul Gangnam-gu Spot 8", 37.5070, 127.0070),
+                place("P_B_09", "C_DRAMA_BALANCED", "Balanced Drama", "Seoul", "Seoul Gangnam-gu Spot 9", 37.5080, 127.0080),
+                place("P_B_10", "C_DRAMA_BALANCED", "Balanced Drama", "Seoul", "Seoul Gangnam-gu Spot 10", 37.5090, 127.0090),
+                place("P_B_11", "C_DRAMA_BALANCED", "Balanced Drama", "Seoul", "Seoul Gangnam-gu Spot 11", 37.5100, 127.0100),
+                place("P_B_12", "C_DRAMA_BALANCED", "Balanced Drama", "Seoul", "Seoul Gangnam-gu Spot 12", 37.5110, 127.0110),
+                place("P_B_13", "C_DRAMA_BALANCED", "Balanced Drama", "Seoul", "Seoul Gangnam-gu Spot 13", 37.5120, 127.0120)
+        );
+        HttpServer server = startGmsStub(aiRouteJson("Balanced repaired route", List.of(
+                List.of("P_B_01", "P_B_02", "P_B_03", "P_B_04"),
+                List.of("P_B_05"),
+                List.of("P_B_06", "P_B_07", "P_B_08", "P_B_09", "P_B_10", "P_B_11", "P_B_12"),
+                List.of("P_B_13")
+        )));
+
+        try {
+            AiRouteService service = aiRouteServiceWithGms(server, 7);
+            AiRouteRequest request = aiRequest(contentIds, "Seoul", 4, "car", List.of("CAR"), List.of(1, 2, 3, 4));
+            when(aiRouteMapper.findCandidatePlaces(eq(contentIds), isNull(), anyInt())).thenReturn(places);
+
+            AiRouteDto route = service.generateRoute(request);
+
+            assertThat(route.days()).hasSize(4);
+            assertThat(route.days()).allSatisfy(day -> assertThat(day.places()).hasSizeBetween(2, 7));
+            assertThat(route.days().stream().map(day -> day.places().size()).toList()).doesNotContain(1);
+            assertThat(route.places()).extracting(RouteStopDto::placeId).doesNotHaveDuplicates();
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
     void routeStopDtoFromRoutePlaceIncludesCategory() {
         RoutePlace place = new RoutePlace();
         place.setRoutePlaceId("rp-001");

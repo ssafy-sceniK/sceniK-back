@@ -256,6 +256,9 @@ public class AiRouteService {
                 "7 places are allowed only for very compact routes with low travel time and no long segment.",
                 "Never create 8 or more places in one day.",
                 "Do not force the same number of places every day.",
+                "Do not create one-place days unless there are not enough feasible nearby candidates.",
+                "Do not put 6-7 places in one day while another day has only 1 place when redistribution is feasible.",
+                "Bad day-count pattern: 4 / 1 / 7 / 1. Prefer balanced patterns such as 4 / 3 / 4 / 3.",
                 "A realistic 4-place day is better than an unrealistic 8-place day.",
                 "Consider travel time, stay time, meals/rest, and a 10-hour daily target budget.",
                 "Use fewer places when the selected region is wide or public transit/walking is used.",
@@ -341,7 +344,7 @@ public class AiRouteService {
         return new GmsChatRequest(
                 gmsModel,
                 List.of(
-                        new GmsMessage("developer", "Answer in Korean. Return strict JSON only. Use only provided DB candidate placeIds. Preferred daily stops are 3-5, normal max is 6, 7 only for very compact routes, and 8+ places in one day are forbidden."),
+                        new GmsMessage("developer", "Answer in Korean. Return strict JSON only. Use only provided DB candidate placeIds. Preferred daily stops are 3-5, normal max is 6, 7 only for very compact routes, and 8+ places in one day are forbidden. Avoid underfilled days: do not create 1-place days unless unavoidable, and never create imbalanced patterns like 4/1/7/1 when places can be redistributed."),
                         new GmsMessage("user", userPrompt)
                 ),
                 Map.of("type", "json_object")
@@ -907,7 +910,177 @@ public class AiRouteService {
                 feasibilityRemoved,
                 repairedDays.size()
         );
-        return repairedDays;
+        List<RouteDayDto> balancedDays = rebalanceUnderfilledDays(repairedDays, stopPolicy, request);
+        logRouteBalanceSummary(balancedDays, stopPolicy);
+        return balancedDays;
+    }
+
+    private List<RouteDayDto> rebalanceUnderfilledDays(List<RouteDayDto> days, StopPolicy stopPolicy, AiRouteRequest request) {
+        if (days == null || days.size() < 2) {
+            return days;
+        }
+
+        List<List<RouteStopDto>> dayStops = new ArrayList<>();
+        for (RouteDayDto day : days) {
+            dayStops.add(new ArrayList<>(day.places() == null ? List.<RouteStopDto>of() : day.places()));
+        }
+        int totalStopCount = dayStops.stream().mapToInt(List::size).sum();
+        int targetMin = balanceTargetMin(totalStopCount, dayStops.size(), stopPolicy);
+        if (targetMin <= 1) {
+            return days;
+        }
+
+        int movedCount = 0;
+        Set<Integer> blockedUnderfilledDays = new LinkedHashSet<>();
+        int maxPasses = Math.max(totalStopCount * 2, dayStops.size());
+        for (int pass = 0; pass < maxPasses; pass++) {
+            int underfilledIndex = underfilledDayIndex(dayStops, targetMin, blockedUnderfilledDays);
+            if (underfilledIndex < 0) {
+                break;
+            }
+
+            StopMoveCandidate move = bestMoveForUnderfilledDay(dayStops, underfilledIndex, targetMin, stopPolicy, request);
+            if (move == null) {
+                blockedUnderfilledDays.add(underfilledIndex);
+                continue;
+            }
+
+            dayStops.get(move.donorIndex()).remove(move.stop());
+            dayStops.get(underfilledIndex).add(move.stop());
+            movedCount++;
+            blockedUnderfilledDays.clear();
+        }
+
+        if (movedCount == 0) {
+            return days;
+        }
+
+        List<RouteDayDto> balancedDays = rebuildBalancedDays(dayStops, request);
+        log.info(
+                "AI route underfilled-day balance movedStopCount={} targetMin={} beforeCounts={} afterCounts={}",
+                movedCount,
+                targetMin,
+                dayStopCounts(days),
+                dayStopCounts(balancedDays)
+        );
+        return balancedDays;
+    }
+
+    private int balanceTargetMin(int totalStopCount, int dayCount, StopPolicy stopPolicy) {
+        if (dayCount <= 0) {
+            return 1;
+        }
+        if (totalStopCount >= dayCount * PREFERRED_MIN_PLACES_PER_DAY) {
+            return PREFERRED_MIN_PLACES_PER_DAY;
+        }
+        if (totalStopCount >= dayCount * stopPolicy.minPlacesPerDay()) {
+            return stopPolicy.minPlacesPerDay();
+        }
+        return 1;
+    }
+
+    private int underfilledDayIndex(List<List<RouteStopDto>> dayStops, int targetMin, Set<Integer> blockedDays) {
+        int selectedIndex = -1;
+        int selectedSize = Integer.MAX_VALUE;
+        for (int index = 0; index < dayStops.size(); index++) {
+            if (blockedDays.contains(index)) {
+                continue;
+            }
+            int size = dayStops.get(index).size();
+            if (size < targetMin && size < selectedSize) {
+                selectedIndex = index;
+                selectedSize = size;
+            }
+        }
+        return selectedIndex;
+    }
+
+    private StopMoveCandidate bestMoveForUnderfilledDay(
+            List<List<RouteStopDto>> dayStops,
+            int underfilledIndex,
+            int targetMin,
+            StopPolicy stopPolicy,
+            AiRouteRequest request
+    ) {
+        StopMoveCandidate best = null;
+        List<RouteStopDto> underfilledStops = dayStops.get(underfilledIndex);
+        TransportProfile targetProfile = transportProfileForDay(request, underfilledIndex + 1);
+
+        for (int donorIndex = 0; donorIndex < dayStops.size(); donorIndex++) {
+            if (donorIndex == underfilledIndex) {
+                continue;
+            }
+            List<RouteStopDto> donorStops = dayStops.get(donorIndex);
+            if (donorStops.size() <= targetMin) {
+                continue;
+            }
+
+            TransportProfile donorProfile = transportProfileForDay(request, donorIndex + 1);
+            for (RouteStopDto stop : donorStops) {
+                List<RouteStopDto> donorAfter = new ArrayList<>(donorStops);
+                donorAfter.remove(stop);
+                List<RouteStopDto> targetAfter = new ArrayList<>(underfilledStops);
+                targetAfter.add(stop);
+
+                if (donorAfter.isEmpty()
+                        || !isDailyRouteFeasible(optimizeStopOrder(donorAfter), stopPolicy, donorProfile)
+                        || !isDailyRouteFeasible(optimizeStopOrder(targetAfter), stopPolicy, targetProfile)) {
+                    continue;
+                }
+
+                double score = moveScore(donorStops, underfilledStops, stop, donorProfile);
+                if (best == null || score < best.score()) {
+                    best = new StopMoveCandidate(donorIndex, stop, score);
+                }
+            }
+        }
+        return best;
+    }
+
+    private double moveScore(List<RouteStopDto> donorStops, List<RouteStopDto> targetStops, RouteStopDto stop, TransportProfile donorProfile) {
+        double targetDistance = targetStops.isEmpty() ? 0.0 : distanceKm(centroidStop(targetStops), stop);
+        double donorOutlierBenefit = routeOutlierScore(donorStops, stop, donorProfile);
+        double sameAreaBonus = targetStops.stream().anyMatch(target -> areaCluster(target).id().equals(areaCluster(stop).id())) ? 10.0 : 0.0;
+        double donorSizeBonus = Math.max(0, donorStops.size() - PREFERRED_MAX_PLACES_PER_DAY) * 2.0;
+        return targetDistance - (donorOutlierBenefit * 0.35) - sameAreaBonus - donorSizeBonus;
+    }
+
+    private List<RouteDayDto> rebuildBalancedDays(List<List<RouteStopDto>> dayStops, AiRouteRequest request) {
+        List<RouteDayDto> rebuiltDays = new ArrayList<>();
+        for (int dayIndex = 0; dayIndex < dayStops.size(); dayIndex++) {
+            TransportProfile profile = transportProfileForDay(request, dayIndex + 1);
+            List<RouteStopDto> rebuiltStops = rebuildStopsAfterOptimization(optimizeStopOrder(dayStops.get(dayIndex)), dayIndex, profile);
+            rebuiltDays.add(new RouteDayDto(dayIndex + 1, estimateTravelTime(rebuiltStops), rebuiltStops));
+        }
+        return rebuiltDays;
+    }
+
+    private List<Integer> dayStopCounts(List<RouteDayDto> days) {
+        return days.stream()
+                .map(day -> day.places() == null ? 0 : day.places().size())
+                .toList();
+    }
+
+    private void logRouteBalanceSummary(List<RouteDayDto> days, StopPolicy stopPolicy) {
+        List<Integer> counts = dayStopCounts(days);
+        int underfilledDays = (int) counts.stream().filter(count -> count > 0 && count < stopPolicy.minPlacesPerDay()).count();
+        int onePlaceDays = (int) counts.stream().filter(count -> count == 1).count();
+        int overpackedDays = (int) counts.stream().filter(count -> count > NORMAL_MAX_PLACES_PER_DAY).count();
+        double average = counts.stream().mapToInt(Integer::intValue).average().orElse(0.0);
+        double stddev = Math.sqrt(counts.stream()
+                .mapToDouble(count -> Math.pow(count - average, 2))
+                .average()
+                .orElse(0.0));
+        log.info(
+                "AI route balance summary counts={} min={} max={} onePlaceDays={} underfilledDays={} overpackedDays={} stddev={}",
+                counts,
+                counts.stream().mapToInt(Integer::intValue).min().orElse(0),
+                counts.stream().mapToInt(Integer::intValue).max().orElse(0),
+                onePlaceDays,
+                underfilledDays,
+                overpackedDays,
+                Math.round(stddev * 100.0) / 100.0
+        );
     }
 
     private List<RouteStopDto> repairDayStops(List<RouteStopDto> stops, int dayIndex, StopPolicy stopPolicy, TransportProfile profile, String phase) {
@@ -1903,6 +2076,9 @@ public class AiRouteService {
     }
 
     private record AreaBucketMerge(int leftIndex, int rightIndex, double score) {
+    }
+
+    private record StopMoveCandidate(int donorIndex, RouteStopDto stop, double score) {
     }
 
     private record GenerationState(AiRouteRequest request, AtomicInteger regenerateCount) {

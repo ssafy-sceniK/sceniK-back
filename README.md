@@ -105,8 +105,8 @@ GMS Chat Completions 연동은 백엔드에서만 수행합니다.
 GMS_BASE_URL=https://gms.ssafy.io/gmsapi/
 GMS_KEY=your_gms_key
 GMS_MODEL=gpt-5.4-mini
-GMS_TRANSLATION_MODEL=gpt-5-nano
-GMS_TRANSLATION_FALLBACK_MODEL=gpt-5.4-mini
+GMS_TRANSLATION_MODEL=gemini-2.5-flash-lite
+GMS_TRANSLATION_FALLBACK_MODEL=
 GMS_CONNECT_TIMEOUT_MS=1000
 GMS_READ_TIMEOUT_MS=5000
 ```

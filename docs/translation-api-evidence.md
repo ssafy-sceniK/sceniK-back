@@ -40,9 +40,9 @@ If the source text changes, the hash changes and the next request creates a new 
 
 ## Provider Behavior
 
-The translation service uses the existing GMS OpenAI-compatible chat completions configuration.
-User-generated content translation uses `scenik.ai.gms.translation-model`, which defaults to `gpt-5-nano` and can be overridden with `GMS_TRANSLATION_MODEL`.
-If the primary translation model is rejected by GMS, translation retries once with `scenik.ai.gms.translation-fallback-model`, which defaults to `GMS_MODEL` or `gpt-5.4-mini`.
+The translation service uses the GMS Gemini-compatible `generateContent` endpoint.
+User-generated content translation uses `scenik.ai.gms.translation-model`, which defaults to `gemini-2.5-flash-lite` and can be overridden with `GMS_TRANSLATION_MODEL`.
+If a fallback model is configured through `scenik.ai.gms.translation-fallback-model`, translation retries once after the primary Gemini request fails.
 If `GMS_KEY` is not configured, user-generated translation requests return `503` while the rest of the product continues to work.
 
 ## Remaining Gaps

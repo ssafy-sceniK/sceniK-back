@@ -1,6 +1,5 @@
 package com.scenik.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.scenik.domain.CommunityComment;
 import com.scenik.domain.CommunityPost;
 import com.scenik.domain.PlaceReview;
@@ -34,7 +33,7 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class TranslationService {
     private static final Logger log = LoggerFactory.getLogger(TranslationService.class);
-    private static final String DEFAULT_TRANSLATION_MODEL = "gpt-5-nano";
+    private static final String DEFAULT_TRANSLATION_MODEL = "gemini-2.5-flash-lite";
     private static final int MAX_TRANSLATION_SOURCE_LENGTH = 4000;
 
     private final TranslationCacheMapper translationCacheMapper;
@@ -56,8 +55,8 @@ public class TranslationService {
             LanguageDetectionService languageDetectionService,
             @Value("${scenik.ai.gms.base-url}") String gmsBaseUrl,
             @Value("${scenik.ai.gms.api-key:}") String gmsApiKey,
-            @Value("${scenik.ai.gms.translation-model:${scenik.ai.gms.model:gpt-5-nano}}") String gmsModel,
-            @Value("${scenik.ai.gms.translation-fallback-model:${scenik.ai.gms.model:gpt-5.4-mini}}") String gmsFallbackModel,
+            @Value("${scenik.ai.gms.translation-model:gemini-2.5-flash-lite}") String gmsModel,
+            @Value("${scenik.ai.gms.translation-fallback-model:}") String gmsFallbackModel,
             @Value("${scenik.ai.gms.connect-timeout-ms:1000}") int connectTimeoutMs,
             @Value("${scenik.ai.gms.read-timeout-ms:5000}") int readTimeoutMs
     ) {
@@ -182,23 +181,20 @@ public class TranslationService {
         String prompt = "Translate this user-generated sceniK text. Preserve names, place names, URLs, hashtags, emoji, and line breaks. "
                 + "Return only the translated text, with no explanation. Source language: " + sourceLanguage
                 + ". Target language: " + targetLanguage + ".\n\n" + sourceText;
+        String fullPrompt = "You are a precise UI translation engine. Return only translated text.\n\n" + prompt;
         try {
-            GmsChatResponse response = restClient.post()
-                    .uri(URI.create(gmsBaseUrl + "api.openai.com/v1/chat/completions"))
+            GeminiGenerateContentResponse response = restClient.post()
+                    .uri(URI.create(gmsBaseUrl + "generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent"))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .header("Authorization", "Bearer " + gmsApiKey)
-                    .body(new GmsChatRequest(
-                            model,
-                            List.of(
-                                    new GmsMessage("system", "You are a precise UI translation engine. Return only translated text."),
-                                    new GmsMessage("user", prompt)
-                            )
-                    ))
+                    .header("x-goog-api-key", gmsApiKey)
+                    .body(new GeminiGenerateContentRequest(List.of(
+                            new GeminiContent(List.of(new GeminiPart(fullPrompt)))
+                    )))
                     .retrieve()
-                    .body(GmsChatResponse.class);
-            String translated = response == null || response.choices() == null || response.choices().isEmpty()
+                    .body(GeminiGenerateContentResponse.class);
+            String translated = response == null || response.candidates() == null || response.candidates().isEmpty()
                     ? null
-                    : response.choices().get(0).content();
+                    : response.candidates().get(0).text();
             if (translated == null || translated.isBlank()) {
                 throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Translation provider returned an empty response.");
             }
@@ -286,15 +282,25 @@ public class TranslationService {
         if (model == null || model.isBlank()) {
             return null;
         }
-        return normalizeGmsModelValue(model.trim());
+        String value = model.trim();
+        if (isLegacyOpenAiModel(value)) {
+            log.info("Ignoring legacy OpenAI translation fallback model '{}' for Gemini translation.", value);
+            return null;
+        }
+        return normalizeGmsModelValue(value);
     }
 
     private String normalizeGmsModelValue(String value) {
         String canonical = value.toLowerCase().replace('_', '-').replace(' ', '-');
-        if ("gpt-nano".equals(canonical) || "gpt5-nano".equals(canonical) || DEFAULT_TRANSLATION_MODEL.equals(canonical)) {
+        if (DEFAULT_TRANSLATION_MODEL.equals(canonical) || isLegacyOpenAiModel(canonical)) {
             return DEFAULT_TRANSLATION_MODEL;
         }
         return value;
+    }
+
+    private boolean isLegacyOpenAiModel(String value) {
+        String canonical = value.toLowerCase().replace('_', '-').replace(' ', '-');
+        return canonical.startsWith("gpt-");
     }
 
     private String truncateForLog(String value) {
@@ -311,41 +317,30 @@ public class TranslationService {
     private record TranslationProviderResult(String translatedText, String model) {
     }
 
-    private record GmsChatRequest(String model, List<GmsMessage> messages) {
+    private record GeminiGenerateContentRequest(List<GeminiContent> contents) {
     }
 
-    private record GmsMessage(String role, String content) {
+    private record GeminiContent(List<GeminiPart> parts) {
     }
 
-    private record GmsChatResponse(List<GmsChoice> choices) {
+    private record GeminiPart(String text) {
     }
 
-    private record GmsChoice(GmsResponseMessage message) {
-        String content() {
-            if (message == null || message.content() == null || message.content().isNull()) {
+    private record GeminiGenerateContentResponse(List<GeminiCandidate> candidates) {
+    }
+
+    private record GeminiCandidate(GeminiContent content) {
+        String text() {
+            if (content == null || content.parts() == null || content.parts().isEmpty()) {
                 return null;
             }
-            JsonNode content = message.content();
-            if (content.isTextual()) {
-                return content.asText();
-            }
-            if (content.isArray()) {
-                StringBuilder text = new StringBuilder();
-                for (JsonNode part : content) {
-                    if (part.isTextual()) {
-                        text.append(part.asText());
-                    } else if (part.hasNonNull("text")) {
-                        text.append(part.get("text").asText());
-                    } else if (part.hasNonNull("content")) {
-                        text.append(part.get("content").asText());
-                    }
+            StringBuilder text = new StringBuilder();
+            for (GeminiPart part : content.parts()) {
+                if (part != null && part.text() != null) {
+                    text.append(part.text());
                 }
-                return text.isEmpty() ? null : text.toString();
             }
-            return null;
+            return text.isEmpty() ? null : text.toString();
         }
-    }
-
-    private record GmsResponseMessage(String role, JsonNode content) {
     }
 }

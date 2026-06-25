@@ -125,13 +125,16 @@ public class AiRouteService {
         int regionFilteredCount = candidates.size();
         int targetStopCount = targetStopCount(stopPolicy, requestedDays);
         int minimumStopCount = minimumStopCount(stopPolicy, requestedDays);
-        candidates = supplementCandidatePlaces(candidates, selectedContentCandidates, regions, targetStopCount, targetCount);
+        int promptCandidateTargetCount = promptCandidateTargetCount(stopPolicy, requestedDays, targetStopCount, targetCount);
+        candidates = supplementCandidatePlaces(candidates, selectedContentCandidates, regions, promptCandidateTargetCount, targetCount);
         log.info(
-                "AI route candidate filtering contentIds={} selectedRegions={} contentPlaceCount={} regionFilteredCount={} finalPromptCount={} stopPolicy={}",
+                "AI route candidate filtering contentIds={} selectedRegions={} contentPlaceCount={} regionFilteredCount={} routeStopTarget={} promptCandidateTarget={} finalPromptCount={} stopPolicy={}",
                 contentIds,
                 regions,
                 selectedContentCandidates.size(),
                 regionFilteredCount,
+                targetStopCount,
+                promptCandidateTargetCount,
                 candidates.size(),
                 stopPolicy
         );
@@ -1735,26 +1738,26 @@ public class AiRouteService {
             List<CandidatePlace> candidates,
             List<CandidatePlace> selectedContentCandidates,
             List<String> requestedRegions,
-            int targetStopCount,
+            int targetCandidateCount,
             int queryLimit
     ) {
-        if (candidates.size() >= targetStopCount) {
+        if (candidates.size() >= targetCandidateCount) {
             return candidates;
         }
 
         List<CandidatePlace> supplemented = new ArrayList<>(candidates);
         for (String region : supplementRegions(candidates, selectedContentCandidates, requestedRegions)) {
-            if (supplemented.size() >= targetStopCount) break;
-            supplemented = appendUnique(supplemented, aiRouteMapper.findCandidatePlaces(null, region, Math.max(queryLimit, targetStopCount * 4)));
+            if (supplemented.size() >= targetCandidateCount) break;
+            supplemented = appendUnique(supplemented, aiRouteMapper.findCandidatePlaces(null, region, Math.max(queryLimit, targetCandidateCount * 2)));
         }
 
         supplemented = filterByRegions(supplemented, requestedRegions);
         if (supplemented.size() > candidates.size()) {
             log.info(
-                    "AI route supplemented candidates selectedCount={} supplementedCount={} targetStopCount={} regions={}",
+                    "AI route supplemented candidates selectedCount={} supplementedCount={} targetCandidateCount={} regions={}",
                     candidates.size(),
                     supplemented.size(),
-                    targetStopCount,
+                    targetCandidateCount,
                     requestedRegions
             );
         }
@@ -1858,6 +1861,14 @@ public class AiRouteService {
 
     private int targetStopCount(StopPolicy stopPolicy, int requestedDays) {
         return Math.max(requestedDays, requestedDays * stopPolicy.preferredPlacesPerDay());
+    }
+
+    private int promptCandidateTargetCount(StopPolicy stopPolicy, int requestedDays, int targetStopCount, int queryLimit) {
+        int durationScaledCandidateCount = requestedDays <= 1
+                ? Math.max(15, stopPolicy.maxPlacesPerDay() * 3)
+                : Math.max(requestedDays * 6, requestedDays * stopPolicy.maxPlacesPerDay() * 2);
+        int qualityBufferCandidateCount = targetStopCount * 2;
+        return Math.min(queryLimit, Math.max(durationScaledCandidateCount, qualityBufferCandidateCount));
     }
 
     private int minimumStopCount(StopPolicy stopPolicy, int requestedDays) {

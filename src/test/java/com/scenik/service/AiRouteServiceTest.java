@@ -12,6 +12,7 @@ import com.scenik.domain.CandidatePlace;
 import com.scenik.domain.RoutePlace;
 import com.scenik.dto.RouteDtos.AiRouteDto;
 import com.scenik.dto.RouteDtos.AiRouteRequest;
+import com.scenik.dto.RouteDtos.CandidatePlaceDto;
 import com.scenik.dto.RouteDtos.RouteStopDto;
 import com.scenik.mapper.AiRouteMapper;
 import com.sun.net.httpserver.HttpServer;
@@ -21,6 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -154,6 +156,41 @@ class AiRouteServiceTest {
                 .isNotEqualTo(route.days().get(0).places().stream().map(RouteStopDto::recommendedTime).toList());
         assertThat(route.days().get(2).places().stream().map(RouteStopDto::recommendedTime).toList())
                 .isNotEqualTo(route.days().get(0).places().stream().map(RouteStopDto::recommendedTime).toList());
+    }
+
+    @Test
+    void seoulMultiDayRouteSupplementsPromptCandidatesBeyondMinimumStops() {
+        List<String> contentIds = List.of("C_DRAMA_SEOUL");
+        AiRouteRequest request = aiRequest(contentIds, "Seoul", 4, "public transit", List.of("PUBLIC_TRANSIT"), List.of());
+        List<CandidatePlace> selectedContentPlaces = IntStream.rangeClosed(1, 13)
+                .mapToObj(index -> place(
+                        String.format("P_SEOUL_%02d", index),
+                        "C_DRAMA_SEOUL",
+                        "Selected Seoul Drama",
+                        "Seoul",
+                        37.5000 + index * 0.001,
+                        127.0000 + index * 0.001
+                ))
+                .toList();
+        List<CandidatePlace> regionalPlaces = IntStream.rangeClosed(1, 30)
+                .mapToObj(index -> place(
+                        String.format("P_SEOUL_%02d", index),
+                        index <= 13 ? "C_DRAMA_SEOUL" : "C_DRAMA_SUPPLEMENT",
+                        index <= 13 ? "Selected Seoul Drama" : "Supplement Seoul Place",
+                        "Seoul",
+                        37.5000 + index * 0.001,
+                        127.0000 + index * 0.001
+                ))
+                .toList();
+
+        when(aiRouteMapper.findCandidatePlaces(eq(contentIds), isNull(), anyInt())).thenReturn(selectedContentPlaces);
+        when(aiRouteMapper.findCandidatePlaces(isNull(), eq("Seoul"), anyInt())).thenReturn(regionalPlaces);
+
+        AiRouteDto route = aiRouteService.generateRoute(request);
+
+        assertThat(route.candidatePlaces()).hasSize(30);
+        assertThat(route.candidatePlaces()).extracting(CandidatePlaceDto::placeId).doesNotContain("P_0252");
+        verify(aiRouteMapper).findCandidatePlaces(isNull(), eq("Seoul"), anyInt());
     }
 
     @Test

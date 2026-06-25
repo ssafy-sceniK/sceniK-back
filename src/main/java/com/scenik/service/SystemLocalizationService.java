@@ -274,7 +274,6 @@ public class SystemLocalizationService {
         addPlaceName("P_0245", "Dokdo", "独島", "独岛");
         addPlaceName("P_0250", "Paradise City", "パラダイスシティ", "百乐达斯城");
         addPlaceName("P_0251", "INSPIRE Entertainment Resort", "インスパイア・エンターテインメント・リゾート", "INSPIRE 娱乐度假村");
-        addPlaceName("P_0252", "Unhyeongung Yanggwan", "雲峴宮洋館", "云岘宫洋馆");
         addPlaceName("P_0253", "Seonungak", "ソヌンガク", "仙云阁");
         addPlaceName("P_0254", "Bonghwanggak", "鳳凰閣", "凤凰阁");
         addPlaceName("P_0255", "BaekInje's House Museum", "白麟済家屋", "白麟济家屋");

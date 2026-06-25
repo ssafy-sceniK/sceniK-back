@@ -283,6 +283,32 @@ public class CommunityService {
         );
     }
 
+    @Transactional
+    public Map<String, Object> deleteNotification(User user, String notificationId) {
+        Notification notification = communityMapper.findNotificationById(user.getUserId(), notificationId);
+        if (notification == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Notification was not found.");
+        }
+        communityMapper.deleteNotification(user.getUserId(), notificationId);
+        int unreadAfter = countUnreadNotifications(user);
+        return Map.of(
+                "deletedCount", 1,
+                "unreadNotificationCount", unreadAfter,
+                "hasUnreadNotifications", unreadAfter > 0
+        );
+    }
+
+    @Transactional
+    public Map<String, Object> deleteAllNotifications(User user) {
+        int deletedCount = communityMapper.countNotificationsByUserId(user.getUserId());
+        communityMapper.deleteAllNotifications(user.getUserId());
+        return Map.of(
+                "deletedCount", deletedCount,
+                "unreadNotificationCount", 0,
+                "hasUnreadNotifications", false
+        );
+    }
+
     public int countNotifications(User user) {
         return communityMapper.countNotificationsByUserId(user.getUserId());
     }

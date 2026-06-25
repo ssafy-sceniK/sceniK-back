@@ -341,4 +341,15 @@
     WHERE user_id = #{userId}
       AND read_at IS NULL
   </update>
+
+  <delete id="deleteNotification">
+    DELETE FROM notifications
+    WHERE user_id = #{userId}
+      AND notification_id = #{notificationId}
+  </delete>
+
+  <delete id="deleteAllNotifications">
+    DELETE FROM notifications
+    WHERE user_id = #{userId}
+  </delete>
 </mapper>

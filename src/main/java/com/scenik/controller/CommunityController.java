@@ -9,6 +9,7 @@ import com.scenik.dto.CommunityDtos.PostDto;
 import com.scenik.dto.CommunityDtos.PostRequest;
 import com.scenik.dto.CommunityDtos.ReportDto;
 import com.scenik.dto.CommunityDtos.ReportRequest;
+import com.scenik.dto.ApiResponse;
 import com.scenik.domain.User;
 import com.scenik.service.AuthService;
 import com.scenik.service.CommunityImageStorageService;
@@ -243,6 +244,23 @@ public class CommunityController {
             @PathVariable("notificationId") String notificationId
     ) {
         return communityService.markNotificationRead(authService.requireUser(authorization), notificationId);
+    }
+
+    @DeleteMapping("/notifications/{notificationId}")
+    public ApiResponse<Map<String, Object>> deleteNotification(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable("notificationId") String notificationId
+    ) {
+        return ApiResponse.ok("알림이 삭제되었습니다.",
+                communityService.deleteNotification(authService.requireUser(authorization), notificationId));
+    }
+
+    @DeleteMapping("/notifications")
+    public ApiResponse<Map<String, Object>> deleteAllNotifications(
+            @RequestHeader(value = "Authorization", required = false) String authorization
+    ) {
+        return ApiResponse.ok("모든 알림이 삭제되었습니다.",
+                communityService.deleteAllNotifications(authService.requireUser(authorization)));
     }
 
     @GetMapping("/users/me/posts")

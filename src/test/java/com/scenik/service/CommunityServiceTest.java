@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import com.scenik.domain.CommunityComment;
 import com.scenik.domain.CommunityPost;
+import com.scenik.domain.Notification;
 import com.scenik.domain.User;
 import com.scenik.dto.CommunityDtos.CommentRequest;
 import com.scenik.mapper.CommunityMapper;
@@ -148,6 +149,47 @@ class CommunityServiceTest {
         org.assertj.core.api.Assertions.assertThat(dto.comments().get(0).profileImageUrl()).isEqualTo("/api/uploads/profile/commenter.png");
         org.assertj.core.api.Assertions.assertThat(dto.comments().get(0).authorImageUrl()).isEqualTo("/api/uploads/profile/commenter.png");
     }
+
+    @Test
+    void deleteNotificationDeletesOnlyOwnedNotification() {
+        User user = user(5L, "Owner");
+        when(communityMapper.findNotificationById(5L, "notification-1")).thenReturn(notification("notification-1", 5L));
+        when(communityMapper.countUnreadNotificationsByUserId(5L)).thenReturn(0);
+
+        var result = service.deleteNotification(user, "notification-1");
+
+        verify(communityMapper).deleteNotification(5L, "notification-1");
+        org.assertj.core.api.Assertions.assertThat(result)
+                .containsEntry("deletedCount", 1)
+                .containsEntry("unreadNotificationCount", 0)
+                .containsEntry("hasUnreadNotifications", false);
+    }
+
+    @Test
+    void deleteNotificationThrowsWhenNotificationIsNotOwnedByUser() {
+        User user = user(5L, "Owner");
+        when(communityMapper.findNotificationById(5L, "notification-other")).thenReturn(null);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.deleteNotification(user, "notification-other"))
+                .isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+
+        verify(communityMapper, never()).deleteNotification(anyLong(), anyString());
+    }
+
+    @Test
+    void deleteAllNotificationsDeletesOnlyCurrentUserNotifications() {
+        User user = user(5L, "Owner");
+        when(communityMapper.countNotificationsByUserId(5L)).thenReturn(3);
+
+        var result = service.deleteAllNotifications(user);
+
+        verify(communityMapper).deleteAllNotifications(5L);
+        org.assertj.core.api.Assertions.assertThat(result)
+                .containsEntry("deletedCount", 3)
+                .containsEntry("unreadNotificationCount", 0)
+                .containsEntry("hasUnreadNotifications", false);
+    }
+
     private void stubPostDtoDependencies(String postId, Long viewerId) {
         when(communityMapper.findTagsByPostId(postId)).thenReturn(List.of());
         when(communityMapper.findImagesByPostId(postId)).thenReturn(List.of());
@@ -178,6 +220,15 @@ class CommunityServiceTest {
         comment.setContent("Comment");
         comment.setLikeCount(0);
         return comment;
+    }
+
+    private Notification notification(String notificationId, Long userId) {
+        Notification notification = new Notification();
+        notification.setNotificationId(notificationId);
+        notification.setUserId(userId);
+        notification.setTitle("Title");
+        notification.setMessage("Message");
+        return notification;
     }
 
     private User user(Long userId, String nickname) {

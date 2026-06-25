@@ -52,4 +52,6 @@ public interface CommunityMapper {
     int countUnreadNotificationsByUserId(@Param("userId") Long userId);
     int markNotificationRead(@Param("userId") Long userId, @Param("notificationId") String notificationId);
     int markAllNotificationsRead(@Param("userId") Long userId);
+    int deleteNotification(@Param("userId") Long userId, @Param("notificationId") String notificationId);
+    int deleteAllNotifications(@Param("userId") Long userId);
 }

@@ -36,7 +36,10 @@ class AiRouteServiceTest {
                 "",
                 "gpt-test",
                 100,
-                100
+                100,
+                2,
+                3,
+                5
         );
     }
 
@@ -147,6 +150,89 @@ class AiRouteServiceTest {
                 .isNotEqualTo(route.days().get(0).places().stream().map(RouteStopDto::recommendedTime).toList());
     }
 
+    @Test
+    void carRouteCanUseFourStopsPerDay() {
+        List<String> contentIds = List.of("C_DRAMA_020");
+        AiRouteRequest request = new AiRouteRequest(
+                null,
+                contentIds,
+                "Seoul",
+                List.of("Seoul"),
+                2,
+                null,
+                null,
+                null,
+                "car",
+                List.of("CAR"),
+                List.of(1, 2),
+                "friends",
+                "active",
+                List.of("active"),
+                null,
+                500000,
+                "standard",
+                null
+        );
+        List<CandidatePlace> places = List.of(
+                place("P_201", "C_DRAMA_020", "Drama", "Seoul", 37.50, 127.00),
+                place("P_202", "C_DRAMA_020", "Drama", "Seoul", 37.51, 127.00),
+                place("P_203", "C_DRAMA_020", "Drama", "Seoul", 37.52, 127.00),
+                place("P_204", "C_DRAMA_020", "Drama", "Seoul", 37.53, 127.00),
+                place("P_205", "C_DRAMA_020", "Drama", "Seoul", 37.54, 127.00),
+                place("P_206", "C_DRAMA_020", "Drama", "Seoul", 37.55, 127.00),
+                place("P_207", "C_DRAMA_020", "Drama", "Seoul", 37.56, 127.00),
+                place("P_208", "C_DRAMA_020", "Drama", "Seoul", 37.57, 127.00)
+        );
+
+        when(aiRouteMapper.findCandidatePlaces(eq(contentIds), isNull(), anyInt())).thenReturn(places);
+
+        AiRouteDto route = aiRouteService.generateRoute(request);
+
+        assertThat(route.places()).hasSize(8);
+        assertThat(route.days()).allSatisfy(day -> assertThat(day.places()).hasSize(4));
+    }
+
+    @Test
+    void routeStopsAreReorderedByNearestNeighborDistance() {
+        List<String> contentIds = List.of("C_DRAMA_030");
+        AiRouteRequest request = new AiRouteRequest(
+                null,
+                contentIds,
+                "Seoul",
+                List.of("Seoul"),
+                1,
+                null,
+                null,
+                null,
+                "walk",
+                List.of("WALK"),
+                List.of(),
+                null,
+                "cinematic",
+                List.of("cinematic"),
+                null,
+                null,
+                null,
+                null
+        );
+        List<CandidatePlace> places = List.of(
+                place("P_A", "C_DRAMA_030", "Drama", "Seoul", 37.00, 127.00),
+                place("P_B", "C_DRAMA_030", "Drama", "Seoul", 37.01, 129.00),
+                place("P_C", "C_DRAMA_030", "Drama", "Seoul", 37.02, 127.01)
+        );
+
+        when(aiRouteMapper.findCandidatePlaces(eq(contentIds), isNull(), anyInt())).thenReturn(places);
+
+        AiRouteDto route = aiRouteService.generateRoute(request);
+
+        assertThat(route.days()).hasSize(1);
+        assertThat(route.days().get(0).places()).extracting(RouteStopDto::placeId)
+                .containsExactly("P_A", "P_C", "P_B");
+        assertThat(route.days().get(0).places()).extracting(RouteStopDto::visitOrder)
+                .containsExactly(1, 2, 3);
+        assertThat(route.days().get(0).places().get(1).estimatedTravelMinutes()).isPositive();
+    }
+
 
     @Test
     void routeStopDtoFromRoutePlaceIncludesCategory() {
@@ -179,6 +265,13 @@ class AiRouteServiceTest {
         place.setSceneDescription("scene");
         place.setVerified(true);
         place.setImageUrl("https://example.com/" + placeId + ".jpg");
+        return place;
+    }
+
+    private CandidatePlace place(String placeId, String contentId, String contentTitle, String region, double latitude, double longitude) {
+        CandidatePlace place = place(placeId, contentId, contentTitle, region);
+        place.setLatitude(latitude);
+        place.setLongitude(longitude);
         return place;
     }
 }

@@ -38,6 +38,7 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class AiRouteService {
     private static final Logger log = LoggerFactory.getLogger(AiRouteService.class);
+    private static final double EARTH_RADIUS_KM = 6371.0;
 
     private final AiRouteMapper aiRouteMapper;
     private final ObjectMapper objectMapper;
@@ -45,6 +46,9 @@ public class AiRouteService {
     private final String gmsBaseUrl;
     private final String gmsApiKey;
     private final String gmsModel;
+    private final int defaultMinPlacesPerDay;
+    private final int defaultPreferredPlacesPerDay;
+    private final int defaultMaxPlacesPerDay;
     private final Map<String, GenerationState> generationCache = new ConcurrentHashMap<>();
 
     public AiRouteService(
@@ -54,13 +58,19 @@ public class AiRouteService {
             @Value("${scenik.ai.gms.api-key:}") String gmsApiKey,
             @Value("${scenik.ai.gms.model:gpt-5.4-mini}") String gmsModel,
             @Value("${scenik.ai.gms.connect-timeout-ms:1000}") int connectTimeoutMs,
-            @Value("${scenik.ai.gms.read-timeout-ms:5000}") int readTimeoutMs
+            @Value("${scenik.ai.gms.read-timeout-ms:5000}") int readTimeoutMs,
+            @Value("${scenik.ai.route.min-places-per-day:2}") int defaultMinPlacesPerDay,
+            @Value("${scenik.ai.route.preferred-places-per-day:3}") int defaultPreferredPlacesPerDay,
+            @Value("${scenik.ai.route.max-places-per-day:5}") int defaultMaxPlacesPerDay
     ) {
         this.aiRouteMapper = aiRouteMapper;
         this.objectMapper = objectMapper;
         this.gmsBaseUrl = normalizeBaseUrl(gmsBaseUrl);
         this.gmsApiKey = gmsApiKey == null ? "" : gmsApiKey.trim();
         this.gmsModel = gmsModel;
+        this.defaultMinPlacesPerDay = Math.max(1, defaultMinPlacesPerDay);
+        this.defaultPreferredPlacesPerDay = Math.max(this.defaultMinPlacesPerDay, defaultPreferredPlacesPerDay);
+        this.defaultMaxPlacesPerDay = Math.max(this.defaultPreferredPlacesPerDay, defaultMaxPlacesPerDay);
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(connectTimeoutMs);
         requestFactory.setReadTimeout(readTimeoutMs);
@@ -91,23 +101,25 @@ public class AiRouteService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Selected content is required.");
         }
         int requestedDays = Math.max(1, request.durationDays() == null ? 1 : request.durationDays());
-        int targetCount = Math.max(36, requestedDays * 10);
+        StopPolicy stopPolicy = stopPolicy(request, requestedDays);
+        int targetCount = Math.max(36, requestedDays * stopPolicy.maxPlacesPerDay() * 3);
         List<String> regions = normalizeRegions(request);
         String regionLabel = regionLabel(regions);
         List<CandidatePlace> selectedContentCandidates = deduplicate(aiRouteMapper.findCandidatePlaces(contentIds, null, targetCount));
         logSelectedContentCandidateCounts(contentIds, regions, selectedContentCandidates);
         List<CandidatePlace> candidates = filterByRegions(selectedContentCandidates, regions);
         int regionFilteredCount = candidates.size();
-        int targetStopCount = targetStopCount(requestedDays);
-        int minimumStopCount = minimumStopCount(requestedDays);
+        int targetStopCount = targetStopCount(stopPolicy, requestedDays);
+        int minimumStopCount = minimumStopCount(stopPolicy, requestedDays);
         candidates = supplementCandidatePlaces(candidates, selectedContentCandidates, regions, targetStopCount, targetCount);
         log.info(
-                "AI route candidate filtering contentIds={} selectedRegions={} contentPlaceCount={} regionFilteredCount={} finalPromptCount={}",
+                "AI route candidate filtering contentIds={} selectedRegions={} contentPlaceCount={} regionFilteredCount={} finalPromptCount={} stopPolicy={}",
                 contentIds,
                 regions,
                 selectedContentCandidates.size(),
                 regionFilteredCount,
-                candidates.size()
+                candidates.size(),
+                stopPolicy
         );
         if (candidates.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "선택한 콘텐츠와 지역에 해당하는 장소가 부족합니다.");
@@ -125,8 +137,9 @@ public class AiRouteService {
         String contentTitle = contentTitleLabel(contentIds, candidates);
         String style = styleLabel(request);
         List<CandidatePlace> routeCandidates = candidates;
-        List<RouteDayDto> days = generateAiDays(request, routeCandidates, dayCount)
-                .orElseGet(() -> buildDeterministicDays(routeCandidates, dayCount, style, request.hotelAddress()));
+        List<RouteDayDto> days = generateAiDays(request, routeCandidates, dayCount, stopPolicy)
+                .orElseGet(() -> buildDeterministicDays(routeCandidates, dayCount, style, request.hotelAddress(), stopPolicy));
+        days = optimizeDailyRoutes(days, request);
         List<CandidatePlaceDto> candidateDtos = candidates.stream().map(CandidatePlaceDto::from).toList();
         List<RouteStopDto> flatPlaces = days.stream().flatMap(day -> day.places().stream()).toList();
 
@@ -165,7 +178,7 @@ public class AiRouteService {
         );
     }
 
-    private Optional<List<RouteDayDto>> generateAiDays(AiRouteRequest request, List<CandidatePlace> candidates, int dayCount) {
+    private Optional<List<RouteDayDto>> generateAiDays(AiRouteRequest request, List<CandidatePlace> candidates, int dayCount, StopPolicy stopPolicy) {
         if (gmsApiKey.isBlank()) {
             log.info("GMS API key is not configured. Falling back to deterministic AI route generation.");
             return Optional.empty();
@@ -175,23 +188,23 @@ public class AiRouteService {
                     .uri(URI.create(gmsBaseUrl + "api.openai.com/v1/chat/completions"))
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("Authorization", "Bearer " + gmsApiKey)
-                    .body(buildGmsRequest(request, candidates, dayCount))
+                    .body(buildGmsRequest(request, candidates, dayCount, stopPolicy))
                     .retrieve()
                     .body(GmsChatResponse.class);
             String content = response == null || response.choices() == null || response.choices().isEmpty()
                     ? null
                     : response.choices().get(0).content();
             AiRoutePlan plan = parseAiRoutePlan(content);
-            return validateAndBuildAiDays(plan, candidates, dayCount);
+            return validateAndBuildAiDays(plan, candidates, dayCount, stopPolicy);
         } catch (RestClientException | IllegalArgumentException | JsonProcessingException exception) {
             log.warn("GMS AI route generation failed. Falling back to deterministic route. reason={}", exception.getClass().getSimpleName());
             return Optional.empty();
         }
     }
 
-    private GmsChatRequest buildGmsRequest(AiRouteRequest request, List<CandidatePlace> candidates, int dayCount) throws JsonProcessingException {
-        int minPlacesPerDay = minPlacesPerDay(candidates, dayCount);
-        int preferredPlacesPerDay = preferredPlacesPerDay(candidates, dayCount);
+    private GmsChatRequest buildGmsRequest(AiRouteRequest request, List<CandidatePlace> candidates, int dayCount, StopPolicy stopPolicy) throws JsonProcessingException {
+        int minPlacesPerDay = minPlacesPerDay(candidates, dayCount, stopPolicy);
+        int preferredPlacesPerDay = preferredPlacesPerDay(candidates, dayCount, stopPolicy);
         Map<String, Object> routeContext = new LinkedHashMap<>();
         routeContext.put("contentIds", normalizeContentIds(request));
         routeContext.put("region", regionLabel(normalizeRegions(request)));
@@ -199,7 +212,9 @@ public class AiRouteService {
         routeContext.put("durationDays", dayCount);
         routeContext.put("minPlacesPerDay", minPlacesPerDay);
         routeContext.put("preferredPlacesPerDay", preferredPlacesPerDay);
-        routeContext.put("targetStopCount", Math.min(candidates.size(), targetStopCount(dayCount)));
+        routeContext.put("maxPlacesPerDay", stopPolicy.maxPlacesPerDay());
+        routeContext.put("targetStopCount", Math.min(candidates.size(), targetStopCount(stopPolicy, dayCount)));
+        routeContext.put("dailyStopPolicy", stopPolicy);
         routeContext.put("startDate", request.startDate());
         routeContext.put("endDate", request.endDate());
         routeContext.put("dateRangeLabel", request.dateRangeLabel());
@@ -233,7 +248,7 @@ public class AiRouteService {
                 - 정확히 durationDays 개의 day를 생성하세요. 2박 3일이면 반드시 3일차까지 생성하세요.
                 - 각 day는 최소 minPlacesPerDay개 이상의 장소를 포함하세요.
                 - 가능한 한 preferredPlacesPerDay에 가깝게 장소를 배치하세요.
-                - 후보가 충분하면 1일 코스는 3~5개, 2일 코스는 하루 3~4개, 3일 코스는 하루 2~4개 장소로 구성하세요.
+                - 하루 장소 수는 maxPlacesPerDay를 넘기지 말고, 이동수단·동행유형·예산 조건상 무리한 과밀 일정을 만들지 마세요.
                 - 매일 같은 시간표를 반복하지 말고 오전, 점심 전후, 오후, 저녁 흐름이 자연스럽게 보이도록 시간을 다르게 배치하세요.
                 - visitWorthyCategories에 가까운 장소를 우선하고, 학교/호텔/일반 상점은 콘텐츠 연결성이 강하거나 대체 후보가 없을 때만 사용하세요.
                 - recommendReason은 장소별로 한 문장만 작성하고, contentId나 DB 검증 정책을 쓰지 마세요.
@@ -242,6 +257,7 @@ public class AiRouteService {
                 - hotelAddress가 비어 있지 않으면 전체 동선 판단에만 참고하고, 모든 장소 설명에 숙소 문구를 반복하지 마세요.
                 - budget, region, style, travelStyles, transport, transportModes, carDays, companion 조건을 추천 이유와 이동 팁에 반영하세요.
                 - carDays에 포함된 Day는 차량 이동을 우선 고려하고, 포함되지 않은 Day는 대중교통 이동을 기준으로 동선을 구성하세요.
+                - 백엔드가 좌표 기반으로 최종 방문 순서를 재정렬하므로, 먼저 조건에 가장 맞는 placeId를 고르는 데 집중하세요.
                 - 같은 placeId를 두 번 쓰지 마세요.
                 - 출력은 설명 없이 JSON 객체만 반환하세요.
                 - JSON 형식: {"summary":"...","days":[{"dayNumber":1,"estimatedTravelTime":"이동 약 60분","places":[{"placeId":"P_001","visitOrder":1,"recommendedTime":"10:00","recommendReason":"...","estimatedStayMinutes":60,"estimatedTravelMinutes":0,"travelTip":"..."}]}]}
@@ -293,11 +309,11 @@ public class AiRouteService {
         return trimmed.substring(start, end + 1);
     }
 
-    private Optional<List<RouteDayDto>> validateAndBuildAiDays(AiRoutePlan plan, List<CandidatePlace> candidates, int dayCount) {
+    private Optional<List<RouteDayDto>> validateAndBuildAiDays(AiRoutePlan plan, List<CandidatePlace> candidates, int dayCount, StopPolicy stopPolicy) {
         if (plan == null || plan.days() == null || plan.days().size() != dayCount) {
             return Optional.empty();
         }
-        int minPlacesPerDay = minPlacesPerDay(candidates, dayCount);
+        int minPlacesPerDay = minPlacesPerDay(candidates, dayCount, stopPolicy);
         Map<String, CandidatePlace> candidateMap = candidates.stream()
                 .collect(Collectors.toMap(CandidatePlace::getPlaceId, place -> place, (left, right) -> left, LinkedHashMap::new));
         Set<String> usedPlaceIds = new LinkedHashSet<>();
@@ -337,6 +353,15 @@ public class AiRouteService {
                         usefulTravelTip(planStop.travelTip(), place, dayIndex, visitOrder - 1, planDay.places().size())
                 ));
             }
+            if (stops.size() > stopPolicy.maxPlacesPerDay()) {
+                log.info(
+                        "AI route response trimmed to maxPlacesPerDay day={} originalStopCount={} maxPlacesPerDay={}",
+                        dayIndex + 1,
+                        stops.size(),
+                        stopPolicy.maxPlacesPerDay()
+                );
+                stops = new ArrayList<>(stops.subList(0, stopPolicy.maxPlacesPerDay()));
+            }
             if (stops.size() < minPlacesPerDay) {
                 log.info("AI route response rejected by regional validation removedPlaceCount={}", removedPlaces);
                 return Optional.empty();
@@ -348,12 +373,12 @@ public class AiRouteService {
         return Optional.of(days);
     }
 
-    private List<RouteDayDto> buildDeterministicDays(List<CandidatePlace> candidates, int dayCount, String style, String hotelAddress) {
+    private List<RouteDayDto> buildDeterministicDays(List<CandidatePlace> candidates, int dayCount, String style, String hotelAddress, StopPolicy stopPolicy) {
         List<List<CandidatePlace>> groups = new ArrayList<>();
         for (int i = 0; i < dayCount; i++) {
             groups.add(new ArrayList<>());
         }
-        int maxStopCount = Math.min(candidates.size(), Math.max(dayCount, Math.min(candidates.size(), dayCount * 4)));
+        int maxStopCount = Math.min(candidates.size(), Math.max(dayCount, targetStopCount(stopPolicy, dayCount)));
         List<CandidatePlace> selectedPlaces = sortCandidatesForItinerary(candidates).stream()
                 .limit(maxStopCount)
                 .sorted(routeOrderComparator())
@@ -393,6 +418,146 @@ public class AiRouteService {
             days.add(new RouteDayDto(dayNumber, estimateTravelTime(stops), stops));
         }
         return days;
+    }
+
+    private List<RouteDayDto> optimizeDailyRoutes(List<RouteDayDto> days, AiRouteRequest request) {
+        if (days == null || days.isEmpty()) {
+            return days;
+        }
+        List<RouteDayDto> optimizedDays = new ArrayList<>();
+        for (int dayIndex = 0; dayIndex < days.size(); dayIndex++) {
+            RouteDayDto day = days.get(dayIndex);
+            TransportProfile profile = transportProfileForDay(request, dayIndex + 1);
+            List<RouteStopDto> originalStops = day.places() == null ? List.of() : day.places();
+            List<RouteStopDto> optimizedStops = optimizeStopOrder(originalStops);
+            double beforeKm = totalDistanceKm(originalStops);
+            double afterKm = totalDistanceKm(optimizedStops);
+            boolean reordered = !placeIdOrder(originalStops).equals(placeIdOrder(optimizedStops));
+            List<RouteStopDto> rebuiltStops = rebuildStopsAfterOptimization(optimizedStops, dayIndex, profile);
+            log.info(
+                    "AI route distance optimization day={} transportProfile={} reordered={} beforeKm={} afterKm={} stopCount={}",
+                    dayIndex + 1,
+                    profile.label(),
+                    reordered,
+                    roundDistance(beforeKm),
+                    roundDistance(afterKm),
+                    rebuiltStops.size()
+            );
+            optimizedDays.add(new RouteDayDto(day.dayNumber(), estimateTravelTime(rebuiltStops), rebuiltStops));
+        }
+        return optimizedDays;
+    }
+
+    private List<RouteStopDto> optimizeStopOrder(List<RouteStopDto> stops) {
+        if (stops.size() < 3 || stops.stream().anyMatch(stop -> !hasCoordinates(stop))) {
+            return stops;
+        }
+        List<RouteStopDto> best = stops;
+        double bestDistance = totalDistanceKm(stops);
+        for (RouteStopDto start : stops) {
+            List<RouteStopDto> candidate = nearestNeighborFrom(stops, start);
+            double distance = totalDistanceKm(candidate);
+            if (distance < bestDistance) {
+                best = candidate;
+                bestDistance = distance;
+            }
+        }
+        return best;
+    }
+
+    private List<RouteStopDto> nearestNeighborFrom(List<RouteStopDto> stops, RouteStopDto start) {
+        List<RouteStopDto> remaining = new ArrayList<>(stops);
+        List<RouteStopDto> ordered = new ArrayList<>();
+        RouteStopDto current = start;
+        ordered.add(current);
+        remaining.remove(current);
+        while (!remaining.isEmpty()) {
+            RouteStopDto currentStop = current;
+            RouteStopDto next = remaining.stream()
+                    .min(Comparator.comparingDouble(stop -> distanceKm(currentStop, stop)))
+                    .orElseThrow();
+            ordered.add(next);
+            remaining.remove(next);
+            current = next;
+        }
+        return ordered;
+    }
+
+    private List<RouteStopDto> rebuildStopsAfterOptimization(List<RouteStopDto> stops, int dayIndex, TransportProfile profile) {
+        List<RouteStopDto> rebuilt = new ArrayList<>();
+        for (int index = 0; index < stops.size(); index++) {
+            RouteStopDto stop = stops.get(index);
+            int travelMinutes = index == 0 ? 0 : estimateTravelMinutes(distanceKm(stops.get(index - 1), stop), profile);
+            rebuilt.add(new RouteStopDto(
+                    stop.routePlaceId(),
+                    stop.placeId(),
+                    stop.name(),
+                    stop.placeName(),
+                    dayIndex + 1,
+                    index + 1,
+                    stop.address(),
+                    stop.latitude(),
+                    stop.longitude(),
+                    stop.thumbnailUrl(),
+                    stop.category(),
+                    recommendedTime(dayIndex, index),
+                    stop.recommendReason(),
+                    stop.reason(),
+                    stop.estimatedStayMinutes(),
+                    travelMinutes,
+                    stop.travelTip()
+            ));
+        }
+        return rebuilt;
+    }
+
+    private int estimateTravelMinutes(double distanceKm, TransportProfile profile) {
+        if (!Double.isFinite(distanceKm) || distanceKm <= 0) {
+            return 0;
+        }
+        double minutes = distanceKm / profile.averageSpeedKph() * 60.0;
+        return Math.max(5, (int) Math.round(minutes));
+    }
+
+    private double totalDistanceKm(List<RouteStopDto> stops) {
+        if (stops == null || stops.size() < 2 || stops.stream().anyMatch(stop -> !hasCoordinates(stop))) {
+            return 0.0;
+        }
+        double total = 0.0;
+        for (int index = 1; index < stops.size(); index++) {
+            total += distanceKm(stops.get(index - 1), stops.get(index));
+        }
+        return total;
+    }
+
+    private double distanceKm(RouteStopDto from, RouteStopDto to) {
+        if (!hasCoordinates(from) || !hasCoordinates(to)) {
+            return 0.0;
+        }
+        double lat1 = Math.toRadians(from.latitude());
+        double lat2 = Math.toRadians(to.latitude());
+        double deltaLat = Math.toRadians(to.latitude() - from.latitude());
+        double deltaLng = Math.toRadians(to.longitude() - from.longitude());
+        double a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2)
+                + Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return EARTH_RADIUS_KM * c;
+    }
+
+    private boolean hasCoordinates(RouteStopDto stop) {
+        return stop != null
+                && stop.latitude() != null
+                && stop.longitude() != null
+                && Double.isFinite(stop.latitude())
+                && Double.isFinite(stop.longitude());
+    }
+
+    private List<String> placeIdOrder(List<RouteStopDto> stops) {
+        return stops.stream().map(RouteStopDto::placeId).toList();
+    }
+
+    private double roundDistance(double value) {
+        return Math.round(value * 10.0) / 10.0;
     }
 
     private List<String> normalizeContentIds(AiRouteRequest request) {
@@ -663,24 +828,94 @@ public class AiRouteService {
         return firstText(place.getCategory(), "촬영지");
     }
 
-    private int minPlacesPerDay(List<CandidatePlace> candidates, int dayCount) {
-        return candidates.size() >= dayCount * 2 ? 2 : 1;
+    private int minPlacesPerDay(List<CandidatePlace> candidates, int dayCount, StopPolicy stopPolicy) {
+        return candidates.size() >= dayCount * stopPolicy.minPlacesPerDay() ? stopPolicy.minPlacesPerDay() : 1;
     }
 
-    private int preferredPlacesPerDay(List<CandidatePlace> candidates, int dayCount) {
-        return candidates.size() >= dayCount * 3 ? 3 : minPlacesPerDay(candidates, dayCount);
+    private int preferredPlacesPerDay(List<CandidatePlace> candidates, int dayCount, StopPolicy stopPolicy) {
+        return candidates.size() >= dayCount * stopPolicy.preferredPlacesPerDay()
+                ? stopPolicy.preferredPlacesPerDay()
+                : minPlacesPerDay(candidates, dayCount, stopPolicy);
     }
 
-    private int targetStopCount(int requestedDays) {
-        if (requestedDays <= 1) return 4;
-        if (requestedDays == 2) return 6;
-        return requestedDays * 3;
+    private StopPolicy stopPolicy(AiRouteRequest request, int requestedDays) {
+        int min = defaultMinPlacesPerDay;
+        int preferred = defaultPreferredPlacesPerDay;
+        int max = defaultMaxPlacesPerDay;
+        TransportProfile profile = transportProfileForDay(request, 1);
+        if (profile == TransportProfile.WALK) {
+            preferred = Math.min(preferred, 3);
+            max = Math.min(max, 4);
+        } else if (profile == TransportProfile.CAR) {
+            preferred = Math.max(preferred, 4);
+            max = Math.max(max, 5);
+        }
+        String conditionText = conditionText(request);
+        if (containsAny(conditionText, List.of("아이", "어린이", "유아", "부모", "시니어", "어르신", "힐링", "휴식", "relax", "healing"))) {
+            preferred = Math.max(min, preferred - 1);
+            max = Math.max(preferred, max - 1);
+        }
+        if (containsAny(conditionText, List.of("액티비티", "촬영", "덕질", "알차", "빡빡", "activity", "active"))) {
+            preferred = Math.min(max, preferred + 1);
+        }
+        if (isLowBudget(request)) {
+            preferred = Math.max(min, preferred - 1);
+        }
+        if (normalizeContentIds(request).size() > 1 && profile != TransportProfile.WALK) {
+            preferred = Math.min(max, preferred + 1);
+        }
+        if (requestedDays <= 1 && profile != TransportProfile.WALK && !isLowBudget(request)) {
+            preferred = Math.min(max, preferred + 1);
+        }
+        preferred = Math.max(min, Math.min(preferred, max));
+        return new StopPolicy(min, preferred, max);
     }
 
-    private int minimumStopCount(int requestedDays) {
-        if (requestedDays <= 1) return 3;
-        if (requestedDays == 2) return 6;
-        return requestedDays * 2;
+    private int targetStopCount(StopPolicy stopPolicy, int requestedDays) {
+        return Math.max(requestedDays, requestedDays * stopPolicy.preferredPlacesPerDay());
+    }
+
+    private int minimumStopCount(StopPolicy stopPolicy, int requestedDays) {
+        return Math.max(requestedDays, requestedDays * stopPolicy.minPlacesPerDay());
+    }
+
+    private TransportProfile transportProfileForDay(AiRouteRequest request, int dayNumber) {
+        if (request != null && request.carDays() != null && request.carDays().contains(dayNumber)) {
+            return TransportProfile.CAR;
+        }
+        String text = conditionText(request);
+        if (containsAny(text, List.of("도보", "걷", "walk", "walking"))) {
+            return TransportProfile.WALK;
+        }
+        if (containsAny(text, List.of("차", "차량", "자동차", "렌터카", "렌트", "car", "drive", "driving"))) {
+            return TransportProfile.CAR;
+        }
+        return TransportProfile.TRANSIT;
+    }
+
+    private String conditionText(AiRouteRequest request) {
+        if (request == null) {
+            return "";
+        }
+        return String.join(" ",
+                firstText(request.transport(), ""),
+                request.transportModes() == null ? "" : String.join(" ", request.transportModes()),
+                firstText(request.companion(), ""),
+                firstText(request.style(), ""),
+                String.join(" ", normalizeTravelStyles(request)),
+                firstText(request.budget(), "")
+        ).toLowerCase();
+    }
+
+    private boolean isLowBudget(AiRouteRequest request) {
+        if (request == null) {
+            return false;
+        }
+        if (request.budgetMax() != null && request.durationDays() != null && request.durationDays() > 0) {
+            return request.budgetMax() / request.durationDays() <= 80_000;
+        }
+        String budget = firstText(request.budget(), "").toLowerCase();
+        return containsAny(budget, List.of("절약", "저예산", "low", "budget"));
     }
 
     private String trustMessage(int candidateCount, int targetStopCount) {
@@ -791,6 +1026,31 @@ public class AiRouteService {
     }
 
     private record GenerationState(AiRouteRequest request, AtomicInteger regenerateCount) {
+    }
+
+    private record StopPolicy(int minPlacesPerDay, int preferredPlacesPerDay, int maxPlacesPerDay) {
+    }
+
+    private enum TransportProfile {
+        WALK("walk", 4.0),
+        TRANSIT("transit", 18.0),
+        CAR("car", 35.0);
+
+        private final String label;
+        private final double averageSpeedKph;
+
+        TransportProfile(String label, double averageSpeedKph) {
+            this.label = label;
+            this.averageSpeedKph = averageSpeedKph;
+        }
+
+        String label() {
+            return label;
+        }
+
+        double averageSpeedKph() {
+            return averageSpeedKph;
+        }
     }
 
     private record GmsChatRequest(String model, List<GmsMessage> messages, Map<String, String> response_format) {

@@ -46,6 +46,10 @@ scenik:
   password-reset:
     frontend-url: ${PASSWORD_RESET_FRONTEND_URL:http://127.0.0.1:5173/password-reset}
   ai:
+    route:
+      min-places-per-day: ${AI_ROUTE_MIN_PLACES_PER_DAY:2}
+      preferred-places-per-day: ${AI_ROUTE_PREFERRED_PLACES_PER_DAY:3}
+      max-places-per-day: ${AI_ROUTE_MAX_PLACES_PER_DAY:5}
     gms:
       base-url: ${GMS_BASE_URL:https://gms.ssafy.io/gmsapi/}
       api-key: ${GMS_KEY:}

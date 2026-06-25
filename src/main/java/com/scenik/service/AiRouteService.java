@@ -15,6 +15,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -139,7 +140,7 @@ public class AiRouteService {
         List<CandidatePlace> routeCandidates = candidates;
         List<RouteDayDto> days = generateAiDays(request, routeCandidates, dayCount, stopPolicy)
                 .orElseGet(() -> buildDeterministicDays(routeCandidates, dayCount, style, request.hotelAddress(), stopPolicy));
-        days = regroupDailyRoutesByArea(days, stopPolicy);
+        days = regroupDailyRoutesByArea(days, stopPolicy, request);
         days = optimizeDailyRoutes(days, request);
         List<CandidatePlaceDto> candidateDtos = candidates.stream().map(CandidatePlaceDto::from).toList();
         List<RouteStopDto> flatPlaces = days.stream().flatMap(day -> day.places().stream()).toList();
@@ -428,7 +429,7 @@ public class AiRouteService {
         return days;
     }
 
-    private List<RouteDayDto> regroupDailyRoutesByArea(List<RouteDayDto> days, StopPolicy stopPolicy) {
+    private List<RouteDayDto> regroupDailyRoutesByArea(List<RouteDayDto> days, StopPolicy stopPolicy, AiRouteRequest request) {
         if (days == null || days.size() < 2) {
             return days;
         }
@@ -442,10 +443,30 @@ public class AiRouteService {
         List<AreaStopGroup> areaGroups = areaStopGroups(stops).stream()
                 .sorted(Comparator.comparingInt((AreaStopGroup group) -> group.stops().size()).reversed())
                 .toList();
-        int[] dayTargets = dayStopTargets(stops.size(), days.size(), stopPolicy);
-        List<List<RouteStopDto>> groupedDays = new ArrayList<>();
+        List<List<AreaStopGroup>> groupedAreas = areaGroups.size() <= days.size()
+                ? assignAreaGroupsToTargetDays(areaGroups, stops.size(), days.size(), stopPolicy)
+                : clusterAreaGroupsForRouteQuality(areaGroups, days.size(), stopPolicy, request);
+
+        List<RouteDayDto> regrouped = new ArrayList<>();
         for (int index = 0; index < days.size(); index++) {
-            groupedDays.add(new ArrayList<>());
+            List<RouteStopDto> dayStops = index >= groupedAreas.size()
+                    ? List.of()
+                    : groupedAreas.get(index).stream()
+                            .flatMap(group -> optimizeSameAreaStops(group.stops()).stream())
+                            .toList();
+            regrouped.add(new RouteDayDto(index + 1, estimateTravelTime(dayStops), rebuildStopsAfterAreaGrouping(dayStops, index)));
+        }
+        logAreaGroupingSummary(regrouped);
+        return regrouped;
+    }
+
+    private List<List<AreaStopGroup>> assignAreaGroupsToTargetDays(List<AreaStopGroup> areaGroups, int totalStopCount, int dayCount, StopPolicy stopPolicy) {
+        int[] dayTargets = dayStopTargets(totalStopCount, dayCount, stopPolicy);
+        List<List<AreaStopGroup>> groupedAreas = new ArrayList<>();
+        List<List<RouteStopDto>> groupedStops = new ArrayList<>();
+        for (int index = 0; index < dayCount; index++) {
+            groupedAreas.add(new ArrayList<>());
+            groupedStops.add(new ArrayList<>());
         }
 
         for (AreaStopGroup areaGroup : areaGroups) {
@@ -453,27 +474,164 @@ public class AiRouteService {
             int offset = 0;
             while (offset < areaStops.size()) {
                 int remaining = areaStops.size() - offset;
-                int dayIndex = bestDayForArea(areaGroup.areaId(), remaining, groupedDays, dayTargets);
-                List<RouteStopDto> dayStops = groupedDays.get(dayIndex);
+                int dayIndex = bestDayForArea(areaGroup.areaId(), remaining, groupedStops, dayTargets);
+                List<RouteStopDto> dayStops = groupedStops.get(dayIndex);
                 int available = Math.max(1, dayTargets[Math.min(dayIndex, dayTargets.length - 1)] - dayStops.size());
                 int take = Math.min(remaining, available);
-                dayStops.addAll(areaStops.subList(offset, offset + take));
+                AreaStopGroup slice = new AreaStopGroup(areaGroup.areaId(), areaGroup.areaLabel(), areaStops.subList(offset, offset + take));
+                groupedAreas.get(dayIndex).add(slice);
+                dayStops.addAll(slice.stops());
                 offset += take;
             }
         }
-
-        List<RouteDayDto> regrouped = new ArrayList<>();
-        for (int index = 0; index < days.size(); index++) {
-            List<RouteStopDto> dayStops = groupedDays.get(index);
-            if (dayStops.isEmpty()) {
-                dayStops = List.of();
-            }
-            regrouped.add(new RouteDayDto(index + 1, estimateTravelTime(dayStops), rebuildStopsAfterAreaGrouping(dayStops, index)));
-        }
-        logAreaGroupingSummary(regrouped);
-        return regrouped;
+        return groupedAreas;
     }
 
+    private List<List<AreaStopGroup>> clusterAreaGroupsForRouteQuality(List<AreaStopGroup> areaGroups, int dayCount, StopPolicy stopPolicy, AiRouteRequest request) {
+        TransportProfile profile = conservativeTransportProfile(request);
+        List<DayAreaBucket> buckets = areaGroups.stream()
+                .map(group -> new DayAreaBucket(new ArrayList<>(List.of(group))))
+                .collect(Collectors.toCollection(ArrayList::new));
+
+        while (buckets.size() > dayCount) {
+            AreaBucketMerge merge = bestAcceptableAreaBucketMerge(buckets, stopPolicy, profile);
+            if (merge == null) {
+                int removedIndex = lowestValueBucketIndex(buckets);
+                DayAreaBucket removed = buckets.remove(removedIndex);
+                log.info(
+                        "AI route area bucket removed for day quality areaLabels={} stopCount={}",
+                        removed.groups().stream().map(AreaStopGroup::areaLabel).toList(),
+                        bucketStops(removed).size()
+                );
+                continue;
+            }
+            DayAreaBucket merged = mergeBuckets(buckets.get(merge.leftIndex()), buckets.get(merge.rightIndex()));
+            buckets.remove(merge.rightIndex());
+            buckets.remove(merge.leftIndex());
+            buckets.add(merged);
+        }
+
+        List<DayAreaBucket> ordered = orderDayBucketsForTravel(buckets);
+        List<List<AreaStopGroup>> groupedAreas = ordered.stream()
+                .map(DayAreaBucket::groups)
+                .collect(Collectors.toCollection(ArrayList::new));
+        while (groupedAreas.size() < dayCount) {
+            groupedAreas.add(new ArrayList<>());
+        }
+        return groupedAreas;
+    }
+
+    private AreaBucketMerge bestAcceptableAreaBucketMerge(List<DayAreaBucket> buckets, StopPolicy stopPolicy, TransportProfile profile) {
+        AreaBucketMerge best = null;
+        for (int left = 0; left < buckets.size(); left++) {
+            for (int right = left + 1; right < buckets.size(); right++) {
+                DayAreaBucket merged = mergeBuckets(buckets.get(left), buckets.get(right));
+                if (!isAreaBucketAcceptable(merged, stopPolicy, profile)) {
+                    continue;
+                }
+                double score = distanceKm(centroidStop(buckets.get(left)), centroidStop(buckets.get(right)))
+                        + totalDistanceKm(optimizeStopOrder(bucketStops(merged))) * 0.15
+                        + Math.max(0, bucketStops(merged).size() - stopPolicy.preferredPlacesPerDay()) * 8.0;
+                if (best == null || score < best.score()) {
+                    best = new AreaBucketMerge(left, right, score);
+                }
+            }
+        }
+        return best;
+    }
+
+    private boolean isAreaBucketAcceptable(DayAreaBucket bucket, StopPolicy stopPolicy, TransportProfile profile) {
+        List<RouteStopDto> stops = optimizeStopOrder(bucketStops(bucket));
+        if (stops.size() > stopPolicy.maxPlacesPerDay()) {
+            return false;
+        }
+        if (bucket.groups().size() > 3) {
+            return false;
+        }
+        return maxSegmentTravelMinutes(stops, profile) <= maxSingleSegmentMinutes(profile)
+                && totalTravelMinutes(stops, profile) <= maxDailyTravelMinutes(profile);
+    }
+
+    private int lowestValueBucketIndex(List<DayAreaBucket> buckets) {
+        int selected = 0;
+        for (int index = 1; index < buckets.size(); index++) {
+            DayAreaBucket current = buckets.get(index);
+            DayAreaBucket best = buckets.get(selected);
+            int currentStops = bucketStops(current).size();
+            int bestStops = bucketStops(best).size();
+            if (currentStops < bestStops || (currentStops == bestStops && nearestBucketDistance(current, buckets) > nearestBucketDistance(best, buckets))) {
+                selected = index;
+            }
+        }
+        return selected;
+    }
+
+    private double nearestBucketDistance(DayAreaBucket bucket, List<DayAreaBucket> buckets) {
+        return buckets.stream()
+                .filter(other -> other != bucket)
+                .mapToDouble(other -> distanceKm(centroidStop(bucket), centroidStop(other)))
+                .min()
+                .orElse(Double.MAX_VALUE);
+    }
+
+    private DayAreaBucket mergeBuckets(DayAreaBucket left, DayAreaBucket right) {
+        List<AreaStopGroup> groups = new ArrayList<>(left.groups());
+        groups.addAll(right.groups());
+        return new DayAreaBucket(groups);
+    }
+
+    private List<DayAreaBucket> orderDayBucketsForTravel(List<DayAreaBucket> buckets) {
+        return buckets.stream()
+                .sorted(Comparator.comparingDouble((DayAreaBucket bucket) -> centroidStop(bucket).latitude())
+                        .thenComparingDouble(bucket -> centroidStop(bucket).longitude()))
+                .toList();
+    }
+
+    private List<RouteStopDto> bucketStops(DayAreaBucket bucket) {
+        return bucket.groups().stream()
+                .flatMap(group -> group.stops().stream())
+                .toList();
+    }
+
+    private RouteStopDto centroidStop(DayAreaBucket bucket) {
+        return centroidStop(bucketStops(bucket));
+    }
+
+    private RouteStopDto centroidStop(List<RouteStopDto> stops) {
+        if (stops == null || stops.isEmpty()) {
+            return null;
+        }
+        double latitude = stops.stream()
+                .filter(stop -> stop.latitude() != null)
+                .mapToDouble(RouteStopDto::latitude)
+                .average()
+                .orElse(stops.get(0).latitude() == null ? 0.0 : stops.get(0).latitude());
+        double longitude = stops.stream()
+                .filter(stop -> stop.longitude() != null)
+                .mapToDouble(RouteStopDto::longitude)
+                .average()
+                .orElse(stops.get(0).longitude() == null ? 0.0 : stops.get(0).longitude());
+        RouteStopDto first = stops.get(0);
+        return new RouteStopDto(
+                null,
+                first.placeId(),
+                first.name(),
+                first.placeName(),
+                first.dayNumber(),
+                first.visitOrder(),
+                first.address(),
+                latitude,
+                longitude,
+                first.thumbnailUrl(),
+                first.category(),
+                first.recommendedTime(),
+                first.recommendReason(),
+                first.reason(),
+                first.estimatedStayMinutes(),
+                first.estimatedTravelMinutes(),
+                first.travelTip()
+        );
+    }
     private int bestDayForArea(String areaId, int remainingAreaStopCount, List<List<RouteStopDto>> groupedDays, int[] dayTargets) {
         int bestEmptyFit = -1;
         int bestEmptyFitTarget = Integer.MAX_VALUE;
@@ -743,8 +901,46 @@ public class AiRouteService {
         if (!Double.isFinite(distanceKm) || distanceKm <= 0) {
             return 0;
         }
-        double minutes = distanceKm / profile.averageSpeedKph() * 60.0;
+        double minutes = distanceKm / profile.averageSpeedKph() * 60.0 + travelBufferMinutes(distanceKm, profile);
         return Math.max(5, (int) Math.round(minutes));
+    }
+
+    private int travelBufferMinutes(double distanceKm, TransportProfile profile) {
+        if (profile == TransportProfile.WALK) return 0;
+        if (profile == TransportProfile.CAR) return distanceKm >= 20.0 ? 10 : 5;
+        return distanceKm >= 20.0 ? 15 : 8;
+    }
+
+    private int totalTravelMinutes(List<RouteStopDto> stops, TransportProfile profile) {
+        int total = 0;
+        for (int index = 1; index < stops.size(); index++) {
+            total += estimateTravelMinutes(distanceKm(stops.get(index - 1), stops.get(index)), profile);
+        }
+        return total;
+    }
+
+    private int maxSegmentTravelMinutes(List<RouteStopDto> stops, TransportProfile profile) {
+        int max = 0;
+        for (int index = 1; index < stops.size(); index++) {
+            max = Math.max(max, estimateTravelMinutes(distanceKm(stops.get(index - 1), stops.get(index)), profile));
+        }
+        return max;
+    }
+
+    private int maxSingleSegmentMinutes(TransportProfile profile) {
+        return switch (profile) {
+            case WALK -> 45;
+            case TRANSIT -> 145;
+            case CAR -> 135;
+        };
+    }
+
+    private int maxDailyTravelMinutes(TransportProfile profile) {
+        return switch (profile) {
+            case WALK -> 90;
+            case TRANSIT -> 240;
+            case CAR -> 270;
+        };
     }
 
     private double totalDistanceKm(List<RouteStopDto> stops) {
@@ -889,7 +1085,9 @@ public class AiRouteService {
             return "";
         }
         for (String part : address.split("\\s+")) {
-            if (part.endsWith("구") || part.endsWith("군") || part.endsWith("시")) {
+            String asciiPart = part.toLowerCase(Locale.ROOT);
+            if (part.endsWith("구") || part.endsWith("군") || part.endsWith("시")
+                    || asciiPart.endsWith("-gu") || asciiPart.endsWith("-gun") || asciiPart.endsWith("-si")) {
                 return part;
             }
         }
@@ -1174,6 +1372,27 @@ public class AiRouteService {
                 : minPlacesPerDay(candidates, dayCount, stopPolicy);
     }
 
+    private TransportProfile conservativeTransportProfile(AiRouteRequest request) {
+        if (request == null) {
+            return TransportProfile.TRANSIT;
+        }
+        String text = conditionText(request);
+        if (containsAny(text, List.of("도보", "걷", "walk", "walking"))) {
+            return TransportProfile.WALK;
+        }
+        boolean allDaysByCar = request.durationDays() != null
+                && request.carDays() != null
+                && request.durationDays() > 0
+                && request.carDays().size() >= request.durationDays();
+        boolean carOnlyMode = request.transportModes() != null
+                && !request.transportModes().isEmpty()
+                && request.transportModes().stream().allMatch(mode -> String.valueOf(mode).toLowerCase(Locale.ROOT).contains("car"));
+        if ((allDaysByCar || carOnlyMode) && containsAny(text, List.of("차", "차량", "자동차", "car", "drive", "driving"))) {
+            return TransportProfile.CAR;
+        }
+        return TransportProfile.TRANSIT;
+    }
+
     private StopPolicy stopPolicy(AiRouteRequest request, int requestedDays) {
         int min = defaultMinPlacesPerDay;
         int preferred = defaultPreferredPlacesPerDay;
@@ -1361,6 +1580,12 @@ public class AiRouteService {
         return value.endsWith("/") ? value : value + "/";
     }
 
+    private record DayAreaBucket(List<AreaStopGroup> groups) {
+    }
+
+    private record AreaBucketMerge(int leftIndex, int rightIndex, double score) {
+    }
+
     private record GenerationState(AiRouteRequest request, AtomicInteger regenerateCount) {
     }
 
@@ -1410,7 +1635,7 @@ public class AiRouteService {
 
     private enum TransportProfile {
         WALK("walk", 4.0),
-        TRANSIT("transit", 18.0),
+        TRANSIT("transit", 24.0),
         CAR("car", 35.0);
 
         private final String label;

@@ -291,6 +291,59 @@ class AiRouteServiceTest {
         route.days().forEach(day -> assertThat(districts(day.places())).hasSize(1));
     }
 
+    @Test
+    void gangwonThreeDayRouteDoesNotMixDistantCitiesInOneDay() {
+        List<String> contentIds = List.of("C_DRAMA_GANGWON");
+        AiRouteRequest request = new AiRouteRequest(
+                null,
+                contentIds,
+                "Gangwon",
+                List.of("Gangwon"),
+                3,
+                null,
+                null,
+                null,
+                "public transit",
+                List.of("PUBLIC_TRANSIT"),
+                List.of(1),
+                "friends",
+                "active",
+                List.of("active"),
+                null,
+                600000,
+                "standard",
+                null
+        );
+        List<CandidatePlace> places = List.of(
+                place("P_YW_1", "C_DRAMA_GANGWON", "Gangwon Drama", "Gangwon", "Gangwon Yeongwol-gun Cheongnyeongpo", 37.1830, 128.4610),
+                place("P_YW_2", "C_DRAMA_GANGWON", "Gangwon Drama", "Gangwon", "Gangwon Yeongwol-gun Jangneung", 37.1970, 128.4510),
+                place("P_JS_1", "C_DRAMA_GANGWON", "Gangwon Drama", "Gangwon", "Gangwon Jeongseon-gun Molundae", 37.3790, 128.6630),
+                place("P_PC_1", "C_DRAMA_GANGWON", "Gangwon Drama", "Gangwon", "Gangwon Pyeongchang-gun Balwangsan", 37.3700, 128.3900),
+                place("P_PC_2", "C_DRAMA_GANGWON", "Gangwon Drama", "Gangwon", "Gangwon Pyeongchang-gun Daegwallyeong", 37.6800, 128.7600),
+                place("P_GN_1", "C_DRAMA_GANGWON", "Gangwon Drama", "Gangwon", "Gangwon Gangneung-si Jumunjin", 37.9120, 128.8170),
+                place("P_GN_2", "C_DRAMA_GANGWON", "Gangwon Drama", "Gangwon", "Gangwon Gangneung-si Anmok Beach", 37.7720, 128.9480),
+                place("P_YY_1", "C_DRAMA_GANGWON", "Gangwon Drama", "Gangwon", "Gangwon Yangyang-gun Naksansa", 38.1240, 128.6270),
+                place("P_SC_1", "C_DRAMA_GANGWON", "Gangwon Drama", "Gangwon", "Gangwon Sokcho-si Seorak", 38.1660, 128.4890),
+                place("P_SM_1", "C_DRAMA_GANGWON", "Gangwon Drama", "Gangwon", "Gangwon Samcheok-si Beach", 37.4500, 129.1660),
+                place("P_HC_1", "C_DRAMA_GANGWON", "Gangwon Drama", "Gangwon", "Gangwon Hongcheon-gun Vivaldi", 37.6500, 127.6870),
+                place("P_HC_2", "C_DRAMA_GANGWON", "Gangwon Drama", "Gangwon", "Gangwon Hongcheon-gun River", 37.7000, 127.8800),
+                place("P_CC_1", "C_DRAMA_GANGWON", "Gangwon Drama", "Gangwon", "Gangwon Chuncheon-si Nami Island", 37.7910, 127.5250),
+                place("P_CC_2", "C_DRAMA_GANGWON", "Gangwon Drama", "Gangwon", "Gangwon Chuncheon-si Animation Museum", 37.8930, 127.7230),
+                place("P_DB_1", "C_DRAMA_GANGWON", "Gangwon Drama", "Gangwon", "Gangwon Donghae-si Mureung", 37.5200, 129.1150)
+        );
+
+        when(aiRouteMapper.findCandidatePlaces(eq(contentIds), isNull(), anyInt())).thenReturn(places);
+
+        AiRouteDto route = aiRouteService.generateRoute(request);
+
+        assertThat(route.days()).hasSize(3);
+        route.days().forEach(day -> assertThat(totalDistanceKm(day.places())).isLessThan(190.0));
+        route.days().forEach(day -> assertThat(cityTokens(day.places())).hasSizeLessThanOrEqualTo(3));
+        route.days().forEach(day -> assertThat(containsAllCities(day.places(), "Gangneung-si", "Yangyang-gun", "Jeongseon-gun", "Samcheok-si", "Hongcheon-gun")).isFalse());
+        route.days().forEach(day -> assertThat(containsAllCities(day.places(), "Pyeongchang-gun", "Sokcho-si", "Chuncheon-si")).isFalse());
+        route.days().forEach(day -> assertThat(containsAllCities(day.places(), "Samcheok-si", "Hongcheon-gun")).isFalse());
+        route.days().forEach(day -> assertThat(containsAllCities(day.places(), "Gangneung-si", "Chuncheon-si")).isFalse());
+    }
 
     @Test
     void routeStopDtoFromRoutePlaceIncludesCategory() {
@@ -344,5 +397,36 @@ class AiRouteServiceTest {
                 .map(RouteStopDto::address)
                 .map(address -> address.split("\\s+")[1])
                 .collect(Collectors.toSet());
+    }
+    private boolean containsAllCities(List<RouteStopDto> places, String... cityNames) {
+        Set<String> cities = Set.copyOf(cityTokens(places));
+        return cities.containsAll(Set.of(cityNames));
+    }
+
+    private List<String> cityTokens(List<RouteStopDto> places) {
+        return places.stream()
+                .map(RouteStopDto::address)
+                .map(address -> address.split("\\s+")[1])
+                .distinct()
+                .toList();
+    }
+
+    private double totalDistanceKm(List<RouteStopDto> places) {
+        double total = 0.0;
+        for (int index = 1; index < places.size(); index++) {
+            total += distanceKm(places.get(index - 1), places.get(index));
+        }
+        return total;
+    }
+
+    private double distanceKm(RouteStopDto from, RouteStopDto to) {
+        double earthRadiusKm = 6371.0;
+        double lat1 = Math.toRadians(from.latitude());
+        double lat2 = Math.toRadians(to.latitude());
+        double deltaLat = Math.toRadians(to.latitude() - from.latitude());
+        double deltaLng = Math.toRadians(to.longitude() - from.longitude());
+        double a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2)
+                + Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2);
+        return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 }

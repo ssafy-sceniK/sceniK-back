@@ -66,7 +66,7 @@ class SystemLocalizationServiceTest {
         PlaceDto dto = localizationService.localize(PlaceDto.from(place), "en-US,en;q=0.8");
 
         assertThat(dto.locale()).isEqualTo("en");
-        assertThat(dto.placeName()).isEqualTo("킨텍스");
+        assertThat(dto.placeName()).isEqualTo("KINTEX");
         assertThat(dto.region()).isEqualTo("Gyeonggi");
         assertThat(dto.district()).isEqualTo("Goyang City");
         assertThat(dto.category()).isEqualTo("Filming location");
@@ -150,6 +150,116 @@ class SystemLocalizationServiceTest {
                 .isEqualTo("\u805E\u6176\u30A8\u30B3\u30EF\u30FC\u30EB\u30C9");
         assertThat(localizationService.localize(PlaceDto.from(ecoWorld), "zh-CN").placeName())
                 .isEqualTo("\u95FB\u5E86\u751F\u6001\u4E16\u754C");
+    }
+
+
+    @Test
+    void localizesExtendedEnglishPlaceNamesFromQualityAudit() {
+        assertEnglishPlaceName("P_0001", "fallback", "KINTEX");
+        assertEnglishPlaceName("P_0007", "fallback", "Namsan Walking Trail");
+        assertEnglishPlaceName("P_0008", "fallback", "Seongapdo Island");
+        assertEnglishPlaceName("P_0009", "fallback", "My Land");
+        assertEnglishPlaceName("P_0013", "fallback", "Daegwallyeong Samyang Roundhill");
+        assertEnglishPlaceName("P_0014", "fallback", "Balwangsan Cable Car");
+        assertEnglishPlaceName("P_0015", "fallback", "Woljeongsa Fir Forest Trail");
+        assertEnglishPlaceName("P_0019", "fallback", "Konkuk University");
+        assertEnglishPlaceName("P_0024", "fallback", "Sageun-Yongdap Pedestrian Bridge");
+        assertEnglishPlaceName("P_0029", "fallback", "Birch Tree Story");
+        assertEnglishPlaceName("P_0035", "fallback", "Hanmi Bookstore");
+        assertEnglishPlaceName("P_0037", "fallback", "Dream Park");
+        assertEnglishPlaceName("P_0038", "fallback", "Cheongna Lake Park");
+        assertEnglishPlaceName("P_0044", "fallback", "Neoreundeul Hagwon Farm (formerly Borinara Hagwon Farm)");
+        assertEnglishPlaceName("P_0047", "fallback", "Seokbyeong 1-ri Breakwater");
+        assertEnglishPlaceName("P_0048", "fallback", "Cheongha Five-day Market");
+        assertEnglishPlaceName("P_0051", "fallback", "The River");
+        assertEnglishPlaceName("P_0052", "fallback", "Seoul Dragon City");
+        assertEnglishPlaceName("P_0053", "fallback", "Ravie Books");
+        assertEnglishPlaceName("P_0054", "fallback", "Cafe Hwahong");
+        assertEnglishPlaceName("P_0056", "fallback", "Jidong Market Sundae Town");
+        assertEnglishPlaceName("P_0063", "fallback", "The Conran Shop Korea");
+        assertEnglishPlaceName("P_0072", "fallback", "Daily Beer Yeonsinnae Branch");
+        assertEnglishPlaceName("P_0073", "fallback", "JCC Creative Center");
+        assertEnglishPlaceName("P_0074", "fallback", "Triple Street");
+        assertEnglishPlaceName("P_0077", "fallback", "Onbit Natural Recreation Forest");
+        assertEnglishPlaceName("P_0078", "fallback", "Boryeong Green Barley Field");
+        assertEnglishPlaceName("P_0079", "fallback", "Byeolmaro Observatory");
+        assertEnglishPlaceName("P_0080", "fallback", "Hongsam Spa Charcoal Kiln Sauna");
+        assertEnglishPlaceName("P_0081", "fallback", "Pocheon Hantangang Sky Bridge");
+        assertEnglishPlaceName("P_0082", "fallback", "Commodore Hotel Busan");
+        assertEnglishPlaceName("P_0084", "fallback", "BBQ Heliocity Branch");
+        assertEnglishPlaceName("P_0085", "fallback", "Unsan");
+        assertEnglishPlaceName("P_0086", "fallback", "Jemulpo Club");
+        assertEnglishPlaceName("P_0091", "fallback", "Forest of Healing");
+        assertEnglishPlaceName("P_0092", "fallback", "Cheongsan Arboretum");
+        assertEnglishPlaceName("P_0095", "fallback", "Tangeumho Rainbow Road");
+        assertEnglishPlaceName("P_0097", "fallback", "Vivaldi Park");
+        assertEnglishPlaceName("P_0098", "fallback", "Wondang Stud Farm");
+        assertEnglishPlaceName("P_0099", "fallback", "Bellacitta");
+        assertEnglishPlaceName("P_0100", "fallback", "Asosan Ilsan Main Branch");
+        assertEnglishPlaceName("P_0102", "fallback", "Bom Farmers Garden");
+        assertEnglishPlaceName("P_0103", "fallback", "Kare Klint Bundang-Yongin Branch");
+        assertEnglishPlaceName("P_0104", "fallback", "Forest of Wisdom");
+        assertEnglishPlaceName("P_0105", "fallback", "Muddy Murphy's");
+        assertEnglishPlaceName("P_0109", "fallback", "Hambakuteum Sundae Gukbap");
+        assertEnglishPlaceName("P_0110", "fallback", "L'Amant Secret");
+        assertEnglishPlaceName("P_0111", "fallback", "L'Escape Hotel");
+        assertEnglishPlaceName("P_0112", "fallback", "Yongin Dae Jang Geum Park");
+        assertEnglishPlaceName("P_0113", "fallback", "Byeongsan Seowon Confucian Academy");
+        assertEnglishPlaceName("P_0116", "fallback", "Ocean World");
+        assertEnglishPlaceName("P_0117", "fallback", "Petite France");
+        assertEnglishPlaceName("P_0119", "fallback", "The Nurungji");
+        assertEnglishPlaceName("P_0120", "fallback", "Gimpo Art Village");
+        assertEnglishPlaceName("P_0121", "fallback", "Siheung Oido Prehistoric Park");
+        assertEnglishPlaceName("P_0122", "fallback", "Lighthouse Sashimi Restaurant");
+        assertEnglishPlaceName("P_0123", "fallback", "Cheongchun Jogae Main Branch");
+        assertEnglishPlaceName("P_0126", "fallback", "Myeongga Donkatsu");
+        assertEnglishPlaceName("P_0127", "fallback", "Simmons Terrace");
+        assertEnglishPlaceName("P_0128", "fallback", "Mulbit Haneul Garden Main Branch");
+        assertEnglishPlaceName("P_0130", "fallback", "First Garden");
+        assertEnglishPlaceName("P_0131", "fallback", "Speed Park");
+        assertEnglishPlaceName("P_0132", "fallback", "Utdari Culture Village");
+        assertEnglishPlaceName("P_0133", "fallback", "Pyeonggang Land");
+        assertEnglishPlaceName("P_0135", "fallback", "Korea Zipwire");
+        assertEnglishPlaceName("P_0140", "fallback", "Yeongjin Dwaeji Gukbap Costco Centum Branch");
+        assertEnglishPlaceName("P_0142", "fallback", "Wonjo Milmyeon");
+        assertEnglishPlaceName("P_0143", "fallback", "Saeachim Restaurant");
+        assertEnglishPlaceName("P_0144", "fallback", "Alver");
+        assertEnglishPlaceName("P_0146", "fallback", "Bongmilga Gangnam-gu Office Branch");
+        assertEnglishPlaceName("P_0147", "fallback", "Neulpureun Mokjang Sangam Branch");
+        assertEnglishPlaceName("P_0148", "fallback", "Oil Tank Culture Park");
+        assertEnglishPlaceName("P_0149", "fallback", "Sigoljip Cheonggukjang");
+        assertEnglishPlaceName("P_0151", "fallback", "Pizzeria O");
+        assertEnglishPlaceName("P_0153", "fallback", "Yongma Land");
+        assertEnglishPlaceName("P_0154", "fallback", "Jangsaengpo Whale Culture Village");
+        assertEnglishPlaceName("P_0155", "fallback", "Sammok Ferry Terminal");
+        assertEnglishPlaceName("P_0156", "fallback", "Moon China");
+        assertEnglishPlaceName("P_0159", "fallback", "Gongsanseong Fortress");
+        assertEnglishPlaceName("P_0162", "fallback", "Myeongam Boat Dock");
+        assertEnglishPlaceName("P_0165", "fallback", "Haenggung-dong King's Alley");
+        assertEnglishPlaceName("P_0190", "fallback", "Geumneung Port");
+        assertEnglishPlaceName("P_0192", "fallback", "Deokcheon-ri Drive Course");
+        assertEnglishPlaceName("P_0194", "fallback", "Yeongnak-ri Coastal Road");
+        assertEnglishPlaceName("P_0196", "fallback", "Jongdal Village Road");
+        assertEnglishPlaceName("P_0197", "fallback", "Jungmun Duty Free Shop");
+        assertEnglishPlaceName("P_0198", "fallback", "Seogwipo KAL Hotel");
+        assertEnglishPlaceName("P_0201", "fallback", "Ora-dong Buckwheat Field");
+        assertEnglishPlaceName("P_0203", "fallback", "Daemunbawi Rock");
+        assertEnglishPlaceName("P_0204", "fallback", "Hyangrobong Peak");
+        assertEnglishPlaceName("P_0205", "fallback", "Gyeongsang-ri Zelkova Tree");
+        assertEnglishPlaceName("P_0206", "fallback", "Changsin-dong Alley");
+        assertEnglishPlaceName("P_0208", "fallback", "Yeongwol Jangneung Royal Tomb");
+        assertEnglishPlaceName("P_0210", "fallback", "Danjong History Museum");
+        assertEnglishPlaceName("P_0220", "fallback", "Yeongnangho Beombawi Rock");
+        assertEnglishPlaceName("P_0222", "fallback", "Park Hyatt Busan");
+        assertEnglishPlaceName("P_0230", "fallback", "Tindertown");
+        assertEnglishPlaceName("P_0232", "fallback", "Flowave");
+        assertEnglishPlaceName("P_0234", "fallback", "Dongbok Haenyeo Seafood Direct Sales Market");
+        assertEnglishPlaceName("P_0239", "fallback", "Healing Stay KOSMOS");
+        assertEnglishPlaceName("P_0243", "fallback", "Taeha Hyangmok Monorail");
+        assertEnglishPlaceName("P_0246", "fallback", "Coffee Gieop Apgujeong Branch");
+        assertEnglishPlaceName("P_0247", "fallback", "Cheonjangjigu Cafe");
+        assertEnglishPlaceName("P_0248", "fallback", "MIMIMI Garden Cafe");
+        assertEnglishPlaceName("P_0249", "fallback", "Saseungbongdo Island");
     }
 
     private void assertEnglishPlaceName(String placeId, String placeName, String expected) {

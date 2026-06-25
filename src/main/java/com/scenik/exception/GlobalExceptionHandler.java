@@ -20,6 +20,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
@@ -55,6 +56,14 @@ public class GlobalExceptionHandler {
             log.debug("Handled {} during {} {}: {}", status, request.getMethod(), request.getRequestURI(), descriptor.message());
         }
         return ResponseEntity.status(status).body(new ErrorResponse(descriptor.code(), descriptor.message()));
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNoResourceFound(NoResourceFoundException exception, HttpServletRequest request) {
+        ErrorDescriptor descriptor = defaultDescriptor(HttpStatus.NOT_FOUND);
+        log.debug("Static resource not found during {} {}: {}", request.getMethod(), request.getRequestURI(), exception.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse(descriptor.code(), descriptor.message()));
     }
 
     @ExceptionHandler(DuplicateKeyException.class)

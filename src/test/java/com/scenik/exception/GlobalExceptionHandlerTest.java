@@ -6,8 +6,10 @@ import static org.mockito.Mockito.when;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.web.server.ResponseStatusException;
 
 class GlobalExceptionHandlerTest {
@@ -50,6 +52,18 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().code()).isEqualTo("INVALID_REQUEST");
         assertThat(response.getBody().message()).isEqualTo("요청을 처리할 수 없습니다. 입력값을 확인해 주세요.");
+    }
+
+    @Test
+    void mapsMissingUploadedStaticResourceToNotFound() {
+        ResponseEntity<GlobalExceptionHandler.ErrorResponse> response = handler.handleNoResourceFound(
+                new NoResourceFoundException(HttpMethod.GET, "/api/uploads/community/missing.jpg"),
+                request()
+        );
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().code()).isEqualTo("NOT_FOUND");
     }
 
     private HttpServletRequest request() {

@@ -122,7 +122,7 @@ GMS_READ_TIMEOUT_MS=5000
 macOS/Linux:
 
 ```bash
-cd /Users/kellys-mac/Desktop/sceniK/sceniK-back
+cd /path/to/sceniK/sceniK-back
 sh gradlew bootRun
 ```
 

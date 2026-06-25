@@ -138,17 +138,26 @@ public class AiRouteService {
         String contentTitle = contentTitleLabel(contentIds, candidates);
         String style = styleLabel(request);
         List<CandidatePlace> routeCandidates = candidates;
-        List<RouteDayDto> days = generateAiDays(request, routeCandidates, dayCount, stopPolicy)
+        Optional<AiGeneratedRoute> aiGeneratedRoute = generateAiRoutePlan(request, routeCandidates, dayCount, stopPolicy);
+        List<RouteDayDto> days = aiGeneratedRoute
+                .map(AiGeneratedRoute::days)
                 .orElseGet(() -> buildDeterministicDays(routeCandidates, dayCount, style, request.hotelAddress(), stopPolicy));
         days = regroupDailyRoutesByArea(days, stopPolicy, request);
         days = optimizeDailyRoutes(days, request);
         List<CandidatePlaceDto> candidateDtos = candidates.stream().map(CandidatePlaceDto::from).toList();
         List<RouteStopDto> flatPlaces = days.stream().flatMap(day -> day.places().stream()).toList();
+        String aiTitle = aiGeneratedRoute
+                .map(AiGeneratedRoute::title)
+                .filter(this::isUsableCourseTitle)
+                .orElse(null);
+        String routeTitle = aiTitle == null
+                ? buildContextualCourseTitle(request, contentTitle, region, style, days)
+                : aiTitle;
 
         return new AiRouteDto(
                 generationId,
                 generationId,
-                contentTitle + " " + region + " " + style + " 코스",
+                routeTitle,
                 buildSummary(request, contentTitle, region, dayCount),
                 contentIds.isEmpty() ? null : contentIds.get(0),
                 contentIds,
@@ -185,7 +194,7 @@ public class AiRouteService {
         );
     }
 
-    private Optional<List<RouteDayDto>> generateAiDays(AiRouteRequest request, List<CandidatePlace> candidates, int dayCount, StopPolicy stopPolicy) {
+    private Optional<AiGeneratedRoute> generateAiRoutePlan(AiRouteRequest request, List<CandidatePlace> candidates, int dayCount, StopPolicy stopPolicy) {
         if (gmsApiKey.isBlank()) {
             log.info("GMS API key is not configured. Falling back to deterministic AI route generation.");
             return Optional.empty();
@@ -202,7 +211,8 @@ public class AiRouteService {
                     ? null
                     : response.choices().get(0).content();
             AiRoutePlan plan = parseAiRoutePlan(content);
-            return validateAndBuildAiDays(plan, candidates, dayCount, stopPolicy);
+            Optional<List<RouteDayDto>> days = validateAndBuildAiDays(plan, candidates, dayCount, stopPolicy);
+            return days.map(routeDays -> new AiGeneratedRoute(plan.title(), plan.summary(), routeDays));
         } catch (RestClientException | IllegalArgumentException | JsonProcessingException exception) {
             log.warn("GMS AI route generation failed. Falling back to deterministic route. reason={}", exception.getClass().getSimpleName());
             return Optional.empty();
@@ -235,6 +245,19 @@ public class AiRouteService {
         routeContext.put("budgetMax", request.budgetMax());
         routeContext.put("budget", request.budget());
         routeContext.put("hotelAddress", request.hotelAddress());
+        routeContext.put("selectedContentTitleLabel", contentTitleLabel(normalizeContentIds(request), candidates));
+        routeContext.put("representativePlaceNames", candidates.stream()
+                .map(CandidatePlace::getName)
+                .filter(name -> name != null && !name.isBlank())
+                .distinct()
+                .limit(12)
+                .toList());
+        routeContext.put("representativeContentTitles", candidates.stream()
+                .map(CandidatePlace::getRelatedContentTitle)
+                .filter(title -> title != null && !title.isBlank() && !looksLikeContentId(title))
+                .distinct()
+                .limit(6)
+                .toList());
         routeContext.put("candidatePlaces", candidates.stream().map(this::promptCandidate).toList());
         routeContext.put("areaClusters", areaClusterSummary(candidates));
         routeContext.put("visitWorthyCategories", List.of("촬영지", "관광지", "궁궐", "전통마을", "거리", "카페", "공원", "문화시설"));
@@ -270,8 +293,11 @@ public class AiRouteService {
                 - carDays에 포함된 Day는 차량 이동을 우선 고려하고, 포함되지 않은 Day는 대중교통 이동을 기준으로 동선을 구성하세요.
                 - 백엔드가 좌표 기반으로 최종 방문 순서를 재정렬하므로, 먼저 조건에 가장 맞는 placeId를 고르는 데 집중하세요.
                 - 같은 placeId를 두 번 쓰지 마세요.
+                - title 필드는 코스 이름입니다. 실제 장소명, 권역, 작품명, 여행 무드, 일정 길이를 조합해 짧고 기억하기 쉬운 한국어 이름으로 작성하세요.
+                - title은 8~22자 안팎으로 만들고 "AI 코스", "추천 코스", "서울 감성 코스"처럼 일반적인 템플릿 이름은 피하세요.
+                - title은 summary와 달라야 하며, 앱 카드 제목으로 바로 써도 어색하지 않은 고유한 이름이어야 합니다.
                 - 출력은 설명 없이 JSON 객체만 반환하세요.
-                - JSON 형식: {"summary":"...","days":[{"dayNumber":1,"estimatedTravelTime":"이동 약 60분","places":[{"placeId":"P_001","visitOrder":1,"recommendedTime":"10:00","recommendReason":"...","estimatedStayMinutes":60,"estimatedTravelMinutes":0,"travelTip":"..."}]}]}
+                - JSON 형식: {"title":"...","summary":"...","days":[{"dayNumber":1,"estimatedTravelTime":"이동 약 60분","places":[{"placeId":"P_001","visitOrder":1,"recommendedTime":"10:00","recommendReason":"...","estimatedStayMinutes":60,"estimatedTravelMinutes":0,"travelTip":"..."}]}]}
 
                 컨텍스트:
                 %s
@@ -1568,6 +1594,68 @@ public class AiRouteService {
         return value == null || value <= 0 ? fallback : value;
     }
 
+    private boolean isUsableCourseTitle(String value) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        String normalized = value.trim().replaceAll("\\s+", " ");
+        if (normalized.length() < 3 || normalized.length() > 32 || looksLikeContentId(normalized)) {
+            return false;
+        }
+        String lower = normalized.toLowerCase(Locale.ROOT);
+        return !lower.contains("ai 코스")
+                && !normalized.contains("추천 코스")
+                && !normalized.contains("감성 코스")
+                && !normalized.contains("선택 콘텐츠");
+    }
+
+    private String buildContextualCourseTitle(AiRouteRequest request, String contentTitle, String region, String style, List<RouteDayDto> days) {
+        List<String> placeNames = days.stream()
+                .filter(day -> day.places() != null)
+                .flatMap(day -> day.places().stream())
+                .map(stop -> firstText(stop.name(), stop.placeName()))
+                .filter(name -> name != null && !name.isBlank())
+                .map(this::compactTitleToken)
+                .filter(name -> !name.isBlank())
+                .distinct()
+                .limit(2)
+                .toList();
+        String styleText = normalizeTravelStyles(request).stream()
+                .filter(value -> value != null && !value.isBlank())
+                .findFirst()
+                .orElse(style);
+        String durationText = request.durationDays() != null && request.durationDays() > 1
+                ? request.durationDays() + "일"
+                : "";
+
+        if (placeNames.size() >= 2) {
+            return shortenCourseTitle(placeNames.get(0) + "에서 " + placeNames.get(1) + "까지");
+        }
+        if (placeNames.size() == 1) {
+            String prefix = firstText(durationText, compactTitleToken(region));
+            return shortenCourseTitle(prefix + " " + placeNames.get(0) + " 여정");
+        }
+        String mood = compactTitleToken(firstText(styleText, "여행"));
+        return shortenCourseTitle(compactTitleToken(firstText(region, contentTitle)) + " " + mood + " 여정");
+    }
+
+    private String compactTitleToken(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        String normalized = value
+                .replaceAll("\\([^)]*\\)", "")
+                .replaceAll("\\[[^]]*\\]", "")
+                .replaceAll("\\s+", " ")
+                .trim();
+        return normalized.length() <= 12 ? normalized : normalized.substring(0, 12);
+    }
+
+    private String shortenCourseTitle(String value) {
+        String normalized = value == null ? "" : value.replaceAll("\\s+", " ").trim();
+        return normalized.length() <= 28 ? normalized : normalized.substring(0, 28);
+    }
+
     private String buildSummary(AiRouteRequest request, String contentTitle, String region, int dayCount) {
         String dateText = firstText(request.dateRangeLabel(), dayCount + "일");
         String transport = firstText(request.transport(), "이동 조건");
@@ -1675,7 +1763,10 @@ public class AiRouteService {
         }
     }
 
-    private record AiRoutePlan(String summary, List<AiRoutePlanDay> days) {
+    private record AiGeneratedRoute(String title, String summary, List<RouteDayDto> days) {
+    }
+
+    private record AiRoutePlan(String title, String summary, List<AiRoutePlanDay> days) {
     }
 
     private record AiRoutePlanDay(Integer dayNumber, String estimatedTravelTime, List<AiRoutePlanStop> places) {

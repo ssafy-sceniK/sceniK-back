@@ -8,6 +8,7 @@ import com.scenik.domain.TravelRoute;
 import com.scenik.domain.User;
 import com.scenik.dto.CommunityDtos.CommentDto;
 import com.scenik.dto.CommunityDtos.CommentRequest;
+import com.scenik.dto.CommunityDtos.MyCommentDto;
 import com.scenik.dto.CommunityDtos.NotificationDto;
 import com.scenik.dto.CommunityDtos.PostAttachmentDto;
 import com.scenik.dto.CommunityDtos.PostDto;
@@ -124,6 +125,12 @@ public class CommunityService {
         Long userId = authService.optionalUserId(authorization);
         requirePost(postId, userId);
         return communityMapper.findCommentsByPostId(postId, userId).stream().map(this::toCommentDto).toList();
+    }
+
+    public List<MyCommentDto> listMyComments(User user) {
+        return communityMapper.findCommentsByUserId(user.getUserId(), user.getUserId()).stream()
+                .map(this::toMyCommentDto)
+                .toList();
     }
 
     @Transactional
@@ -501,6 +508,27 @@ public class CommunityService {
                 authorProfileImageUrl,
                 authorProfileImageUrl,
                 authorProfileImageUrl,
+                comment.getContent(),
+                comment.getContent(),
+                comment.getLanguage(),
+                likeCount,
+                likeCount,
+                likedByMe,
+                likedByMe,
+                comment.getParentCommentId(),
+                comment.getCreatedAt(),
+                comment.getUpdatedAt()
+        );
+    }
+
+    private MyCommentDto toMyCommentDto(CommunityComment comment) {
+        Integer likeCount = comment.getLikeCount() == null ? 0 : comment.getLikeCount();
+        Boolean likedByMe = Boolean.TRUE.equals(comment.getLiked());
+        return new MyCommentDto(
+                comment.getCommentId(),
+                comment.getCommentId(),
+                comment.getPostId(),
+                comment.getPostTitle(),
                 comment.getContent(),
                 comment.getContent(),
                 comment.getLanguage(),

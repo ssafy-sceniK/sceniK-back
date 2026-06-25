@@ -27,6 +27,7 @@ public interface CommunityMapper {
     int insertPostImage(@Param("imageId") String imageId, @Param("postId") String postId, @Param("imageUrl") String imageUrl, @Param("fileName") String fileName, @Param("sortOrder") Integer sortOrder);
 
     List<CommunityComment> findCommentsByPostId(@Param("postId") String postId, @Param("userId") Long userId);
+    List<CommunityComment> findCommentsByUserId(@Param("authorId") Long authorId, @Param("userId") Long userId);
     CommunityComment findCommentById(@Param("commentId") String commentId, @Param("userId") Long userId);
     int insertComment(CommunityComment comment);
     int updateComment(CommunityComment comment);

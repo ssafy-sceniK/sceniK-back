@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 public class CommunityComment {
     private String commentId;
     private String postId;
+    private String postTitle;
     private Long userId;
     private String userNickname;
     private String userProfileImageUrl;
@@ -21,6 +22,8 @@ public class CommunityComment {
     public void setCommentId(String commentId) { this.commentId = commentId; }
     public String getPostId() { return postId; }
     public void setPostId(String postId) { this.postId = postId; }
+    public String getPostTitle() { return postTitle; }
+    public void setPostTitle(String postTitle) { this.postTitle = postTitle; }
     public Long getUserId() { return userId; }
     public void setUserId(Long userId) { this.userId = userId; }
     public String getUserNickname() { return userNickname; }

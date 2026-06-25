@@ -3,6 +3,7 @@ package com.scenik.controller;
 import com.scenik.dto.CommunityDtos.CommentDto;
 import com.scenik.dto.CommunityDtos.ImageUploadDto;
 import com.scenik.dto.CommunityDtos.CommentRequest;
+import com.scenik.dto.CommunityDtos.MyCommentDto;
 import com.scenik.dto.CommunityDtos.NotificationDto;
 import com.scenik.dto.CommunityDtos.PostDto;
 import com.scenik.dto.CommunityDtos.PostRequest;
@@ -254,6 +255,19 @@ public class CommunityController {
         List<PostDto> paged = ListQuerySupport.paginate(posts, page, size);
         return ResponseEntity.ok()
                 .header("X-Total-Count", String.valueOf(posts.size()))
+                .body(paged);
+    }
+
+    @GetMapping("/users/me/comments")
+    public ResponseEntity<List<MyCommentDto>> myComments(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestParam(value = "page", required = false) Integer page,
+            @RequestParam(value = "size", required = false) Integer size
+    ) {
+        List<MyCommentDto> comments = communityService.listMyComments(authService.requireUser(authorization));
+        List<MyCommentDto> paged = ListQuerySupport.paginate(comments, page, size);
+        return ResponseEntity.ok()
+                .header("X-Total-Count", String.valueOf(comments.size()))
                 .body(paged);
     }
 

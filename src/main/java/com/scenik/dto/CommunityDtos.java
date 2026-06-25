@@ -113,6 +113,24 @@ public final class CommunityDtos {
     ) {
     }
 
+    public record MyCommentDto(
+            String commentId,
+            String id,
+            String postId,
+            String postTitle,
+            String content,
+            String text,
+            String language,
+            Integer likeCount,
+            Integer likes,
+            Boolean likedByMe,
+            Boolean isLiked,
+            String parentCommentId,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt
+    ) {
+    }
+
     public record ReportRequest(@NotBlank(message = "신고 사유를 선택해 주세요.") String reason) {
     }
 

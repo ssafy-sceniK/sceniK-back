@@ -64,7 +64,7 @@ public class AiRouteService {
             ObjectMapper objectMapper,
             @Value("${scenik.ai.gms.base-url}") String gmsBaseUrl,
             @Value("${scenik.ai.gms.api-key:}") String gmsApiKey,
-            @Value("${scenik.ai.gms.model:gpt-5.4}") String gmsModel,
+            @Value("${scenik.ai.gms.model:gpt-5.4-mini}") String gmsModel,
             @Value("${scenik.ai.gms.connect-timeout-ms:1000}") int connectTimeoutMs,
             @Value("${scenik.ai.gms.read-timeout-ms:5000}") int readTimeoutMs,
             @Value("${scenik.ai.route.min-places-per-day:2}") int defaultMinPlacesPerDay,

@@ -6,6 +6,7 @@ public class CommunityPost {
     private String postId;
     private Long userId;
     private String userNickname;
+    private String userProfileImageUrl;
     private String title;
     private String content;
     private String language;
@@ -27,6 +28,8 @@ public class CommunityPost {
     public void setUserId(Long userId) { this.userId = userId; }
     public String getUserNickname() { return userNickname; }
     public void setUserNickname(String userNickname) { this.userNickname = userNickname; }
+    public String getUserProfileImageUrl() { return userProfileImageUrl; }
+    public void setUserProfileImageUrl(String userProfileImageUrl) { this.userProfileImageUrl = userProfileImageUrl; }
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
     public String getContent() { return content; }

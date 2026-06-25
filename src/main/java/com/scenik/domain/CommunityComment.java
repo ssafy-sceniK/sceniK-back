@@ -7,6 +7,7 @@ public class CommunityComment {
     private String postId;
     private Long userId;
     private String userNickname;
+    private String userProfileImageUrl;
     private String parentCommentId;
     private String content;
     private String language;
@@ -24,6 +25,8 @@ public class CommunityComment {
     public void setUserId(Long userId) { this.userId = userId; }
     public String getUserNickname() { return userNickname; }
     public void setUserNickname(String userNickname) { this.userNickname = userNickname; }
+    public String getUserProfileImageUrl() { return userProfileImageUrl; }
+    public void setUserProfileImageUrl(String userProfileImageUrl) { this.userProfileImageUrl = userProfileImageUrl; }
     public String getParentCommentId() { return parentCommentId; }
     public void setParentCommentId(String parentCommentId) { this.parentCommentId = parentCommentId; }
     public String getContent() { return content; }

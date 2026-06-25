@@ -5,6 +5,7 @@
     <id property="postId" column="post_id" />
     <result property="userId" column="user_id" />
     <result property="userNickname" column="user_nickname" />
+    <result property="userProfileImageUrl" column="user_profile_image_url" />
     <result property="title" column="title" />
     <result property="content" column="content" />
     <result property="language" column="language" />
@@ -35,6 +36,7 @@
     <result property="postId" column="post_id" />
     <result property="userId" column="user_id" />
     <result property="userNickname" column="user_nickname" />
+    <result property="userProfileImageUrl" column="user_profile_image_url" />
     <result property="parentCommentId" column="parent_comment_id" />
     <result property="content" column="content" />
     <result property="language" column="language" />
@@ -64,6 +66,7 @@
   <sql id="PostSelect">
     SELECT cp.*,
            CASE WHEN u.status = 'DELETED' THEN '탈퇴한 사용자' ELSE u.nickname END AS user_nickname,
+           CASE WHEN u.status = 'DELETED' THEN NULL ELSE u.profile_image_url END AS user_profile_image_url,
            COALESCE((SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = cp.post_id), 0) AS like_count,
            COALESCE((SELECT COUNT(*) FROM post_scraps ps WHERE ps.post_id = cp.post_id), 0) AS scrap_count,
            COALESCE((SELECT COUNT(*) FROM comments c WHERE c.post_id = cp.post_id AND <include refid="VisibleCommentPredicate" />), 0) AS comment_count,
@@ -177,6 +180,7 @@
   <sql id="CommentSelect">
     SELECT c.*,
            CASE WHEN u.status = 'DELETED' THEN '탈퇴한 사용자' ELSE u.nickname END AS user_nickname,
+           CASE WHEN u.status = 'DELETED' THEN NULL ELSE u.profile_image_url END AS user_profile_image_url,
            COALESCE((SELECT COUNT(*) FROM comment_likes cl WHERE cl.comment_id = c.comment_id), 0) AS like_count,
            CASE
              WHEN #{userId} IS NULL THEN FALSE

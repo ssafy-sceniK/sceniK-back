@@ -452,6 +452,7 @@ public class CommunityService {
         Boolean scrapped = Boolean.TRUE.equals(post.getScrapped());
         List<Long> scrappedBy = scrapped && viewerUserId != null ? List.of(viewerUserId) : List.of();
         String nickname = firstText(post.getUserNickname(), "sceniK user");
+        String authorProfileImageUrl = post.getUserProfileImageUrl();
         return new PostDto(
                 post.getPostId(),
                 post.getPostId(),
@@ -459,6 +460,9 @@ public class CommunityService {
                 nickname,
                 nickname,
                 nickname,
+                authorProfileImageUrl,
+                authorProfileImageUrl,
+                authorProfileImageUrl,
                 post.getTitle(),
                 post.getContent(),
                 post.getContent(),
@@ -483,6 +487,7 @@ public class CommunityService {
 
     private CommentDto toCommentDto(CommunityComment comment) {
         String nickname = firstText(comment.getUserNickname(), "sceniK user");
+        String authorProfileImageUrl = comment.getUserProfileImageUrl();
         Integer likeCount = comment.getLikeCount() == null ? 0 : comment.getLikeCount();
         Boolean likedByMe = Boolean.TRUE.equals(comment.getLiked());
         return new CommentDto(
@@ -493,6 +498,9 @@ public class CommunityService {
                 nickname,
                 nickname,
                 nickname,
+                authorProfileImageUrl,
+                authorProfileImageUrl,
+                authorProfileImageUrl,
                 comment.getContent(),
                 comment.getContent(),
                 comment.getLanguage(),

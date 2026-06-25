@@ -115,6 +115,39 @@ class CommunityServiceTest {
         verify(communityMapper, never()).insertNotification(anyString(), eq(1L), anyString(), anyString(), eq("POST_COMMENT"), eq("post-1"), eq("post-1"), anyString(), eq(2L), any(), any());
     }
 
+    @Test
+    void postDtoIncludesAuthorProfileImageUrl() {
+        CommunityPost post = post("post-1", 1L);
+        post.setUserProfileImageUrl("/api/uploads/profile/owner.png");
+        when(authService.optionalUserId(null)).thenReturn(null);
+        when(communityMapper.findPostById("post-1", null)).thenReturn(post);
+        stubPostDtoDependencies("post-1", null);
+
+        var dto = service.getPost(null, "post-1");
+
+        org.assertj.core.api.Assertions.assertThat(dto.authorProfileImageUrl()).isEqualTo("/api/uploads/profile/owner.png");
+        org.assertj.core.api.Assertions.assertThat(dto.profileImageUrl()).isEqualTo("/api/uploads/profile/owner.png");
+        org.assertj.core.api.Assertions.assertThat(dto.authorImageUrl()).isEqualTo("/api/uploads/profile/owner.png");
+    }
+
+    @Test
+    void commentDtoIncludesAuthorProfileImageUrl() {
+        CommunityPost post = post("post-1", 1L);
+        CommunityComment comment = comment("comment-1", "post-1", 2L, null);
+        comment.setUserProfileImageUrl("/api/uploads/profile/commenter.png");
+        when(authService.optionalUserId(null)).thenReturn(null);
+        when(communityMapper.findPostById("post-1", null)).thenReturn(post);
+        when(communityMapper.findTagsByPostId("post-1")).thenReturn(List.of());
+        when(communityMapper.findImagesByPostId("post-1")).thenReturn(List.of());
+        when(communityMapper.findCommentsByPostId("post-1", null)).thenReturn(List.of(comment));
+
+        var dto = service.getPost(null, "post-1");
+
+        org.assertj.core.api.Assertions.assertThat(dto.comments()).hasSize(1);
+        org.assertj.core.api.Assertions.assertThat(dto.comments().get(0).authorProfileImageUrl()).isEqualTo("/api/uploads/profile/commenter.png");
+        org.assertj.core.api.Assertions.assertThat(dto.comments().get(0).profileImageUrl()).isEqualTo("/api/uploads/profile/commenter.png");
+        org.assertj.core.api.Assertions.assertThat(dto.comments().get(0).authorImageUrl()).isEqualTo("/api/uploads/profile/commenter.png");
+    }
     private void stubPostDtoDependencies(String postId, Long viewerId) {
         when(communityMapper.findTagsByPostId(postId)).thenReturn(List.of());
         when(communityMapper.findImagesByPostId(postId)).thenReturn(List.of());

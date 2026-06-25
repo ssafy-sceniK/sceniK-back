@@ -20,6 +20,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -123,6 +124,13 @@ public class GlobalExceptionHandler {
                 "입력값을 확인해 주세요.",
                 List.of(new FieldErrorResponse(exception.getParameterName(), "필수 요청 값이 누락되었습니다."))
         ));
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException exception, HttpServletRequest request) {
+        log.warn("Multipart upload exceeded size limit during {} {}", request.getMethod(), request.getRequestURI(), exception);
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                .body(new ErrorResponse("PAYLOAD_TOO_LARGE", "5MB 이하의 이미지를 선택해 주세요."));
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)

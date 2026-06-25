@@ -5,6 +5,10 @@ spring:
     name: scenik-backend
   profiles:
     default: local
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 60MB
   security:
     oauth2:
       client:

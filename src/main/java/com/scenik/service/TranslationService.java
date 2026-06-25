@@ -46,6 +46,7 @@ public class TranslationService {
     private final String gmsBaseUrl;
     private final String gmsApiKey;
     private final String gmsModel;
+    private final String gmsFallbackModel;
 
     public TranslationService(
             TranslationCacheMapper translationCacheMapper,
@@ -56,6 +57,7 @@ public class TranslationService {
             @Value("${scenik.ai.gms.base-url}") String gmsBaseUrl,
             @Value("${scenik.ai.gms.api-key:}") String gmsApiKey,
             @Value("${scenik.ai.gms.translation-model:${scenik.ai.gms.model:gpt-5-nano}}") String gmsModel,
+            @Value("${scenik.ai.gms.translation-fallback-model:${scenik.ai.gms.model:gpt-5.4-mini}}") String gmsFallbackModel,
             @Value("${scenik.ai.gms.connect-timeout-ms:1000}") int connectTimeoutMs,
             @Value("${scenik.ai.gms.read-timeout-ms:5000}") int readTimeoutMs
     ) {
@@ -70,6 +72,7 @@ public class TranslationService {
         if (gmsModel != null && !gmsModel.trim().equals(this.gmsModel)) {
             log.info("Normalized GMS translation model from '{}' to '{}'.", gmsModel, this.gmsModel);
         }
+        this.gmsFallbackModel = normalizeOptionalGmsModel(gmsFallbackModel);
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(connectTimeoutMs);
         requestFactory.setReadTimeout(readTimeoutMs);
@@ -101,7 +104,7 @@ public class TranslationService {
             return new TranslationResponse(resourceType, source.resourceId(), fieldName, sourceLanguage, targetLanguage, cached.getSourceText(), cached.getTranslatedText(), true, cached.getUpdatedAt());
         }
 
-        String translatedText = requestGmsTranslation(source.text(), sourceLanguage, targetLanguage);
+        TranslationProviderResult translation = requestGmsTranslation(source.text(), sourceLanguage, targetLanguage);
         TranslationCache cache = new TranslationCache();
         cache.setUserId(user.getUserId());
         cache.setResourceType(resourceType);
@@ -111,11 +114,11 @@ public class TranslationService {
         cache.setTargetLanguage(targetLanguage);
         cache.setSourceHash(sourceHash);
         cache.setSourceText(source.text());
-        cache.setTranslatedText(translatedText);
+        cache.setTranslatedText(translation.translatedText());
         cache.setProvider("gms");
-        cache.setModel(gmsModel);
+        cache.setModel(translation.model());
         translationCacheMapper.insert(cache);
-        return new TranslationResponse(resourceType, source.resourceId(), fieldName, sourceLanguage, targetLanguage, source.text(), translatedText, false, LocalDateTime.now());
+        return new TranslationResponse(resourceType, source.resourceId(), fieldName, sourceLanguage, targetLanguage, source.text(), translation.translatedText(), false, LocalDateTime.now());
     }
 
     private SourceText resolveSource(String resourceType, String resourceId, String fieldName, User viewer) {
@@ -160,10 +163,22 @@ public class TranslationService {
         return new SourceText(String.valueOf(profile.getUserId()), requireText(profile.getBio(), "Profile bio is empty."), profile.getLanguage());
     }
 
-    private String requestGmsTranslation(String sourceText, String sourceLanguage, String targetLanguage) {
+    private TranslationProviderResult requestGmsTranslation(String sourceText, String sourceLanguage, String targetLanguage) {
         if (gmsApiKey.isBlank()) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Translation provider is not configured.");
         }
+        try {
+            return new TranslationProviderResult(requestGmsTranslation(sourceText, sourceLanguage, targetLanguage, gmsModel), gmsModel);
+        } catch (ResponseStatusException exception) {
+            if (gmsFallbackModel == null || gmsFallbackModel.equals(gmsModel) || !exception.getStatusCode().is5xxServerError()) {
+                throw exception;
+            }
+            log.warn("Retrying GMS translation with fallback model '{}' after primary model '{}' failed.", gmsFallbackModel, gmsModel);
+            return new TranslationProviderResult(requestGmsTranslation(sourceText, sourceLanguage, targetLanguage, gmsFallbackModel), gmsFallbackModel);
+        }
+    }
+
+    private String requestGmsTranslation(String sourceText, String sourceLanguage, String targetLanguage, String model) {
         String prompt = "Translate this user-generated sceniK text. Preserve names, place names, URLs, hashtags, emoji, and line breaks. "
                 + "Return only the translated text, with no explanation. Source language: " + sourceLanguage
                 + ". Target language: " + targetLanguage + ".\n\n" + sourceText;
@@ -173,9 +188,9 @@ public class TranslationService {
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("Authorization", "Bearer " + gmsApiKey)
                     .body(new GmsChatRequest(
-                            gmsModel,
+                            model,
                             List.of(
-                                    new GmsMessage("developer", "You are a precise UI translation engine. Return only translated text."),
+                                    new GmsMessage("system", "You are a precise UI translation engine. Return only translated text."),
                                     new GmsMessage("user", prompt)
                             )
                     ))
@@ -192,12 +207,12 @@ public class TranslationService {
             log.warn(
                     "GMS translation request failed with status {} using model '{}': {}",
                     exception.getStatusCode().value(),
-                    gmsModel,
+                    model,
                     truncateForLog(exception.getResponseBodyAsString())
             );
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Translation provider request failed.");
         } catch (RestClientException exception) {
-            log.warn("GMS translation request failed using model '{}'.", gmsModel, exception);
+            log.warn("GMS translation request failed using model '{}'.", model, exception);
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Translation provider request failed.");
         }
     }
@@ -264,7 +279,17 @@ public class TranslationService {
         if (model == null || model.isBlank()) {
             return DEFAULT_TRANSLATION_MODEL;
         }
-        String value = model.trim();
+        return normalizeGmsModelValue(model.trim());
+    }
+
+    private String normalizeOptionalGmsModel(String model) {
+        if (model == null || model.isBlank()) {
+            return null;
+        }
+        return normalizeGmsModelValue(model.trim());
+    }
+
+    private String normalizeGmsModelValue(String value) {
         String canonical = value.toLowerCase().replace('_', '-').replace(' ', '-');
         if ("gpt-nano".equals(canonical) || "gpt5-nano".equals(canonical) || DEFAULT_TRANSLATION_MODEL.equals(canonical)) {
             return DEFAULT_TRANSLATION_MODEL;
@@ -281,6 +306,9 @@ public class TranslationService {
     }
 
     private record SourceText(String resourceId, String text, String language) {
+    }
+
+    private record TranslationProviderResult(String translatedText, String model) {
     }
 
     private record GmsChatRequest(String model, List<GmsMessage> messages) {

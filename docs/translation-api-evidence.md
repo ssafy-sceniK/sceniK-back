@@ -42,6 +42,7 @@ If the source text changes, the hash changes and the next request creates a new 
 
 The translation service uses the existing GMS OpenAI-compatible chat completions configuration.
 User-generated content translation uses `scenik.ai.gms.translation-model`, which defaults to `gpt-5-nano` and can be overridden with `GMS_TRANSLATION_MODEL`.
+If the primary translation model is rejected by GMS, translation retries once with `scenik.ai.gms.translation-fallback-model`, which defaults to `GMS_MODEL` or `gpt-5.4-mini`.
 If `GMS_KEY` is not configured, user-generated translation requests return `503` while the rest of the product continues to work.
 
 ## Remaining Gaps

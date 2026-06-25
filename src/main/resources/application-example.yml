@@ -38,6 +38,7 @@ scenik:
       api-key: ${GMS_KEY:}
       model: ${GMS_MODEL:gpt-5.4-mini}
       translation-model: ${GMS_TRANSLATION_MODEL:gpt-5-nano}
+      translation-fallback-model: ${GMS_TRANSLATION_FALLBACK_MODEL:${GMS_MODEL:gpt-5.4-mini}}
       connect-timeout-ms: ${GMS_CONNECT_TIMEOUT_MS:1000}
       read-timeout-ms: ${GMS_READ_TIMEOUT_MS:5000}
 

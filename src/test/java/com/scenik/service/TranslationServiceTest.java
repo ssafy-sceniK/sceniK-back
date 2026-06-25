@@ -59,6 +59,7 @@ class TranslationServiceTest {
                     "http://127.0.0.1:" + server.getAddress().getPort() + "/",
                     "test-gms-key",
                     "gpt-5-nano",
+                    "gpt-5.4-mini",
                     1000,
                     1000
             );
@@ -82,7 +83,7 @@ class TranslationServiceTest {
 
             JsonNode payload = objectMapper.readTree(requestBody.get());
             assertThat(payload.get("model").asText()).isEqualTo("gpt-5-nano");
-            assertThat(payload.at("/messages/0/role").asText()).isEqualTo("developer");
+            assertThat(payload.at("/messages/0/role").asText()).isEqualTo("system");
             assertThat(payload.at("/messages/1/role").asText()).isEqualTo("user");
             assertThat(payload.at("/messages/1/content").asText()).contains("Target language: en");
 
@@ -116,6 +117,7 @@ class TranslationServiceTest {
                     "http://127.0.0.1:" + server.getAddress().getPort() + "/",
                     "test-gms-key",
                     "gpt-nano",
+                    "gpt-5.4-mini",
                     1000,
                     1000
             );
@@ -163,6 +165,7 @@ class TranslationServiceTest {
                     "http://127.0.0.1:" + server.getAddress().getPort() + "/",
                     "test-gms-key",
                     "gpt-5-nano",
+                    "gpt-5.4-mini",
                     1000,
                     1000
             );
@@ -182,6 +185,75 @@ class TranslationServiceTest {
             TranslationResponse response = service.translate(user, new TranslationRequest("POST", "post-1", "content", "en"));
 
             assertThat(response.translatedText()).isEqualTo("Translated result");
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void primaryModelFailureFallsBackToConfiguredModel() throws Exception {
+        AtomicReference<String> requestBodies = new AtomicReference<>("");
+        AtomicReference<String> authorization = new AtomicReference<>();
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/api.openai.com/v1/chat/completions", exchange -> {
+            authorization.set(exchange.getRequestHeaders().getFirst("Authorization"));
+            String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            requestBodies.set(requestBodies.get() + body + "\n---\n");
+            JsonNode payload = objectMapper.readTree(body);
+            String model = payload.get("model").asText();
+            if ("gpt-5-nano".equals(model)) {
+                byte[] response = "{\"error\":{\"message\":\"model not available\"}}".getBytes(StandardCharsets.UTF_8);
+                exchange.getResponseHeaders().set("Content-Type", "application/json");
+                exchange.sendResponseHeaders(400, response.length);
+                exchange.getResponseBody().write(response);
+            } else {
+                byte[] response = """
+                        {"choices":[{"message":{"role":"assistant","content":"Fallback translated result"}}]}
+                        """.getBytes(StandardCharsets.UTF_8);
+                exchange.getResponseHeaders().set("Content-Type", "application/json");
+                exchange.sendResponseHeaders(200, response.length);
+                exchange.getResponseBody().write(response);
+            }
+            exchange.close();
+        });
+        server.start();
+
+        try {
+            TranslationService service = new TranslationService(
+                    translationCacheMapper,
+                    communityMapper,
+                    placeReviewMapper,
+                    userMapper,
+                    new LanguageDetectionService(),
+                    "http://127.0.0.1:" + server.getAddress().getPort() + "/",
+                    "test-gms-key",
+                    "gpt-5-nano",
+                    "gpt-5.4-mini",
+                    1000,
+                    1000
+            );
+
+            User user = new User();
+            user.setUserId(1L);
+            user.setLanguage("en");
+            CommunityPost post = new CommunityPost();
+            post.setPostId("post-1");
+            post.setLanguage("ko");
+            post.setContent("??뽰뒻 ?Ρ딆겫筌왖揶쎛 ?類ｌ춾 ?ル뿭釉??");
+
+            when(communityMapper.findPostById("post-1", 1L)).thenReturn(post);
+            when(translationCacheMapper.findLatest(eq("POST"), eq("post-1"), eq("content"), eq("ko"), eq("en"), any()))
+                    .thenReturn(null);
+
+            TranslationResponse response = service.translate(user, new TranslationRequest("POST", "post-1", "content", "en"));
+
+            assertThat(response.translatedText()).isEqualTo("Fallback translated result");
+            assertThat(requestBodies.get()).contains("\"model\":\"gpt-5-nano\"");
+            assertThat(requestBodies.get()).contains("\"model\":\"gpt-5.4-mini\"");
+
+            ArgumentCaptor<TranslationCache> cacheCaptor = ArgumentCaptor.forClass(TranslationCache.class);
+            verify(translationCacheMapper).insert(cacheCaptor.capture());
+            assertThat(cacheCaptor.getValue().getModel()).isEqualTo("gpt-5.4-mini");
         } finally {
             server.stop(0);
         }

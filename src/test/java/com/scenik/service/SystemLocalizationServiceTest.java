@@ -121,7 +121,29 @@ class SystemLocalizationServiceTest {
         assertEnglishPlaceName("P_0171", "\uC544\uCFE0\uC544\uD50C\uB77C\uB137 \uC77C\uC0B0", "Aqua Planet Ilsan");
         assertEnglishPlaceName("P_0172", "\uC0AC\uC720\uC6D0", "Sayuwon");
         assertEnglishPlaceName("P_0173", "\uCDA9\uC8FC \uAC74\uC9C0\uB9C8\uC744", "Chungju Geonji Village");
+        assertEnglishPlaceName("P_0174", "성산일출봉", "Seongsan Ilchulbong");
+        assertEnglishPlaceName("P_0177", "델문도 김녕점 앞 해변", "Beach in front of Delmundo Gimnyeong");
+        assertEnglishPlaceName("P_0178", "백약이오름", "Baegyagi Oreum");
+        assertEnglishPlaceName("P_0179", "안돌오름", "Andol Oreum");
+        assertEnglishPlaceName("P_0186", "넙게오름", "Neopge Oreum");
+        assertEnglishPlaceName("P_0189", "한림수협위판장", "Hallim Fisheries Cooperative Fish Market");
+        assertEnglishPlaceName("P_0193", "군산오름", "Gunsan Oreum");
+        assertEnglishPlaceName("P_0199", "상여오름", "Sangyeo Oreum");
+        assertEnglishPlaceName("P_0213", "코엑스 K-POP Square", "COEX K-POP Square");
+        assertEnglishPlaceName("P_0233", "용눈이오름", "Yongnuni Oreum");
         assertEnglishPlaceName("P_0262", "BTS \uBC84\uC2A4\uC815\uB958\uC7A5", "BTS Bus Stop");
+
+        Place coexKpopSquare = place("P_0213", "코엑스 K-POP Square");
+        assertThat(localizationService.localize(PlaceDto.from(coexKpopSquare), "ja-JP").placeName())
+                .isEqualTo("COEX K-POP広場");
+        assertThat(localizationService.localize(PlaceDto.from(coexKpopSquare), "zh-CN").placeName())
+                .isEqualTo("COEX K-POP广场");
+
+        Place seongsanIlchulbong = place("P_0174", "성산일출봉");
+        assertThat(localizationService.localize(PlaceDto.from(seongsanIlchulbong), "ja-JP").placeName())
+                .isEqualTo("城山日出峰");
+        assertThat(localizationService.localize(PlaceDto.from(seongsanIlchulbong), "zh-CN").placeName())
+                .isEqualTo("城山日出峰");
 
         Place ecoWorld = place("P_0169", "\uBB38\uACBD \uC5D0\uCF54\uC6D4\uB4DC");
         assertThat(localizationService.localize(PlaceDto.from(ecoWorld), "ja-JP").placeName())

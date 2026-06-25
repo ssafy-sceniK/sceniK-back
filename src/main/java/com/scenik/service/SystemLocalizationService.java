@@ -243,6 +243,16 @@ public class SystemLocalizationService {
         addPlaceName("P_0171", "Aqua Planet Ilsan", "\u30A2\u30AF\u30A2\u30D7\u30E9\u30CD\u30C3\u30C8\u4E00\u5C71", "Aqua Planet \u4E00\u5C71");
         addPlaceName("P_0172", "Sayuwon", "\u30B5\u30E6\u30A6\u30A9\u30F3", "\u601D\u60DF\u56ED");
         addPlaceName("P_0173", "Chungju Geonji Village", "\u5FE0\u5DDE\u4E7E\u829D\u6751", "\u5FE0\u5DDE\u4E7E\u829D\u6751");
+        addPlaceName("P_0174", "Seongsan Ilchulbong", "城山日出峰", "城山日出峰");
+        addPlaceName("P_0177", "Beach in front of Delmundo Gimnyeong", "デルムンド金寧店前ビーチ", "Delmundo 金宁店前海滩");
+        addPlaceName("P_0178", "Baegyagi Oreum", "ペギャギオルム", "百药伊岳");
+        addPlaceName("P_0179", "Andol Oreum", "アンドルオルム", "安突岳");
+        addPlaceName("P_0186", "Neopge Oreum", "ノプケオルム", "讷盖岳");
+        addPlaceName("P_0189", "Hallim Fisheries Cooperative Fish Market", "翰林水協魚市場", "翰林水协鱼市");
+        addPlaceName("P_0193", "Gunsan Oreum", "クンサンオルム", "军山岳");
+        addPlaceName("P_0199", "Sangyeo Oreum", "サンヨオルム", "Sangyeo Oreum");
+        addPlaceName("P_0213", "COEX K-POP Square", "COEX K-POP広場", "COEX K-POP广场");
+        addPlaceName("P_0233", "Yongnuni Oreum", "ヨンヌニオルム", "龙眼岳");
         addPlaceName("P_0069", "Lotte World", "ロッテワールド", "乐天世界");
         addPlaceName("P_0108", "Suyeonsanbang", "スヨンサンバン", "寿砚山房");
         addPlaceName("P_0150", "Korean Stone Art Museum", "韓国石造美術館", "韩国石造艺术博物馆");

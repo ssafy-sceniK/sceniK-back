@@ -8,6 +8,7 @@ import com.scenik.domain.TravelRoute;
 import com.scenik.domain.User;
 import com.scenik.dto.CommunityDtos.CommentDto;
 import com.scenik.dto.CommunityDtos.CommentRequest;
+import com.scenik.dto.CommunityDtos.LinkedCourseDto;
 import com.scenik.dto.CommunityDtos.MyCommentDto;
 import com.scenik.dto.CommunityDtos.NotificationDto;
 import com.scenik.dto.CommunityDtos.PostAttachmentDto;
@@ -502,6 +503,7 @@ public class CommunityService {
                 post.getLanguage(),
                 post.getRegion(),
                 post.getRouteId(),
+                toLinkedCourseDto(post),
                 post.getImageUrl(),
                 attachments,
                 tags,
@@ -515,6 +517,24 @@ public class CommunityService {
                 comments,
                 post.getCreatedAt(),
                 post.getUpdatedAt()
+        );
+    }
+
+    private LinkedCourseDto toLinkedCourseDto(CommunityPost post) {
+        if (trimToNull(post.getRouteId()) == null || trimToNull(post.getRouteTitle()) == null) {
+            return null;
+        }
+        return new LinkedCourseDto(
+                post.getRouteId(),
+                post.getRouteId(),
+                post.getRouteTitle(),
+                post.getRouteTitle(),
+                post.getRouteRegion(),
+                post.getRouteDurationDays(),
+                post.getRouteDurationDays(),
+                post.getRoutePlaceCount(),
+                post.getRouteTransport(),
+                post.getRouteStyle()
         );
     }
 

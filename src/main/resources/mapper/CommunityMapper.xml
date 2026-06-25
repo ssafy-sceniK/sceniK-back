@@ -11,6 +11,12 @@
     <result property="language" column="language" />
     <result property="region" column="region" />
     <result property="routeId" column="route_id" />
+    <result property="routeTitle" column="linked_route_title" />
+    <result property="routeRegion" column="linked_route_region" />
+    <result property="routeDurationDays" column="linked_route_duration_days" />
+    <result property="routeTransport" column="linked_route_transport" />
+    <result property="routeStyle" column="linked_route_style" />
+    <result property="routePlaceCount" column="linked_route_place_count" />
     <result property="imageUrl" column="image_url" />
     <result property="status" column="status" />
     <result property="likeCount" column="like_count" />
@@ -68,6 +74,16 @@
     SELECT cp.*,
            CASE WHEN u.status = 'DELETED' THEN '탈퇴한 사용자' ELSE u.nickname END AS user_nickname,
            CASE WHEN u.status = 'DELETED' THEN NULL ELSE u.profile_image_url END AS user_profile_image_url,
+           tr.title AS linked_route_title,
+           tr.region AS linked_route_region,
+           tr.duration_days AS linked_route_duration_days,
+           tr.transport AS linked_route_transport,
+           tr.style AS linked_route_style,
+           COALESCE((
+             SELECT COUNT(*)
+             FROM route_places rp
+             WHERE rp.route_id = tr.route_id
+           ), 0) AS linked_route_place_count,
            COALESCE((SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = cp.post_id), 0) AS like_count,
            COALESCE((SELECT COUNT(*) FROM post_scraps ps WHERE ps.post_id = cp.post_id), 0) AS scrap_count,
            COALESCE((SELECT COUNT(*) FROM comments c WHERE c.post_id = cp.post_id AND <include refid="VisibleCommentPredicate" />), 0) AS comment_count,
@@ -87,6 +103,7 @@
            END AS is_scrapped
     FROM community_posts cp
     JOIN users u ON u.user_id = cp.user_id
+    LEFT JOIN travel_routes tr ON tr.route_id = cp.route_id
   </sql>
 
   <sql id="VisibleCommentPredicate">

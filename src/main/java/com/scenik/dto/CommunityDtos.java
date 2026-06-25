@@ -45,6 +45,7 @@ public final class CommunityDtos {
             String language,
             String region,
             String routeId,
+            LinkedCourseDto linkedCourse,
             String imageUrl,
             List<PostAttachmentDto> attachments,
             List<String> tags,
@@ -58,6 +59,20 @@ public final class CommunityDtos {
             List<CommentDto> comments,
             LocalDateTime createdAt,
             LocalDateTime updatedAt
+    ) {
+    }
+
+    public record LinkedCourseDto(
+            String routeId,
+            String courseId,
+            String title,
+            String courseTitle,
+            String region,
+            Integer durationDays,
+            Integer days,
+            Integer placeCount,
+            String transport,
+            String style
     ) {
     }
 

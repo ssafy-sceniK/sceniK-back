@@ -12,6 +12,12 @@ public class CommunityPost {
     private String language;
     private String region;
     private String routeId;
+    private String routeTitle;
+    private String routeRegion;
+    private Integer routeDurationDays;
+    private String routeTransport;
+    private String routeStyle;
+    private Integer routePlaceCount;
     private String imageUrl;
     private String status;
     private Integer likeCount;
@@ -40,6 +46,18 @@ public class CommunityPost {
     public void setRegion(String region) { this.region = region; }
     public String getRouteId() { return routeId; }
     public void setRouteId(String routeId) { this.routeId = routeId; }
+    public String getRouteTitle() { return routeTitle; }
+    public void setRouteTitle(String routeTitle) { this.routeTitle = routeTitle; }
+    public String getRouteRegion() { return routeRegion; }
+    public void setRouteRegion(String routeRegion) { this.routeRegion = routeRegion; }
+    public Integer getRouteDurationDays() { return routeDurationDays; }
+    public void setRouteDurationDays(Integer routeDurationDays) { this.routeDurationDays = routeDurationDays; }
+    public String getRouteTransport() { return routeTransport; }
+    public void setRouteTransport(String routeTransport) { this.routeTransport = routeTransport; }
+    public String getRouteStyle() { return routeStyle; }
+    public void setRouteStyle(String routeStyle) { this.routeStyle = routeStyle; }
+    public Integer getRoutePlaceCount() { return routePlaceCount; }
+    public void setRoutePlaceCount(Integer routePlaceCount) { this.routePlaceCount = routePlaceCount; }
     public String getImageUrl() { return imageUrl; }
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
     public String getStatus() { return status; }

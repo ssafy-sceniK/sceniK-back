@@ -14,6 +14,10 @@ import com.scenik.dto.RouteDtos.AiRouteDto;
 import com.scenik.dto.RouteDtos.AiRouteRequest;
 import com.scenik.dto.RouteDtos.RouteStopDto;
 import com.scenik.mapper.AiRouteMapper;
+import com.sun.net.httpserver.HttpServer;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -219,7 +223,7 @@ class AiRouteServiceTest {
         );
         List<CandidatePlace> places = List.of(
                 place("P_A", "C_DRAMA_030", "Drama", "Seoul", 37.00, 127.00),
-                place("P_B", "C_DRAMA_030", "Drama", "Seoul", 37.01, 129.00),
+                place("P_B", "C_DRAMA_030", "Drama", "Seoul", 37.01, 127.04),
                 place("P_C", "C_DRAMA_030", "Drama", "Seoul", 37.02, 127.01)
         );
 
@@ -346,6 +350,71 @@ class AiRouteServiceTest {
     }
 
     @Test
+    void llmNineStopDayIsRepairedBelowAbsoluteLimit() throws Exception {
+        List<String> contentIds = List.of("C_DRAMA_COMPACT");
+        List<CandidatePlace> places = List.of(
+                place("P_C_01", "C_DRAMA_COMPACT", "Compact Drama", "Seoul", 37.5000, 127.0000),
+                place("P_C_02", "C_DRAMA_COMPACT", "Compact Drama", "Seoul", 37.5010, 127.0010),
+                place("P_C_03", "C_DRAMA_COMPACT", "Compact Drama", "Seoul", 37.5020, 127.0020),
+                place("P_C_04", "C_DRAMA_COMPACT", "Compact Drama", "Seoul", 37.5030, 127.0030),
+                place("P_C_05", "C_DRAMA_COMPACT", "Compact Drama", "Seoul", 37.5040, 127.0040),
+                place("P_C_06", "C_DRAMA_COMPACT", "Compact Drama", "Seoul", 37.5050, 127.0050),
+                place("P_C_07", "C_DRAMA_COMPACT", "Compact Drama", "Seoul", 37.5060, 127.0060),
+                place("P_C_08", "C_DRAMA_COMPACT", "Compact Drama", "Seoul", 37.5070, 127.0070),
+                place("P_C_09", "C_DRAMA_COMPACT", "Compact Drama", "Seoul", 37.5080, 127.0080)
+        );
+        HttpServer server = startGmsStub(aiRouteJson("Compact repaired route", List.of(
+                List.of("P_C_01", "P_C_02", "P_C_03", "P_C_04", "P_C_05", "P_C_06", "P_C_07", "P_C_08", "P_C_09")
+        )));
+
+        try {
+            AiRouteService service = aiRouteServiceWithGms(server, 9);
+            AiRouteRequest request = aiRequest(contentIds, "Seoul", 1, "car", List.of("CAR"), List.of(1));
+            when(aiRouteMapper.findCandidatePlaces(eq(contentIds), isNull(), anyInt())).thenReturn(places);
+
+            AiRouteDto route = service.generateRoute(request);
+
+            assertThat(route.days()).hasSize(1);
+            assertThat(route.days().get(0).places()).hasSizeLessThanOrEqualTo(7);
+            assertThat(route.days().get(0).places()).extracting(RouteStopDto::placeId).doesNotHaveDuplicates();
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void publicTransitScatteredLlmDayIsReducedForFeasibility() throws Exception {
+        List<String> contentIds = List.of("C_DRAMA_SCATTERED");
+        List<CandidatePlace> places = List.of(
+                place("P_S_01", "C_DRAMA_SCATTERED", "Scattered Drama", "Gangwon", "Gangwon Gangneung-si Jumunjin", 37.9120, 128.8170),
+                place("P_S_02", "C_DRAMA_SCATTERED", "Scattered Drama", "Gangwon", "Gangwon Yangyang-gun Naksansa", 38.1240, 128.6270),
+                place("P_S_03", "C_DRAMA_SCATTERED", "Scattered Drama", "Gangwon", "Gangwon Jeongseon-gun Molundae", 37.3790, 128.6630),
+                place("P_S_04", "C_DRAMA_SCATTERED", "Scattered Drama", "Gangwon", "Gangwon Samcheok-si Beach", 37.4500, 129.1660),
+                place("P_S_05", "C_DRAMA_SCATTERED", "Scattered Drama", "Gangwon", "Gangwon Hongcheon-gun Vivaldi", 37.6500, 127.6870),
+                place("P_S_06", "C_DRAMA_SCATTERED", "Scattered Drama", "Gangwon", "Gangwon Chuncheon-si Nami Island", 37.7910, 127.5250),
+                place("P_S_07", "C_DRAMA_SCATTERED", "Scattered Drama", "Gangwon", "Gangwon Sokcho-si Seorak", 38.1660, 128.4890),
+                place("P_S_08", "C_DRAMA_SCATTERED", "Scattered Drama", "Gangwon", "Gangwon Pyeongchang-gun Balwangsan", 37.3700, 128.3900)
+        );
+        HttpServer server = startGmsStub(aiRouteJson("Scattered repaired route", List.of(
+                List.of("P_S_01", "P_S_02", "P_S_03", "P_S_04", "P_S_05", "P_S_06", "P_S_07", "P_S_08")
+        )));
+
+        try {
+            AiRouteService service = aiRouteServiceWithGms(server, 9);
+            AiRouteRequest request = aiRequest(contentIds, "Gangwon", 1, "public transit", List.of("PUBLIC_TRANSIT"), List.of());
+            when(aiRouteMapper.findCandidatePlaces(eq(contentIds), isNull(), anyInt())).thenReturn(places);
+
+            AiRouteDto route = service.generateRoute(request);
+
+            assertThat(route.days()).hasSize(1);
+            assertThat(route.days().get(0).places()).hasSizeLessThanOrEqualTo(5);
+            assertThat(containsAllCities(route.days().get(0).places(), "Gangneung-si", "Yangyang-gun", "Jeongseon-gun", "Samcheok-si", "Hongcheon-gun")).isFalse();
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
     void routeStopDtoFromRoutePlaceIncludesCategory() {
         RoutePlace place = new RoutePlace();
         place.setRoutePlaceId("rp-001");
@@ -390,6 +459,79 @@ class AiRouteServiceTest {
         CandidatePlace place = place(placeId, contentId, contentTitle, region, latitude, longitude);
         place.setAddress(address);
         return place;
+    }
+
+    private AiRouteService aiRouteServiceWithGms(HttpServer server, int maxPlacesPerDay) {
+        return new AiRouteService(
+                aiRouteMapper,
+                new ObjectMapper(),
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/",
+                "test-gms-key",
+                "gpt-test",
+                1000,
+                1000,
+                2,
+                3,
+                maxPlacesPerDay
+        );
+    }
+
+    private AiRouteRequest aiRequest(List<String> contentIds, String region, int days, String transport, List<String> transportModes, List<Integer> carDays) {
+        return new AiRouteRequest(
+                null,
+                contentIds,
+                region,
+                List.of(region),
+                days,
+                null,
+                null,
+                null,
+                transport,
+                transportModes,
+                carDays,
+                "friends",
+                "active",
+                List.of("active"),
+                null,
+                600000,
+                "standard",
+                null
+        );
+    }
+
+    private HttpServer startGmsStub(String routeJson) throws IOException {
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/api.openai.com/v1/chat/completions", exchange -> {
+            exchange.getRequestBody().readAllBytes();
+            String escaped = routeJson.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n");
+            byte[] response = ("{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"" + escaped + "\"}}]}").getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, response.length);
+            exchange.getResponseBody().write(response);
+            exchange.close();
+        });
+        server.start();
+        return server;
+    }
+
+    private String aiRouteJson(String title, List<List<String>> days) {
+        StringBuilder dayJson = new StringBuilder();
+        for (int dayIndex = 0; dayIndex < days.size(); dayIndex++) {
+            if (!dayJson.isEmpty()) dayJson.append(',');
+            List<String> placeIds = days.get(dayIndex);
+            StringBuilder placeJson = new StringBuilder();
+            for (int placeIndex = 0; placeIndex < placeIds.size(); placeIndex++) {
+                if (!placeJson.isEmpty()) placeJson.append(',');
+                placeJson.append(String.format(
+                        "{\"placeId\":\"%s\",\"visitOrder\":%d,\"recommendedTime\":\"%02d:00\",\"recommendReason\":\"scene\",\"estimatedStayMinutes\":45,\"estimatedTravelMinutes\":20,\"travelTip\":\"nearby\"}",
+                        placeIds.get(placeIndex),
+                        placeIndex + 1,
+                        9 + Math.min(placeIndex, 9)
+                ));
+            }
+            dayJson.append(String.format("{\"dayNumber\":%d,\"estimatedTravelTime\":\"이동 약 90분\",\"places\":[%s]}", dayIndex + 1, placeJson));
+        }
+        return String.format("{\"title\":\"%s\",\"summary\":\"summary\",\"days\":[%s]}", title, dayJson);
     }
 
     private Set<String> districts(List<RouteStopDto> places) {

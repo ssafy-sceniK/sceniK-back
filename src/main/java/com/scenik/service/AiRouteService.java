@@ -40,6 +40,13 @@ import org.springframework.web.server.ResponseStatusException;
 public class AiRouteService {
     private static final Logger log = LoggerFactory.getLogger(AiRouteService.class);
     private static final double EARTH_RADIUS_KM = 6371.0;
+    private static final int PREFERRED_MIN_PLACES_PER_DAY = 3;
+    private static final int PREFERRED_MAX_PLACES_PER_DAY = 5;
+    private static final int NORMAL_MAX_PLACES_PER_DAY = 6;
+    private static final int ABSOLUTE_MAX_PLACES_PER_DAY = 7;
+    private static final int TARGET_DAILY_MINUTES = 600;
+    private static final int SOFT_DAILY_LIMIT_MINUTES = 660;
+    private static final int HARD_DAILY_LIMIT_MINUTES = 720;
 
     private final AiRouteMapper aiRouteMapper;
     private final ObjectMapper objectMapper;
@@ -70,8 +77,14 @@ public class AiRouteService {
         this.gmsApiKey = gmsApiKey == null ? "" : gmsApiKey.trim();
         this.gmsModel = gmsModel;
         this.defaultMinPlacesPerDay = Math.max(1, defaultMinPlacesPerDay);
-        this.defaultPreferredPlacesPerDay = Math.max(this.defaultMinPlacesPerDay, defaultPreferredPlacesPerDay);
-        this.defaultMaxPlacesPerDay = Math.max(this.defaultPreferredPlacesPerDay, defaultMaxPlacesPerDay);
+        this.defaultPreferredPlacesPerDay = Math.min(
+                PREFERRED_MAX_PLACES_PER_DAY,
+                Math.max(this.defaultMinPlacesPerDay, defaultPreferredPlacesPerDay)
+        );
+        this.defaultMaxPlacesPerDay = Math.min(
+                NORMAL_MAX_PLACES_PER_DAY,
+                Math.max(this.defaultPreferredPlacesPerDay, defaultMaxPlacesPerDay)
+        );
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(connectTimeoutMs);
         requestFactory.setReadTimeout(readTimeoutMs);
@@ -144,6 +157,7 @@ public class AiRouteService {
                 .orElseGet(() -> buildDeterministicDays(routeCandidates, dayCount, style, request.hotelAddress(), stopPolicy));
         days = regroupDailyRoutesByArea(days, stopPolicy, request);
         days = optimizeDailyRoutes(days, request);
+        days = repairRouteFeasibility(days, stopPolicy, request);
         List<CandidatePlaceDto> candidateDtos = candidates.stream().map(CandidatePlaceDto::from).toList();
         List<RouteStopDto> flatPlaces = days.stream().flatMap(day -> day.places().stream()).toList();
         String aiTitle = aiGeneratedRoute
@@ -211,7 +225,7 @@ public class AiRouteService {
                     ? null
                     : response.choices().get(0).content();
             AiRoutePlan plan = parseAiRoutePlan(content);
-            Optional<List<RouteDayDto>> days = validateAndBuildAiDays(plan, candidates, dayCount, stopPolicy);
+            Optional<List<RouteDayDto>> days = validateAndBuildAiDays(plan, candidates, dayCount, stopPolicy, request);
             return days.map(routeDays -> new AiGeneratedRoute(plan.title(), plan.summary(), routeDays));
         } catch (RestClientException | IllegalArgumentException | JsonProcessingException exception) {
             log.warn("GMS AI route generation failed. Falling back to deterministic route. reason={}", exception.getClass().getSimpleName());
@@ -230,6 +244,27 @@ public class AiRouteService {
         routeContext.put("minPlacesPerDay", minPlacesPerDay);
         routeContext.put("preferredPlacesPerDay", preferredPlacesPerDay);
         routeContext.put("maxPlacesPerDay", stopPolicy.maxPlacesPerDay());
+        routeContext.put("preferredPlacesPerDayRange", PREFERRED_MIN_PLACES_PER_DAY + "-" + PREFERRED_MAX_PLACES_PER_DAY);
+        routeContext.put("normalMaxPlacesPerDay", NORMAL_MAX_PLACES_PER_DAY);
+        routeContext.put("absoluteMaxPlacesPerDay", ABSOLUTE_MAX_PLACES_PER_DAY);
+        routeContext.put("dailyTargetMinutes", TARGET_DAILY_MINUTES);
+        routeContext.put("hardDailyLimitMinutes", HARD_DAILY_LIMIT_MINUTES);
+        routeContext.put("routeFeasibilityRules", List.of(
+                "Use only provided candidatePlaces and never invent placeIds.",
+                "Preferred daily stop count is 3 to 5 places.",
+                "Normal maximum is 6 places per day.",
+                "7 places are allowed only for very compact routes with low travel time and no long segment.",
+                "Never create 8 or more places in one day.",
+                "Do not force the same number of places every day.",
+                "A realistic 4-place day is better than an unrealistic 8-place day.",
+                "Consider travel time, stay time, meals/rest, and a 10-hour daily target budget.",
+                "Use fewer places when the selected region is wide or public transit/walking is used.",
+                "Group places geographically by areaCluster and nearby coordinates.",
+                "Avoid zigzag routes and far-away cities/counties in the same day.",
+                "Do NOT create days like Gangneung + Yangyang + Jeongseon + Samcheok + Hongcheon in one day.",
+                "Do NOT create days like Pyeongchang + Sokcho + Chuncheon/Namiseom in one day.",
+                "If places are far apart, split them across different days or drop lower-priority places."
+        ));
         routeContext.put("targetStopCount", Math.min(candidates.size(), targetStopCount(stopPolicy, dayCount)));
         routeContext.put("dailyStopPolicy", stopPolicy);
         routeContext.put("startDate", request.startDate());
@@ -306,7 +341,7 @@ public class AiRouteService {
         return new GmsChatRequest(
                 gmsModel,
                 List.of(
-                        new GmsMessage("developer", "Answer in Korean. Return strict JSON only. Use only provided DB candidate placeIds."),
+                        new GmsMessage("developer", "Answer in Korean. Return strict JSON only. Use only provided DB candidate placeIds. Preferred daily stops are 3-5, normal max is 6, 7 only for very compact routes, and 8+ places in one day are forbidden."),
                         new GmsMessage("user", userPrompt)
                 ),
                 Map.of("type", "json_object")
@@ -349,7 +384,7 @@ public class AiRouteService {
         return trimmed.substring(start, end + 1);
     }
 
-    private Optional<List<RouteDayDto>> validateAndBuildAiDays(AiRoutePlan plan, List<CandidatePlace> candidates, int dayCount, StopPolicy stopPolicy) {
+    private Optional<List<RouteDayDto>> validateAndBuildAiDays(AiRoutePlan plan, List<CandidatePlace> candidates, int dayCount, StopPolicy stopPolicy, AiRouteRequest request) {
         if (plan == null || plan.days() == null || plan.days().size() != dayCount) {
             return Optional.empty();
         }
@@ -393,14 +428,17 @@ public class AiRouteService {
                         usefulTravelTip(planStop.travelTip(), place, dayIndex, visitOrder - 1, planDay.places().size())
                 ));
             }
-            if (stops.size() > stopPolicy.maxPlacesPerDay()) {
+            int originalStopCount = stops.size();
+            TransportProfile profile = transportProfileForDay(request, dayIndex + 1);
+            stops = repairDayStops(stops, dayIndex, stopPolicy, profile, "AI response");
+            if (stops.size() < originalStopCount) {
                 log.info(
-                        "AI route response trimmed to maxPlacesPerDay day={} originalStopCount={} maxPlacesPerDay={}",
+                        "AI route response repaired day={} originalStopCount={} repairedStopCount={} profile={}",
                         dayIndex + 1,
+                        originalStopCount,
                         stops.size(),
-                        stopPolicy.maxPlacesPerDay()
+                        profile.label()
                 );
-                stops = new ArrayList<>(stops.subList(0, stopPolicy.maxPlacesPerDay()));
             }
             if (stops.size() < minPlacesPerDay) {
                 log.info("AI route response rejected by regional validation removedPlaceCount={}", removedPlaces);
@@ -835,6 +873,193 @@ public class AiRouteService {
         return optimizedDays;
     }
 
+    private List<RouteDayDto> repairRouteFeasibility(List<RouteDayDto> days, StopPolicy stopPolicy, AiRouteRequest request) {
+        if (days == null || days.isEmpty()) {
+            return days;
+        }
+        Set<String> usedPlaceIds = new LinkedHashSet<>();
+        List<RouteDayDto> repairedDays = new ArrayList<>();
+        int duplicateRemoved = 0;
+        int feasibilityRemoved = 0;
+
+        for (int dayIndex = 0; dayIndex < days.size(); dayIndex++) {
+            RouteDayDto day = days.get(dayIndex);
+            TransportProfile profile = transportProfileForDay(request, dayIndex + 1);
+            List<RouteStopDto> uniqueStops = new ArrayList<>();
+            for (RouteStopDto stop : day.places() == null ? List.<RouteStopDto>of() : day.places()) {
+                if (stop == null || stop.placeId() == null || !usedPlaceIds.add(stop.placeId())) {
+                    duplicateRemoved++;
+                    continue;
+                }
+                uniqueStops.add(stop);
+            }
+
+            int originalStopCount = uniqueStops.size();
+            List<RouteStopDto> repairedStops = repairDayStops(uniqueStops, dayIndex, stopPolicy, profile, "final");
+            feasibilityRemoved += Math.max(0, originalStopCount - repairedStops.size());
+            List<RouteStopDto> rebuiltStops = rebuildStopsAfterOptimization(repairedStops, dayIndex, profile);
+            repairedDays.add(new RouteDayDto(dayIndex + 1, estimateTravelTime(rebuiltStops), rebuiltStops));
+        }
+
+        log.info(
+                "AI route final feasibility repair duplicateRemoved={} feasibilityRemoved={} dayCount={}",
+                duplicateRemoved,
+                feasibilityRemoved,
+                repairedDays.size()
+        );
+        return repairedDays;
+    }
+
+    private List<RouteStopDto> repairDayStops(List<RouteStopDto> stops, int dayIndex, StopPolicy stopPolicy, TransportProfile profile, String phase) {
+        if (stops == null || stops.isEmpty()) {
+            return List.of();
+        }
+        List<RouteStopDto> repaired = new ArrayList<>(optimizeStopOrder(stops));
+        int minStops = 1;
+
+        while (repaired.size() > ABSOLUTE_MAX_PLACES_PER_DAY) {
+            removeRouteOutlier(repaired, profile);
+        }
+        while (repaired.size() > minStops && repaired.size() > allowedStopCount(repaired, stopPolicy, profile)) {
+            removeRouteOutlier(repaired, profile);
+        }
+        while (repaired.size() > minStops && !isDailyRouteFeasible(repaired, stopPolicy, profile)) {
+            removeRouteOutlier(repaired, profile);
+        }
+
+        if (repaired.size() < stops.size()) {
+            log.info(
+                    "AI route day repair phase={} day={} profile={} originalStopCount={} repairedStopCount={} totalTravelMinutes={} maxSegmentMinutes={} estimatedDailyMinutes={} areaCount={}",
+                    phase,
+                    dayIndex + 1,
+                    profile.label(),
+                    stops.size(),
+                    repaired.size(),
+                    totalTravelMinutes(repaired, profile),
+                    maxSegmentTravelMinutes(repaired, profile),
+                    estimatedDailyMinutes(repaired, profile),
+                    dayAreaClusters(repaired).size()
+            );
+        }
+        return repaired;
+    }
+
+    private int allowedStopCount(List<RouteStopDto> stops, StopPolicy stopPolicy, TransportProfile profile) {
+        if (stops.size() == ABSOLUTE_MAX_PLACES_PER_DAY && isExceptionalSevenPlaceDay(stops, profile)) {
+            return ABSOLUTE_MAX_PLACES_PER_DAY;
+        }
+        return Math.min(stopPolicy.maxPlacesPerDay(), NORMAL_MAX_PLACES_PER_DAY);
+    }
+
+    private boolean isExceptionalSevenPlaceDay(List<RouteStopDto> stops, TransportProfile profile) {
+        if (stops == null || stops.size() != ABSOLUTE_MAX_PLACES_PER_DAY || profile == TransportProfile.WALK) {
+            return false;
+        }
+        if (stops.stream().anyMatch(stop -> !hasCoordinates(stop))) {
+            return false;
+        }
+        return dayAreaClusters(stops).size() <= 2
+                && totalDistanceKm(stops) <= 18.0
+                && totalTravelMinutes(stops, profile) <= 100
+                && maxSegmentTravelMinutes(stops, profile) <= 35
+                && estimatedDailyMinutes(stops, profile) <= TARGET_DAILY_MINUTES;
+    }
+
+    private boolean isDailyRouteFeasible(List<RouteStopDto> stops, StopPolicy stopPolicy, TransportProfile profile) {
+        if (stops == null || stops.isEmpty()) {
+            return false;
+        }
+        if (stops.size() > allowedStopCount(stops, stopPolicy, profile)) {
+            return false;
+        }
+        if (dayAreaClusters(stops).size() > maxAreaClustersPerDay(profile)) {
+            return false;
+        }
+        if (maxSegmentTravelMinutes(stops, profile) > maxSingleSegmentMinutes(profile)) {
+            return false;
+        }
+        if (totalTravelMinutes(stops, profile) > maxDailyTravelMinutes(profile)) {
+            return false;
+        }
+        int dailyMinutes = estimatedDailyMinutes(stops, profile);
+        if (dailyMinutes > HARD_DAILY_LIMIT_MINUTES) {
+            return false;
+        }
+        if (dailyMinutes > SOFT_DAILY_LIMIT_MINUTES && stops.size() > PREFERRED_MIN_PLACES_PER_DAY) {
+            return false;
+        }
+        return dailyMinutes <= TARGET_DAILY_MINUTES || stops.size() <= PREFERRED_MAX_PLACES_PER_DAY;
+    }
+
+    private int maxAreaClustersPerDay(TransportProfile profile) {
+        return switch (profile) {
+            case WALK -> 1;
+            case TRANSIT -> 2;
+            case CAR -> 3;
+        };
+    }
+
+    private void removeRouteOutlier(List<RouteStopDto> stops, TransportProfile profile) {
+        if (stops == null || stops.size() <= 1) {
+            return;
+        }
+        RouteStopDto outlier = stops.stream()
+                .max(Comparator.comparingDouble(stop -> routeOutlierScore(stops, stop, profile)))
+                .orElse(stops.get(stops.size() - 1));
+        stops.remove(outlier);
+    }
+
+    private double routeOutlierScore(List<RouteStopDto> stops, RouteStopDto target, TransportProfile profile) {
+        double distanceScore = 0.0;
+        int index = stops.indexOf(target);
+        if (index > 0) {
+            distanceScore += distanceKm(stops.get(index - 1), target);
+        }
+        if (index + 1 < stops.size()) {
+            distanceScore += distanceKm(target, stops.get(index + 1));
+        }
+        if (index > 0 && index + 1 < stops.size()) {
+            distanceScore -= distanceKm(stops.get(index - 1), stops.get(index + 1)) * 0.45;
+        }
+        double areaPenalty = dayAreaClusters(stops).size() > maxAreaClustersPerDay(profile)
+                ? areaCluster(stops.get(0)).id().equals(areaCluster(target).id()) ? 0.0 : 18.0
+                : 0.0;
+        double stayPenalty = Math.max(0, stayMinutes(target) - 90) / 12.0;
+        return distanceScore + areaPenalty + stayPenalty;
+    }
+
+    private int estimatedDailyMinutes(List<RouteStopDto> stops, TransportProfile profile) {
+        if (stops == null || stops.isEmpty()) {
+            return 0;
+        }
+        int stayMinutes = stops.stream().mapToInt(this::stayMinutes).sum();
+        int mealAndRestBuffer = stops.size() >= 5 ? 90 : stops.size() >= 3 ? 60 : 30;
+        return stayMinutes + totalTravelMinutes(stops, profile) + mealAndRestBuffer;
+    }
+
+    private int stayMinutes(RouteStopDto stop) {
+        return positiveOrDefault(stop == null ? null : stop.estimatedStayMinutes(), defaultStayMinutes(stop));
+    }
+
+    private int defaultStayMinutes(RouteStopDto stop) {
+        if (stop == null) {
+            return 60;
+        }
+        String text = String.join(" ",
+                firstText(stop.category(), ""),
+                firstText(stop.placeName(), firstText(stop.name(), "")),
+                firstText(stop.address(), "")
+        ).toLowerCase(Locale.ROOT);
+        if (containsAny(text, List.of("cafe", "coffee", "카페", "咖啡", "カフェ"))) return 75;
+        if (containsAny(text, List.of("restaurant", "food", "맛집", "식당", "음식", "餐", "レストラン"))) return 75;
+        if (containsAny(text, List.of("museum", "gallery", "palace", "village", "heritage", "박물관", "미술관", "궁", "궁궐", "마을", "문화", "博物館", "美術館"))) return 120;
+        if (containsAny(text, List.of("beach", "park", "nature", "forest", "garden", "해변", "공원", "숲", "정원", "自然", "公園"))) return 90;
+        if (containsAny(text, List.of("observatory", "tower", "cable", "전망", "타워", "케이블", "展望"))) return 105;
+        if (containsAny(text, List.of("street", "market", "neighborhood", "거리", "시장", "골목", "通り", "市場"))) return 60;
+        if (containsAny(text, List.of("photo", "spot", "filming", "촬영", "촬영지", "location"))) return 45;
+        return 60;
+    }
+
     private List<RouteStopDto> optimizeStopOrder(List<RouteStopDto> stops) {
         if (stops.size() < 3 || stops.stream().anyMatch(stop -> !hasCoordinates(stop))) {
             return stops;
@@ -920,7 +1145,7 @@ public class AiRouteService {
                     recommendedTime(dayIndex, index),
                     stop.recommendReason(),
                     stop.reason(),
-                    stop.estimatedStayMinutes(),
+                    stayMinutes(stop),
                     travelMinutes,
                     stop.travelTip()
             ));
@@ -1453,7 +1678,8 @@ public class AiRouteService {
         if (requestedDays <= 1 && profile != TransportProfile.WALK && !isLowBudget(request)) {
             preferred = Math.min(max, preferred + 1);
         }
-        preferred = Math.max(min, Math.min(preferred, max));
+        max = Math.min(max, NORMAL_MAX_PLACES_PER_DAY);
+        preferred = Math.max(min, Math.min(preferred, Math.min(max, PREFERRED_MAX_PLACES_PER_DAY)));
         return new StopPolicy(min, preferred, max);
     }
 

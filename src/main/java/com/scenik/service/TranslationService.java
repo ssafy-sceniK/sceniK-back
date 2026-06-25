@@ -1,5 +1,6 @@
 package com.scenik.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.scenik.domain.CommunityComment;
 import com.scenik.domain.CommunityPost;
 import com.scenik.domain.PlaceReview;
@@ -21,14 +22,19 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class TranslationService {
+    private static final Logger log = LoggerFactory.getLogger(TranslationService.class);
+    private static final String DEFAULT_TRANSLATION_MODEL = "gpt-5-nano";
     private static final int MAX_TRANSLATION_SOURCE_LENGTH = 4000;
 
     private final TranslationCacheMapper translationCacheMapper;
@@ -60,7 +66,10 @@ public class TranslationService {
         this.languageDetectionService = languageDetectionService;
         this.gmsBaseUrl = normalizeBaseUrl(gmsBaseUrl);
         this.gmsApiKey = gmsApiKey == null ? "" : gmsApiKey.trim();
-        this.gmsModel = gmsModel;
+        this.gmsModel = normalizeGmsModel(gmsModel);
+        if (gmsModel != null && !gmsModel.trim().equals(this.gmsModel)) {
+            log.info("Normalized GMS translation model from '{}' to '{}'.", gmsModel, this.gmsModel);
+        }
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(connectTimeoutMs);
         requestFactory.setReadTimeout(readTimeoutMs);
@@ -179,7 +188,16 @@ public class TranslationService {
                 throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Translation provider returned an empty response.");
             }
             return translated.trim();
+        } catch (RestClientResponseException exception) {
+            log.warn(
+                    "GMS translation request failed with status {} using model '{}': {}",
+                    exception.getStatusCode().value(),
+                    gmsModel,
+                    truncateForLog(exception.getResponseBodyAsString())
+            );
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Translation provider request failed.");
         } catch (RestClientException exception) {
+            log.warn("GMS translation request failed using model '{}'.", gmsModel, exception);
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Translation provider request failed.");
         }
     }
@@ -242,6 +260,26 @@ public class TranslationService {
         return value.endsWith("/") ? value : value + "/";
     }
 
+    private String normalizeGmsModel(String model) {
+        if (model == null || model.isBlank()) {
+            return DEFAULT_TRANSLATION_MODEL;
+        }
+        String value = model.trim();
+        String canonical = value.toLowerCase().replace('_', '-').replace(' ', '-');
+        if ("gpt-nano".equals(canonical) || "gpt5-nano".equals(canonical) || DEFAULT_TRANSLATION_MODEL.equals(canonical)) {
+            return DEFAULT_TRANSLATION_MODEL;
+        }
+        return value;
+    }
+
+    private String truncateForLog(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        String sanitized = value.replaceAll("[\\r\\n]+", " ").trim();
+        return sanitized.length() <= 500 ? sanitized : sanitized.substring(0, 500) + "...";
+    }
+
     private record SourceText(String resourceId, String text, String language) {
     }
 
@@ -254,9 +292,32 @@ public class TranslationService {
     private record GmsChatResponse(List<GmsChoice> choices) {
     }
 
-    private record GmsChoice(GmsMessage message) {
+    private record GmsChoice(GmsResponseMessage message) {
         String content() {
-            return message == null ? null : message.content();
+            if (message == null || message.content() == null || message.content().isNull()) {
+                return null;
+            }
+            JsonNode content = message.content();
+            if (content.isTextual()) {
+                return content.asText();
+            }
+            if (content.isArray()) {
+                StringBuilder text = new StringBuilder();
+                for (JsonNode part : content) {
+                    if (part.isTextual()) {
+                        text.append(part.asText());
+                    } else if (part.hasNonNull("text")) {
+                        text.append(part.get("text").asText());
+                    } else if (part.hasNonNull("content")) {
+                        text.append(part.get("content").asText());
+                    }
+                }
+                return text.isEmpty() ? null : text.toString();
+            }
+            return null;
         }
+    }
+
+    private record GmsResponseMessage(String role, JsonNode content) {
     }
 }

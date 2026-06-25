@@ -47,6 +47,106 @@ public class AiRouteService {
     private static final int TARGET_DAILY_MINUTES = 600;
     private static final int SOFT_DAILY_LIMIT_MINUTES = 660;
     private static final int HARD_DAILY_LIMIT_MINUTES = 720;
+    private static final Map<String, String> REGION_ALIASES = Map.ofEntries(
+            Map.entry("서울", "서울"),
+            Map.entry("서울특별시", "서울"),
+            Map.entry("seoul", "서울"),
+            Map.entry("seoulspecialcity", "서울"),
+            Map.entry("ソウル", "서울"),
+            Map.entry("首尔", "서울"),
+            Map.entry("首爾", "서울"),
+            Map.entry("부산", "부산"),
+            Map.entry("부산광역시", "부산"),
+            Map.entry("busan", "부산"),
+            Map.entry("釜山", "부산"),
+            Map.entry("인천", "인천"),
+            Map.entry("인천광역시", "인천"),
+            Map.entry("incheon", "인천"),
+            Map.entry("仁川", "인천"),
+            Map.entry("대구", "대구"),
+            Map.entry("대구광역시", "대구"),
+            Map.entry("daegu", "대구"),
+            Map.entry("大邱", "대구"),
+            Map.entry("대전", "대전"),
+            Map.entry("대전광역시", "대전"),
+            Map.entry("daejeon", "대전"),
+            Map.entry("大田", "대전"),
+            Map.entry("광주", "광주"),
+            Map.entry("광주광역시", "광주"),
+            Map.entry("gwangju", "광주"),
+            Map.entry("光州", "광주"),
+            Map.entry("울산", "울산"),
+            Map.entry("울산광역시", "울산"),
+            Map.entry("ulsan", "울산"),
+            Map.entry("蔚山", "울산"),
+            Map.entry("세종", "세종"),
+            Map.entry("세종특별자치시", "세종"),
+            Map.entry("sejong", "세종"),
+            Map.entry("世宗", "세종"),
+            Map.entry("경기", "경기"),
+            Map.entry("경기도", "경기"),
+            Map.entry("gyeonggi", "경기"),
+            Map.entry("gyeonggido", "경기"),
+            Map.entry("gyeonggiprovince", "경기"),
+            Map.entry("京畿", "경기"),
+            Map.entry("강원", "강원"),
+            Map.entry("강원도", "강원"),
+            Map.entry("강원특별자치도", "강원"),
+            Map.entry("gangwon", "강원"),
+            Map.entry("gangwondo", "강원"),
+            Map.entry("gangwonprovince", "강원"),
+            Map.entry("江原", "강원"),
+            Map.entry("충북", "충북"),
+            Map.entry("충청북도", "충북"),
+            Map.entry("chungbuk", "충북"),
+            Map.entry("chungcheongbuk", "충북"),
+            Map.entry("northchungcheong", "충북"),
+            Map.entry("忠北", "충북"),
+            Map.entry("忠清北道", "충북"),
+            Map.entry("충남", "충남"),
+            Map.entry("충청남도", "충남"),
+            Map.entry("chungnam", "충남"),
+            Map.entry("chungcheongnam", "충남"),
+            Map.entry("southchungcheong", "충남"),
+            Map.entry("忠南", "충남"),
+            Map.entry("忠清南道", "충남"),
+            Map.entry("전북", "전북"),
+            Map.entry("전라북도", "전북"),
+            Map.entry("전북특별자치도", "전북"),
+            Map.entry("jeonbuk", "전북"),
+            Map.entry("jeollabuk", "전북"),
+            Map.entry("northjeolla", "전북"),
+            Map.entry("全北", "전북"),
+            Map.entry("全罗北", "전북"),
+            Map.entry("全羅北", "전북"),
+            Map.entry("전남", "전남"),
+            Map.entry("전라남도", "전남"),
+            Map.entry("jeonnam", "전남"),
+            Map.entry("jeollanam", "전남"),
+            Map.entry("southjeolla", "전남"),
+            Map.entry("全南", "전남"),
+            Map.entry("경북", "경북"),
+            Map.entry("경상북도", "경북"),
+            Map.entry("gyeongbuk", "경북"),
+            Map.entry("gyeongsangbuk", "경북"),
+            Map.entry("northgyeongsang", "경북"),
+            Map.entry("慶北", "경북"),
+            Map.entry("庆北", "경북"),
+            Map.entry("경남", "경남"),
+            Map.entry("경상남도", "경남"),
+            Map.entry("gyeongnam", "경남"),
+            Map.entry("gyeongsangnam", "경남"),
+            Map.entry("southgyeongsang", "경남"),
+            Map.entry("慶南", "경남"),
+            Map.entry("庆南", "경남"),
+            Map.entry("제주", "제주"),
+            Map.entry("제주특별자치도", "제주"),
+            Map.entry("jeju", "제주"),
+            Map.entry("jejudo", "제주"),
+            Map.entry("済州", "제주"),
+            Map.entry("济州", "제주"),
+            Map.entry("濟州", "제주")
+    );
 
     private final AiRouteMapper aiRouteMapper;
     private final ObjectMapper objectMapper;
@@ -1625,6 +1725,8 @@ public class AiRouteService {
             return "";
         }
         String normalized = value.replaceAll("\\s+", "");
+        String alias = REGION_ALIASES.get(regionAliasKey(normalized));
+        if (alias != null) return alias;
         if (normalized.startsWith("서울")) return "서울";
         if (normalized.startsWith("부산")) return "부산";
         if (normalized.startsWith("인천")) return "인천";
@@ -1643,6 +1745,12 @@ public class AiRouteService {
         if (normalized.startsWith("경남") || normalized.startsWith("경상남도")) return "경남";
         if (normalized.startsWith("제주")) return "제주";
         return normalized;
+    }
+
+    private String regionAliasKey(String value) {
+        return value == null ? "" : value
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("[\\s_\\-.,/()·]+", "");
     }
 
     private String contentTitleLabel(List<String> contentIds, List<CandidatePlace> candidates) {

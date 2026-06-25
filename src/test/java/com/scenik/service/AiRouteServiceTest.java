@@ -88,7 +88,7 @@ class AiRouteServiceTest {
         );
 
         when(aiRouteMapper.findCandidatePlaces(eq(contentIds), isNull(), anyInt())).thenReturn(selectedContentPlaces);
-        when(aiRouteMapper.findCandidatePlaces(isNull(), eq("Seoul"), anyInt())).thenReturn(regionalPlaces);
+        when(aiRouteMapper.findCandidatePlaces(isNull(), eq("서울"), anyInt())).thenReturn(regionalPlaces);
 
         AiRouteDto route = aiRouteService.generateRoute(request);
 
@@ -100,7 +100,27 @@ class AiRouteServiceTest {
         List<String> dayTwoTimes = route.days().get(1).places().stream().map(RouteStopDto::recommendedTime).toList();
         assertThat(dayTwoTimes).isNotEqualTo(dayOneTimes);
         assertThat(route.candidatePlaces()).hasSize(6);
-        verify(aiRouteMapper).findCandidatePlaces(isNull(), eq("Seoul"), anyInt());
+        verify(aiRouteMapper).findCandidatePlaces(isNull(), eq("서울"), anyInt());
+    }
+
+    @Test
+    void localizedRegionLabelIsNormalizedBeforeSupplementalDatabaseLookup() {
+        List<String> contentIds = List.of("C_DRAMA_LOCALIZED");
+        AiRouteRequest request = aiRequest(contentIds, "首尔", 1, "公共交通", List.of("PUBLIC_TRANSIT"), List.of());
+        List<CandidatePlace> regionalPlaces = List.of(
+                place("P_L_001", "C_DRAMA_001", "Localized Region", "서울"),
+                place("P_L_002", "C_DRAMA_002", "Localized Region", "서울"),
+                place("P_L_003", "C_DRAMA_003", "Localized Region", "서울")
+        );
+
+        when(aiRouteMapper.findCandidatePlaces(eq(contentIds), isNull(), anyInt())).thenReturn(List.of());
+        when(aiRouteMapper.findCandidatePlaces(isNull(), eq("서울"), anyInt())).thenReturn(regionalPlaces);
+
+        AiRouteDto route = aiRouteService.generateRoute(request);
+
+        assertThat(route.region()).isEqualTo("서울");
+        assertThat(route.candidatePlaces()).hasSize(3);
+        verify(aiRouteMapper).findCandidatePlaces(isNull(), eq("서울"), anyInt());
     }
 
 
@@ -145,7 +165,7 @@ class AiRouteServiceTest {
         );
 
         when(aiRouteMapper.findCandidatePlaces(eq(contentIds), isNull(), anyInt())).thenReturn(selectedContentPlaces);
-        when(aiRouteMapper.findCandidatePlaces(isNull(), eq("Seoul"), anyInt())).thenReturn(regionalPlaces);
+        when(aiRouteMapper.findCandidatePlaces(isNull(), eq("서울"), anyInt())).thenReturn(regionalPlaces);
 
         AiRouteDto route = aiRouteService.generateRoute(request);
 
@@ -184,13 +204,13 @@ class AiRouteServiceTest {
                 .toList();
 
         when(aiRouteMapper.findCandidatePlaces(eq(contentIds), isNull(), anyInt())).thenReturn(selectedContentPlaces);
-        when(aiRouteMapper.findCandidatePlaces(isNull(), eq("Seoul"), anyInt())).thenReturn(regionalPlaces);
+        when(aiRouteMapper.findCandidatePlaces(isNull(), eq("서울"), anyInt())).thenReturn(regionalPlaces);
 
         AiRouteDto route = aiRouteService.generateRoute(request);
 
         assertThat(route.candidatePlaces()).hasSize(30);
         assertThat(route.candidatePlaces()).extracting(CandidatePlaceDto::placeId).doesNotContain("P_0252");
-        verify(aiRouteMapper).findCandidatePlaces(isNull(), eq("Seoul"), anyInt());
+        verify(aiRouteMapper).findCandidatePlaces(isNull(), eq("서울"), anyInt());
     }
 
     @Test

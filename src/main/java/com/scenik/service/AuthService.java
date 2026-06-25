@@ -10,6 +10,7 @@ import com.scenik.dto.AuthDtos.SignupRequest;
 import com.scenik.dto.AuthDtos.UpdateUserRequest;
 import com.scenik.dto.UserDto;
 import com.scenik.mapper.AuthTokenMapper;
+import com.scenik.mapper.PasswordResetTokenMapper;
 import com.scenik.mapper.UserMapper;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -27,6 +28,7 @@ public class AuthService {
     private static final SecureRandom RANDOM = new SecureRandom();
     private final UserMapper userMapper;
     private final AuthTokenMapper authTokenMapper;
+    private final PasswordResetTokenMapper passwordResetTokenMapper;
     private final PasswordService passwordService;
     private final ProfileImageStorageService profileImageStorageService;
 
@@ -34,10 +36,12 @@ public class AuthService {
             UserMapper userMapper,
             AuthTokenMapper authTokenMapper,
             PasswordService passwordService,
-            ProfileImageStorageService profileImageStorageService
+            ProfileImageStorageService profileImageStorageService,
+            PasswordResetTokenMapper passwordResetTokenMapper
     ) {
         this.userMapper = userMapper;
         this.authTokenMapper = authTokenMapper;
+        this.passwordResetTokenMapper = passwordResetTokenMapper;
         this.passwordService = passwordService;
         this.profileImageStorageService = profileImageStorageService;
     }
@@ -168,6 +172,7 @@ public class AuthService {
         Long userId = user.getUserId();
         profileImageStorageService.deleteManagedImage(user.getProfileImageUrl());
         authTokenMapper.revokeByUserId(userId);
+        passwordResetTokenMapper.invalidateActiveByUserId(userId);
         userMapper.deleteFollows(userId);
         userMapper.deleteRoutes(userId);
         userMapper.deleteContentLikes(userId);

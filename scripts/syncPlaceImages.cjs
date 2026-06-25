@@ -6,7 +6,7 @@ const csvPath = path.join(root, 'data', 'seed', 'places.csv');
 const sqlPath = path.join(root, 'src', 'main', 'resources', 'data.sql');
 const updateSqlPath = path.join(root, 'build', 'place-image-update.sql');
 const emptyImageValues = new Set(['', '-', 'null', 'NULL', 'N/A', 'n/a']);
-const samplePlaceIds = ['P_0150', 'P_0167', 'P_0168', 'P_0169', 'P_0170', 'P_0171', 'P_0172', 'P_0173', 'P_0262'];
+const samplePlaceIds = ['P_0262', 'P_0150', 'P_0167', 'P_0168', 'P_0169', 'P_0170', 'P_0171', 'P_0172', 'P_0173'];
 const writeDataSql = process.argv.includes('--write-data-sql');
 
 function parseCsv(text) {

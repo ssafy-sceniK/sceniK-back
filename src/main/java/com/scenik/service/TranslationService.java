@@ -87,7 +87,7 @@ public class TranslationService {
         String resourceId = requireText(request.resourceId(), "resourceId is required.");
         String fieldName = normalizeField(request.field());
         String targetLanguage = languageDetectionService.normalize(firstText(request.targetLanguage(), user.getLanguage()));
-        SourceText source = resolveSource(resourceType, resourceId, fieldName, user);
+        SourceText source = resolveSource(resourceType, resourceId, fieldName, user, request);
         if (source.text().length() > MAX_TRANSLATION_SOURCE_LENGTH) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Translation source is too long.");
         }
@@ -120,15 +120,23 @@ public class TranslationService {
         return new TranslationResponse(resourceType, source.resourceId(), fieldName, sourceLanguage, targetLanguage, source.text(), translation.translatedText(), false, LocalDateTime.now());
     }
 
-    private SourceText resolveSource(String resourceType, String resourceId, String fieldName, User viewer) {
+    private SourceText resolveSource(String resourceType, String resourceId, String fieldName, User viewer, TranslationRequest request) {
         return switch (resourceType) {
             case "POST" -> sourceFromPost(resourceId, fieldName, viewer.getUserId());
             case "COMMENT" -> sourceFromComment(resourceId, fieldName, viewer.getUserId());
             case "REVIEW" -> sourceFromReview(resourceId, fieldName);
             case "PROFILE", "USER" -> sourceFromUser(resourceId, fieldName);
+            case "SYSTEM_TEXT" -> sourceFromRequest(resourceId, request);
             default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported resourceType.");
         };
     }
+
+    private SourceText sourceFromRequest(String resourceId, TranslationRequest request) {
+        String sourceText = requireText(request.sourceText(), "sourceText is required.");
+        String sourceLanguage = firstText(request.sourceLanguage(), "ko");
+        return new SourceText(resourceId, sourceText, sourceLanguage);
+    }
+
     private SourceText sourceFromPost(String resourceId, String fieldName, Long viewerUserId) {
         CommunityPost post = communityMapper.findPostById(resourceId, viewerUserId);
         if (post == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Post was not found.");
@@ -178,7 +186,7 @@ public class TranslationService {
     }
 
     private String requestGmsTranslation(String sourceText, String sourceLanguage, String targetLanguage, String model) {
-        String prompt = "Translate this user-generated sceniK text. Preserve names, place names, URLs, hashtags, emoji, and line breaks. "
+        String prompt = "Translate this sceniK text. Preserve names, place names, URLs, hashtags, emoji, and line breaks. "
                 + "Return only the translated text, with no explanation. Source language: " + sourceLanguage
                 + ". Target language: " + targetLanguage + ".\n\n" + sourceText;
         String fullPrompt = "You are a precise UI translation engine. Return only translated text.\n\n" + prompt;
@@ -220,8 +228,8 @@ public class TranslationService {
 
     private String normalizeResourceType(String resourceType) {
         String normalized = requireText(resourceType, "resourceType is required.").trim().toUpperCase();
-        if ("POST".equals(normalized) || "COMMENT".equals(normalized) || "REVIEW".equals(normalized) || "PROFILE".equals(normalized) || "USER".equals(normalized)) {
-            return normalized;
+        if ("POST".equals(normalized) || "COMMENT".equals(normalized) || "REVIEW".equals(normalized) || "PROFILE".equals(normalized) || "USER".equals(normalized) || "SYSTEM_TEXT".equals(normalized) || "SYSTEM".equals(normalized)) {
+            return "SYSTEM".equals(normalized) ? "SYSTEM_TEXT" : normalized;
         }
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported resourceType.");
     }
@@ -232,6 +240,12 @@ public class TranslationService {
             case "body", "text", "content" -> "content";
             case "title" -> "title";
             case "bio" -> "bio";
+            case "summary" -> "summary";
+            case "description" -> "description";
+            case "metadata", "meta" -> "metadata";
+            case "region" -> "region";
+            case "tag", "tags" -> "tag";
+            case "place", "placename", "place_name" -> "placeName";
             default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported translation field.");
         };
     }

@@ -11,7 +11,9 @@ public final class TranslationDtos {
             @NotBlank(message = "resourceType is required.") String resourceType,
             @NotBlank(message = "resourceId is required.") String resourceId,
             @NotBlank(message = "field is required.") String field,
-            String targetLanguage
+            String targetLanguage,
+            String sourceText,
+            String sourceLanguage
     ) {
     }
 

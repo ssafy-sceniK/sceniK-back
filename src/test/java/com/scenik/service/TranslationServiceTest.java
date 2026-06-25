@@ -52,7 +52,7 @@ class TranslationServiceTest {
             TranslationService service = newService(server, "gemini-2.5-flash-lite", "");
             stubPost();
 
-            TranslationResponse response = service.translate(user(), new TranslationRequest("POST", "post-1", "content", "en"));
+            TranslationResponse response = service.translate(user(), new TranslationRequest("POST", "post-1", "content", "en", null, null));
 
             assertThat(response.translatedText()).isEqualTo("Translated result");
             assertThat(captured.get().path()).isEqualTo(GEMINI_PATH);
@@ -85,7 +85,7 @@ class TranslationServiceTest {
             TranslationService service = newService(server, "gemini-2.5-flash-lite", "");
             stubPost();
 
-            TranslationResponse response = service.translate(user(), new TranslationRequest("POST", "post-1", "content", "en"));
+            TranslationResponse response = service.translate(user(), new TranslationRequest("POST", "post-1", "content", "en", null, null));
 
             assertThat(response.translatedText()).isEqualTo("Translated result");
         } finally {
@@ -104,7 +104,7 @@ class TranslationServiceTest {
             TranslationService service = newService(server, "gpt-5-nano", "gpt-5.4-mini");
             stubPost();
 
-            TranslationResponse response = service.translate(user(), new TranslationRequest("POST", "post-1", "content", "en"));
+            TranslationResponse response = service.translate(user(), new TranslationRequest("POST", "post-1", "content", "en", null, null));
 
             assertThat(response.translatedText()).isEqualTo("Translated result");
             assertThat(captured.get().path()).isEqualTo(GEMINI_PATH);
@@ -150,7 +150,7 @@ class TranslationServiceTest {
             TranslationService service = newService(server, "gemini-2.5-flash-lite", "gemini-2.5-flash");
             stubPost();
 
-            TranslationResponse response = service.translate(user(), new TranslationRequest("POST", "post-1", "content", "en"));
+            TranslationResponse response = service.translate(user(), new TranslationRequest("POST", "post-1", "content", "en", null, null));
 
             assertThat(response.translatedText()).isEqualTo("Fallback translated result");
             assertThat(captured).hasSize(2);
@@ -160,6 +160,41 @@ class TranslationServiceTest {
             ArgumentCaptor<TranslationCache> cacheCaptor = ArgumentCaptor.forClass(TranslationCache.class);
             verify(translationCacheMapper).insert(cacheCaptor.capture());
             assertThat(cacheCaptor.getValue().getModel()).isEqualTo("gemini-2.5-flash");
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void systemTextTranslationUsesRequestSourceTextAndCacheKey() throws Exception {
+        AtomicReference<CapturedRequest> captured = new AtomicReference<>();
+        HttpServer server = startGeminiStub(captured, """
+                {"candidates":[{"content":{"parts":[{"text":"Translated course title"}]}}]}
+                """);
+
+        try {
+            TranslationService service = newService(server, "gemini-2.5-flash-lite", "");
+            when(translationCacheMapper.findLatest(eq("SYSTEM_TEXT"), eq("home-course:csv-route-1"), eq("title"), eq("ko"), eq("en"), any()))
+                    .thenReturn(null);
+
+            TranslationResponse response = service.translate(user(), new TranslationRequest(
+                    "SYSTEM_TEXT",
+                    "home-course:csv-route-1",
+                    "title",
+                    "en",
+                    "?? ?? ?? ?? 2? ??",
+                    "ko"
+            ));
+
+            assertThat(response.resourceType()).isEqualTo("SYSTEM_TEXT");
+            assertThat(response.translatedText()).isEqualTo("Translated course title");
+            assertThat(captured.get().body()).contains("?? ?? ?? ?? 2? ??");
+
+            ArgumentCaptor<TranslationCache> cacheCaptor = ArgumentCaptor.forClass(TranslationCache.class);
+            verify(translationCacheMapper).insert(cacheCaptor.capture());
+            assertThat(cacheCaptor.getValue().getResourceType()).isEqualTo("SYSTEM_TEXT");
+            assertThat(cacheCaptor.getValue().getResourceId()).isEqualTo("home-course:csv-route-1");
+            assertThat(cacheCaptor.getValue().getFieldName()).isEqualTo("title");
         } finally {
             server.stop(0);
         }

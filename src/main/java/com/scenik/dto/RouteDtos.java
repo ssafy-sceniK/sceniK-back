@@ -67,7 +67,12 @@ public final class RouteDtos {
             List<@Valid RouteDayDto> days,
             List<@Valid RouteStopDto> places,
             LocalDateTime createdAt,
-            LocalDateTime updatedAt
+            LocalDateTime updatedAt,
+            Long ownerUserId,
+            Boolean isOwner,
+            Boolean canEdit,
+            Boolean canDelete,
+            Boolean canCopy
     ) {
     }
 

@@ -64,6 +64,13 @@ public class RouteController {
     ) {
         return routeService.getRoute(authService.optionalUserId(authorization), routeId);
     }
+    @PostMapping("/api/routes/{routeId}/copy")
+    public AiRouteDto copy(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable("routeId") String routeId
+    ) {
+        return routeService.copyRoute(authService.requireUser(authorization), routeId);
+    }
 
     @PatchMapping("/api/routes/{routeId}")
     public AiRouteDto update(

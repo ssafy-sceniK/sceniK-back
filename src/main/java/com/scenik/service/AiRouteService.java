@@ -176,7 +176,12 @@ public class AiRouteService {
                 days,
                 flatPlaces,
                 null,
-                null
+                null,
+                null,
+                false,
+                false,
+                false,
+                false
         );
     }
 

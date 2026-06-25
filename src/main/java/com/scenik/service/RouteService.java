@@ -46,15 +46,38 @@ public class RouteService {
     }
 
     public List<AiRouteDto> listMyRoutes(User user) {
-        return listRoutesByUserId(user.getUserId());
+        return routeMapper.findByUserId(user.getUserId()).stream()
+                .map(route -> toDto(route, user.getUserId()))
+                .toList();
     }
 
     public List<AiRouteDto> listRoutesByUserId(Long userId) {
-        return routeMapper.findByUserId(userId).stream().map(this::toDto).toList();
+        return routeMapper.findByUserId(userId).stream().map(route -> toDto(route, null)).toList();
     }
 
     public AiRouteDto getRoute(Long userId, String routeId) {
-        return toDto(requireReadableRoute(userId, routeId));
+        return toDto(requireReadableRoute(userId, routeId), userId);
+    }
+
+    @Transactional
+    public AiRouteDto copyRoute(User user, String routeId) {
+        TravelRoute source = requireReadableRoute(user.getUserId(), routeId);
+        if (source.getUserId().equals(user.getUserId())) {
+            return toDto(source, user.getUserId());
+        }
+
+        String copyRouteId = "route-" + UUID.randomUUID();
+        TravelRoute copy = copyRouteFromSource(user, copyRouteId, source);
+        routeMapper.insert(copy);
+
+        List<RoutePlace> copiedPlaces = new ArrayList<>();
+        for (RoutePlace sourcePlace : routePlaceMapper.findByRouteId(source.getRouteId())) {
+            RoutePlace copiedPlace = copyRoutePlace(copyRouteId, sourcePlace);
+            validateRoutePlace(copy, copiedPlace, null, false);
+            routePlaceMapper.insert(copiedPlace);
+            copiedPlaces.add(copiedPlace);
+        }
+        return toDto(copy, user.getUserId(), copiedPlaces);
     }
 
     @Transactional
@@ -87,13 +110,13 @@ public class RouteService {
                 routePlaceMapper.insert(place);
             }
         }
-        return toDto(routeMapper.findById(route.getRouteId()));
+        return toDto(routeMapper.findById(route.getRouteId()), user.getUserId());
     }
 
     @Transactional
     public AiRouteDto updateRoute(User user, String routeId, AiRouteDto request) {
         TravelRoute existing = requireOwnedRoute(user, routeId);
-        AiRouteDto normalized = normalizeRouteRequest(merge(toDto(existing), request));
+        AiRouteDto normalized = normalizeRouteRequest(merge(toDto(existing, user.getUserId()), request));
         validateRouteRequest(normalized);
         TravelRoute route = toRoute(user, routeId, normalized);
         routeMapper.update(route);
@@ -107,7 +130,7 @@ public class RouteService {
                 }
             }
         }
-        return toDto(routeMapper.findById(existing.getRouteId()));
+        return toDto(routeMapper.findById(existing.getRouteId()), user.getUserId());
     }
 
     private AiRouteDto merge(AiRouteDto existing, AiRouteDto request) {
@@ -143,7 +166,12 @@ public class RouteService {
                 request.places() != null && request.days() == null ? null : request.days() == null ? existing.days() : request.days(),
                 request.places() == null ? existing.places() : request.places(),
                 existing.createdAt(),
-                existing.updatedAt()
+                existing.updatedAt(),
+                existing.ownerUserId(),
+                existing.isOwner(),
+                existing.canEdit(),
+                existing.canDelete(),
+                existing.canCopy()
         );
     }
 
@@ -159,7 +187,7 @@ public class RouteService {
         RoutePlace place = toRoutePlace(routeId, request);
         validateRoutePlace(route, place, null, true);
         routePlaceMapper.insert(place);
-        return toDto(route);
+        return toDto(route, user.getUserId());
     }
 
     @Transactional
@@ -170,7 +198,7 @@ public class RouteService {
         place.setRoutePlaceId(existing.getRoutePlaceId());
         validateRoutePlace(route, place, routePlaceId, true);
         routePlaceMapper.update(place);
-        return toDto(route);
+        return toDto(route, user.getUserId());
     }
 
     @Transactional
@@ -178,7 +206,7 @@ public class RouteService {
         TravelRoute route = requireOwnedRoute(user, routeId);
         requireRoutePlace(routeId, routePlaceId);
         routePlaceMapper.delete(routePlaceId);
-        return toDto(route);
+        return toDto(route, user.getUserId());
     }
 
     @Transactional
@@ -215,7 +243,7 @@ public class RouteService {
         for (RoutePlaceReorderItem item : request.places()) {
             routePlaceMapper.updateOrder(item.routePlaceId(), item.dayNumber(), item.visitOrder());
         }
-        return toDto(route);
+        return toDto(route, user.getUserId());
     }
 
 
@@ -228,6 +256,9 @@ public class RouteService {
             return route;
         }
         if (communityMapper.countActivePostsByRouteId(routeId) > 0) {
+            return route;
+        }
+        if (userId != null) {
             return route;
         }
         throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Route is not shared publicly.");
@@ -384,7 +415,12 @@ public class RouteService {
                 normalizedDays,
                 flatPlaces,
                 request.createdAt(),
-                request.updatedAt()
+                request.updatedAt(),
+                request.ownerUserId(),
+                request.isOwner(),
+                request.canEdit(),
+                request.canDelete(),
+                request.canCopy()
         );
     }
 
@@ -485,6 +521,53 @@ public class RouteService {
         }
     }
 
+    private TravelRoute copyRouteFromSource(User user, String routeId, TravelRoute source) {
+        TravelRoute route = new TravelRoute();
+        route.setRouteId(routeId);
+        route.setUserId(user.getUserId());
+        route.setTitle(source.getTitle());
+        route.setSummary(source.getSummary());
+        route.setContentId(source.getContentId());
+        route.setContentIds(source.getContentIds());
+        route.setContentTitle(source.getContentTitle());
+        route.setRegion(source.getRegion());
+        route.setDurationDays(source.getDurationDays());
+        route.setRequestedDurationDays(source.getRequestedDurationDays());
+        route.setStartDate(source.getStartDate());
+        route.setEndDate(source.getEndDate());
+        route.setDateRangeLabel(source.getDateRangeLabel());
+        route.setTransport(source.getTransport());
+        route.setCompanion(source.getCompanion());
+        route.setStyle(source.getStyle());
+        route.setBudgetMin(source.getBudgetMin());
+        route.setBudgetMax(source.getBudgetMax());
+        route.setBudget(source.getBudget());
+        route.setTrustMessage(source.getTrustMessage());
+        return route;
+    }
+
+    private RoutePlace copyRoutePlace(String routeId, RoutePlace source) {
+        RoutePlace place = new RoutePlace();
+        place.setRoutePlaceId("rp-" + UUID.randomUUID());
+        place.setRouteId(routeId);
+        place.setPlaceId(source.getPlaceId());
+        place.setDayNumber(source.getDayNumber());
+        place.setVisitOrder(source.getVisitOrder());
+        place.setRecommendedTime(source.getRecommendedTime());
+        place.setReason(source.getReason());
+        place.setTravelTip(source.getTravelTip());
+        place.setPlaceName(source.getPlaceName());
+        place.setRegion(source.getRegion());
+        place.setCategory(source.getCategory());
+        place.setAddress(source.getAddress());
+        place.setLatitude(source.getLatitude());
+        place.setLongitude(source.getLongitude());
+        place.setImageUrl(source.getImageUrl());
+        place.setRelatedContentId(source.getRelatedContentId());
+        place.setRelatedContentTitle(source.getRelatedContentTitle());
+        place.setSceneDescription(source.getSceneDescription());
+        return place;
+    }
     private TravelRoute toRoute(User user, String routeId, AiRouteDto request) {
         TravelRoute route = new TravelRoute();
         route.setRouteId(routeId);
@@ -540,8 +623,12 @@ public class RouteService {
         return place;
     }
 
-    private AiRouteDto toDto(TravelRoute route) {
-        List<RoutePlace> places = routePlaceMapper.findByRouteId(route.getRouteId());
+    private AiRouteDto toDto(TravelRoute route, Long viewerUserId) {
+        return toDto(route, viewerUserId, routePlaceMapper.findByRouteId(route.getRouteId()));
+    }
+
+    private AiRouteDto toDto(TravelRoute route, Long viewerUserId, List<RoutePlace> places) {
+        boolean isOwner = viewerUserId != null && route.getUserId().equals(viewerUserId);
         List<CandidatePlaceDto> candidates = places.stream()
                 .collect(LinkedHashMap<String, CandidatePlaceDto>::new, (map, place) -> map.putIfAbsent(place.getPlaceId(), CandidatePlaceDto.from(place)), Map::putAll)
                 .values().stream().toList();
@@ -581,12 +668,17 @@ public class RouteService {
                 route.getBudget(),
                 route.getTrustMessage(),
                 "AI",
-                false,
+                true,
                 candidates,
                 days,
                 flatPlaces,
                 route.getCreatedAt(),
-                route.getUpdatedAt()
+                route.getUpdatedAt(),
+                route.getUserId(),
+                isOwner,
+                isOwner,
+                isOwner,
+                viewerUserId != null && !isOwner
         );
     }
 

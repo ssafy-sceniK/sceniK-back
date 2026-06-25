@@ -297,6 +297,41 @@ class AiRouteServiceTest {
     }
 
     @Test
+    void llmBacktrackingSeoulDayIsReorderedToShorterOpenPath() throws Exception {
+        List<String> contentIds = List.of("C_DRAMA_ROUTE_ORDER");
+        List<CandidatePlace> places = List.of(
+                place("P_GJ_1", "C_DRAMA_ROUTE_ORDER", "Route Order Drama", "서울", "서울 광진구 자양로 824", 37.5310, 127.0830),
+                place("P_SP_1", "C_DRAMA_ROUTE_ORDER", "Route Order Drama", "서울", "서울 송파구 올림픽로 240", 37.5110, 127.0980),
+                place("P_SD_1", "C_DRAMA_ROUTE_ORDER", "Route Order Drama", "서울", "서울 성동구 성수이로 487", 37.5440, 127.0550),
+                place("P_SP_2", "C_DRAMA_ROUTE_ORDER", "Route Order Drama", "서울", "서울 송파구 신천동 1-1", 37.5160, 127.1010),
+                place("P_SD_2", "C_DRAMA_ROUTE_ORDER", "Route Order Drama", "서울", "서울 성동구 연무장길 235-1", 37.5480, 127.0520)
+        );
+        List<String> badOrder = List.of("P_GJ_1", "P_SP_1", "P_SD_1", "P_SP_2", "P_SD_2");
+        HttpServer server = startGmsStub(aiRouteJson("Backtracking Seoul route", List.of(badOrder)));
+
+        try {
+            AiRouteService service = aiRouteServiceWithGms(server, 6);
+            AiRouteRequest request = aiRequest(contentIds, "서울", 1, "public transit", List.of("PUBLIC_TRANSIT"), List.of());
+            when(aiRouteMapper.findCandidatePlaces(eq(contentIds), isNull(), anyInt())).thenReturn(places);
+
+            AiRouteDto route = service.generateRoute(request);
+            List<RouteStopDto> optimizedStops = route.days().get(0).places();
+            double originalDistance = candidateDistanceKm(places, badOrder);
+            double optimizedDistance = totalDistanceKm(optimizedStops);
+
+            assertThat(route.days()).hasSize(1);
+            assertThat(optimizedStops).hasSize(badOrder.size());
+            assertThat(optimizedStops).extracting(RouteStopDto::placeId).containsExactlyInAnyOrderElementsOf(badOrder);
+            assertThat(optimizedStops).extracting(RouteStopDto::visitOrder).containsExactly(1, 2, 3, 4, 5);
+            assertThat(optimizedStops.stream().map(RouteStopDto::placeId).toList()).isNotEqualTo(badOrder);
+            assertThat(optimizedDistance).isLessThan(originalDistance * 0.85);
+            assertThat(maxSegmentDistanceKm(optimizedStops)).isLessThan(candidateMaxSegmentKm(places, badOrder));
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
     void routeDaysAreGroupedByAreaBeforeDistanceOptimization() {
         List<String> contentIds = List.of("C_DRAMA_040");
         AiRouteRequest request = new AiRouteRequest(
@@ -659,12 +694,53 @@ class AiRouteServiceTest {
         return total;
     }
 
+    private double maxSegmentDistanceKm(List<RouteStopDto> places) {
+        double max = 0.0;
+        for (int index = 1; index < places.size(); index++) {
+            max = Math.max(max, distanceKm(places.get(index - 1), places.get(index)));
+        }
+        return max;
+    }
+
+    private double candidateDistanceKm(List<CandidatePlace> places, List<String> placeIds) {
+        List<CandidatePlace> ordered = placeIds.stream()
+                .map(placeId -> places.stream().filter(place -> placeId.equals(place.getPlaceId())).findFirst().orElseThrow())
+                .toList();
+        double total = 0.0;
+        for (int index = 1; index < ordered.size(); index++) {
+            total += distanceKm(ordered.get(index - 1), ordered.get(index));
+        }
+        return total;
+    }
+
+    private double candidateMaxSegmentKm(List<CandidatePlace> places, List<String> placeIds) {
+        List<CandidatePlace> ordered = placeIds.stream()
+                .map(placeId -> places.stream().filter(place -> placeId.equals(place.getPlaceId())).findFirst().orElseThrow())
+                .toList();
+        double max = 0.0;
+        for (int index = 1; index < ordered.size(); index++) {
+            max = Math.max(max, distanceKm(ordered.get(index - 1), ordered.get(index)));
+        }
+        return max;
+    }
+
     private double distanceKm(RouteStopDto from, RouteStopDto to) {
         double earthRadiusKm = 6371.0;
         double lat1 = Math.toRadians(from.latitude());
         double lat2 = Math.toRadians(to.latitude());
         double deltaLat = Math.toRadians(to.latitude() - from.latitude());
         double deltaLng = Math.toRadians(to.longitude() - from.longitude());
+        double a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2)
+                + Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2);
+        return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    private double distanceKm(CandidatePlace from, CandidatePlace to) {
+        double earthRadiusKm = 6371.0;
+        double lat1 = Math.toRadians(from.getLatitude());
+        double lat2 = Math.toRadians(to.getLatitude());
+        double deltaLat = Math.toRadians(to.getLatitude() - from.getLatitude());
+        double deltaLng = Math.toRadians(to.getLongitude() - from.getLongitude());
         double a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2)
                 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2);
         return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));

@@ -366,7 +366,12 @@ public class AiRouteService {
                 "Consider travel time, stay time, meals/rest, and a 10-hour daily target budget.",
                 "Use fewer places when the selected region is wide or public transit/walking is used.",
                 "Group places geographically by areaCluster and nearby coordinates.",
-                "Avoid zigzag routes and far-away cities/counties in the same day.",
+                "Order places in each day as a realistic open-path travel sequence.",
+                "Avoid zigzag routes, backtracking, and returning near an earlier area after moving away.",
+                "If places follow a natural river/subway/road axis, follow that axis instead of jumping back and forth.",
+                "Visit nearby places together first, then move outward once.",
+                "Do not optimize as a circular route unless the user explicitly asks to return to the start.",
+                "Avoid far-away cities/counties in the same day.",
                 "Do NOT create days like Gangneung + Yangyang + Jeongseon + Samcheok + Hongcheon in one day.",
                 "Do NOT create days like Pyeongchang + Sokcho + Chuncheon/Namiseom in one day.",
                 "If places are far apart, split them across different days or drop lower-priority places."
@@ -947,16 +952,26 @@ public class AiRouteService {
             List<RouteStopDto> optimizedStops = optimizeStopOrder(originalStops);
             double beforeKm = totalDistanceKm(originalStops);
             double afterKm = totalDistanceKm(optimizedStops);
+            double beforeScore = routeOrderScore(originalStops);
+            double afterScore = routeOrderScore(optimizedStops);
+            double improvementPercent = beforeKm <= 0.0 ? 0.0 : ((beforeKm - afterKm) / beforeKm) * 100.0;
             boolean reordered = !placeIdOrder(originalStops).equals(placeIdOrder(optimizedStops));
             List<RouteStopDto> rebuiltStops = rebuildStopsAfterOptimization(optimizedStops, dayIndex, profile);
             log.info(
-                    "AI route distance optimization day={} transportProfile={} reordered={} beforeKm={} afterKm={} stopCount={}",
+                    "AI route distance optimization day={} transportProfile={} reordered={} beforeKm={} afterKm={} maxSegmentBeforeKm={} maxSegmentAfterKm={} scoreBefore={} scoreAfter={} improvementPercent={} stopCount={} beforeOrder={} afterOrder={}",
                     dayIndex + 1,
                     profile.label(),
                     reordered,
                     roundDistance(beforeKm),
                     roundDistance(afterKm),
-                    rebuiltStops.size()
+                    roundDistance(maxSegmentDistanceKm(originalStops)),
+                    roundDistance(maxSegmentDistanceKm(optimizedStops)),
+                    roundDistance(beforeScore),
+                    roundDistance(afterScore),
+                    roundDistance(improvementPercent),
+                    rebuiltStops.size(),
+                    placeIdOrder(originalStops),
+                    placeIdOrder(optimizedStops)
             );
             List<AreaCluster> dayAreas = dayAreaClusters(rebuiltStops);
             boolean mixedArea = dayAreas.size() > 1;
@@ -1340,11 +1355,34 @@ public class AiRouteService {
         if (stops.size() < 3 || stops.stream().anyMatch(stop -> !hasCoordinates(stop))) {
             return stops;
         }
-        List<AreaStopGroup> areaGroups = areaStopGroups(stops);
-        if (areaGroups.size() > 1) {
-            return optimizeMixedAreaStopOrder(areaGroups);
+        return optimizeOpenPathOrder(stops);
+    }
+
+    private List<RouteStopDto> optimizeOpenPathOrder(List<RouteStopDto> stops) {
+        if (stops.size() <= ABSOLUTE_MAX_PLACES_PER_DAY) {
+            return exactBestOpenPathOrder(stops);
         }
-        return optimizeSameAreaStops(stops);
+
+        List<List<RouteStopDto>> candidates = new ArrayList<>();
+        candidates.add(stops);
+        candidates.add(latitudeSortedOrder(stops));
+        candidates.add(reverseOrder(latitudeSortedOrder(stops)));
+        candidates.add(longitudeSortedOrder(stops));
+        candidates.add(reverseOrder(longitudeSortedOrder(stops)));
+
+        for (RouteStopDto start : stops) {
+            candidates.add(twoOptImproveOpenPath(nearestNeighborFrom(stops, start)));
+        }
+
+        return candidates.stream()
+                .min(Comparator.comparingDouble(this::routeOrderScore))
+                .orElse(stops);
+    }
+
+    private List<RouteStopDto> exactBestOpenPathOrder(List<RouteStopDto> stops) {
+        RouteOrderSearch search = new RouteOrderSearch(stops);
+        search.search(new ArrayList<>(), new boolean[stops.size()]);
+        return search.bestOrder();
     }
 
     private List<RouteStopDto> optimizeMixedAreaStopOrder(List<AreaStopGroup> areaGroups) {
@@ -1370,17 +1408,7 @@ public class AiRouteService {
         if (stops.size() < 3 || stops.stream().anyMatch(stop -> !hasCoordinates(stop))) {
             return stops;
         }
-        List<RouteStopDto> best = stops;
-        double bestDistance = totalDistanceKm(stops);
-        for (RouteStopDto start : stops) {
-            List<RouteStopDto> candidate = nearestNeighborFrom(stops, start);
-            double distance = totalDistanceKm(candidate);
-            if (distance < bestDistance) {
-                best = candidate;
-                bestDistance = distance;
-            }
-        }
-        return best;
+        return optimizeOpenPathOrder(stops);
     }
 
     private List<RouteStopDto> nearestNeighborFrom(List<RouteStopDto> stops, RouteStopDto start) {
@@ -1399,6 +1427,111 @@ public class AiRouteService {
             current = next;
         }
         return ordered;
+    }
+
+    private List<RouteStopDto> twoOptImproveOpenPath(List<RouteStopDto> stops) {
+        List<RouteStopDto> best = new ArrayList<>(stops);
+        double bestScore = routeOrderScore(best);
+        boolean improved = true;
+        while (improved) {
+            improved = false;
+            for (int left = 0; left < best.size() - 2; left++) {
+                for (int right = left + 2; right < best.size(); right++) {
+                    List<RouteStopDto> candidate = new ArrayList<>(best);
+                    Collections.reverse(candidate.subList(left, right + 1));
+                    double score = routeOrderScore(candidate);
+                    if (score + 0.001 < bestScore) {
+                        best = candidate;
+                        bestScore = score;
+                        improved = true;
+                    }
+                }
+            }
+        }
+        return best;
+    }
+
+    private List<RouteStopDto> latitudeSortedOrder(List<RouteStopDto> stops) {
+        return stops.stream()
+                .sorted(Comparator.comparingDouble(RouteStopDto::latitude)
+                        .thenComparingDouble(RouteStopDto::longitude))
+                .toList();
+    }
+
+    private List<RouteStopDto> longitudeSortedOrder(List<RouteStopDto> stops) {
+        return stops.stream()
+                .sorted(Comparator.comparingDouble(RouteStopDto::longitude)
+                        .thenComparingDouble(RouteStopDto::latitude))
+                .toList();
+    }
+
+    private List<RouteStopDto> reverseOrder(List<RouteStopDto> stops) {
+        List<RouteStopDto> reversed = new ArrayList<>(stops);
+        Collections.reverse(reversed);
+        return reversed;
+    }
+
+    private double routeOrderScore(List<RouteStopDto> stops) {
+        return totalDistanceKm(stops)
+                + maxSegmentDistanceKm(stops) * 0.25
+                + backtrackingPenaltyKm(stops) * 0.55
+                + axisReversalPenaltyKm(stops) * 0.2;
+    }
+
+    private double maxSegmentDistanceKm(List<RouteStopDto> stops) {
+        double max = 0.0;
+        if (stops == null) {
+            return max;
+        }
+        for (int index = 1; index < stops.size(); index++) {
+            max = Math.max(max, distanceKm(stops.get(index - 1), stops.get(index)));
+        }
+        return max;
+    }
+
+    private double backtrackingPenaltyKm(List<RouteStopDto> stops) {
+        if (stops == null || stops.size() < 3) {
+            return 0.0;
+        }
+        double penalty = 0.0;
+        for (int index = 0; index < stops.size() - 2; index++) {
+            double firstLeg = distanceKm(stops.get(index), stops.get(index + 1));
+            double secondLeg = distanceKm(stops.get(index + 1), stops.get(index + 2));
+            double skipLeg = distanceKm(stops.get(index), stops.get(index + 2));
+            if (skipLeg > 0 && skipLeg < Math.min(firstLeg, secondLeg) * 0.65) {
+                penalty += firstLeg + secondLeg - skipLeg;
+            }
+        }
+        return penalty;
+    }
+
+    private double axisReversalPenaltyKm(List<RouteStopDto> stops) {
+        if (stops == null || stops.size() < 3) {
+            return 0.0;
+        }
+        double penalty = 0.0;
+        for (int index = 1; index < stops.size() - 1; index++) {
+            double previousLngDelta = stops.get(index).longitude() - stops.get(index - 1).longitude();
+            double nextLngDelta = stops.get(index + 1).longitude() - stops.get(index).longitude();
+            double previousLatDelta = stops.get(index).latitude() - stops.get(index - 1).latitude();
+            double nextLatDelta = stops.get(index + 1).latitude() - stops.get(index).latitude();
+            double previousDistance = distanceKm(stops.get(index - 1), stops.get(index));
+            double nextDistance = distanceKm(stops.get(index), stops.get(index + 1));
+            if (directionFlips(previousLngDelta, nextLngDelta) && previousDistance > 1.0 && nextDistance > 1.0) {
+                penalty += Math.min(previousDistance, nextDistance);
+            }
+            if (directionFlips(previousLatDelta, nextLatDelta) && previousDistance > 1.0 && nextDistance > 1.0) {
+                penalty += Math.min(previousDistance, nextDistance) * 0.5;
+            }
+        }
+        return penalty;
+    }
+
+    private boolean directionFlips(double left, double right) {
+        double threshold = 0.002;
+        return Math.abs(left) >= threshold
+                && Math.abs(right) >= threshold
+                && Math.signum(left) != Math.signum(right);
     }
 
     private List<RouteStopDto> rebuildStopsAfterOptimization(List<RouteStopDto> stops, int dayIndex, TransportProfile profile) {
@@ -2198,6 +2331,44 @@ public class AiRouteService {
     }
 
     private record StopMoveCandidate(int donorIndex, RouteStopDto stop, double score) {
+    }
+
+    private final class RouteOrderSearch {
+        private final List<RouteStopDto> stops;
+        private List<RouteStopDto> bestOrder;
+        private double bestScore;
+
+        RouteOrderSearch(List<RouteStopDto> stops) {
+            this.stops = stops;
+            this.bestOrder = new ArrayList<>(stops);
+            this.bestScore = routeOrderScore(stops);
+        }
+
+        void search(List<RouteStopDto> current, boolean[] used) {
+            if (current.size() == stops.size()) {
+                double score = routeOrderScore(current);
+                if (score + 0.001 < bestScore) {
+                    bestOrder = new ArrayList<>(current);
+                    bestScore = score;
+                }
+                return;
+            }
+
+            for (int index = 0; index < stops.size(); index++) {
+                if (used[index]) {
+                    continue;
+                }
+                used[index] = true;
+                current.add(stops.get(index));
+                search(current, used);
+                current.remove(current.size() - 1);
+                used[index] = false;
+            }
+        }
+
+        List<RouteStopDto> bestOrder() {
+            return bestOrder;
+        }
     }
 
     private record GenerationState(AiRouteRequest request, AtomicInteger regenerateCount) {

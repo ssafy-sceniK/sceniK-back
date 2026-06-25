@@ -149,8 +149,14 @@ public class CommunityService {
         comment.setLanguage(languageDetectionService.detect(comment.getContent(), user.getLanguage()));
         comment.setStatus("ACTIVE");
         communityMapper.insertComment(comment);
-        notifyPostOwner(post, user, "새 댓글", user.getNickname() + "님이 게시글에 댓글을 남겼습니다.", "POST_COMMENT", postId, comment.getCommentId());
-        notifyParentCommentOwner(post, parentComment, user, comment.getCommentId());
+        if (parentComment == null) {
+            notifyPostOwner(post, user, "\uC0C8 \uB313\uAE00", actorName(user) + "\uB2D8\uC774 \uAC8C\uC2DC\uAE00\uC5D0 \uB313\uAE00\uC744 \uB0A8\uACBC\uC2B5\uB2C8\uB2E4.", "POST_COMMENT", postId, comment.getCommentId());
+        } else {
+            notifyParentCommentOwner(post, parentComment, user, comment.getCommentId());
+            if (post.getUserId() == null || !post.getUserId().equals(parentComment.getUserId())) {
+                notifyPostOwner(post, user, "\uC0C8 \uB313\uAE00", actorName(user) + "\uB2D8\uC774 \uAC8C\uC2DC\uAE00\uC5D0 \uB313\uAE00\uC744 \uB0A8\uACBC\uC2B5\uB2C8\uB2E4.", "POST_COMMENT", postId, comment.getCommentId());
+            }
+        }
         return toCommentDto(requireComment(postId, comment.getCommentId(), user.getUserId()));
     }
 
@@ -170,6 +176,7 @@ public class CommunityService {
     public void deleteComment(User user, String postId, String commentId) {
         requireOwnedComment(user, postId, commentId);
         communityMapper.softDeleteComment(commentId);
+        communityMapper.deleteNotificationsByCommentThread(postId, commentId);
     }
 
     @Transactional
@@ -189,15 +196,20 @@ public class CommunityService {
     @Transactional
     public PostDto likePost(User user, String postId) {
         CommunityPost post = requirePost(postId, user.getUserId());
-        communityMapper.insertPostLike(user.getUserId(), postId);
-        notifyPostOwner(post, user, "새 좋아요", user.getNickname() + "님이 게시글을 좋아합니다.", "POST_LIKE", postId, null);
+        int inserted = communityMapper.insertPostLike(user.getUserId(), postId);
+        if (inserted > 0) {
+            notifyPostOwner(post, user, "\uC0C8 \uC88B\uC544\uC694", actorName(user) + "\uB2D8\uC774 \uAC8C\uC2DC\uAE00\uC744 \uC88B\uC544\uC694\uD588\uC2B5\uB2C8\uB2E4.", "POST_LIKE", postId, null);
+        }
         return toPostDto(requirePost(postId, user.getUserId()), true, user.getUserId());
     }
 
     @Transactional
     public PostDto unlikePost(User user, String postId) {
-        requirePost(postId, user.getUserId());
-        communityMapper.deletePostLike(user.getUserId(), postId);
+        CommunityPost post = requirePost(postId, user.getUserId());
+        int deleted = communityMapper.deletePostLike(user.getUserId(), postId);
+        if (deleted > 0 && post.getUserId() != null && !post.getUserId().equals(user.getUserId())) {
+            communityMapper.deletePostLikeNotification(user.getUserId(), post.getUserId(), postId);
+        }
         return toPostDto(requirePost(postId, user.getUserId()), true, user.getUserId());
     }
 
@@ -338,14 +350,11 @@ public class CommunityService {
         if (parentComment.getUserId().equals(actor.getUserId())) {
             return;
         }
-        if (post.getUserId() != null && post.getUserId().equals(parentComment.getUserId())) {
-            return;
-        }
         communityMapper.insertNotification(
                 "notification-" + UUID.randomUUID(),
                 parentComment.getUserId(),
-                "새 답글",
-                actor.getNickname() + "님이 내 댓글에 답글을 남겼습니다.",
+                "\uC0C8 \uB2F5\uAE00",
+                actorName(actor) + "\uB2D8\uC774 \uB313\uAE00\uC5D0 \uB2F5\uAE00\uC744 \uB0A8\uACBC\uC2B5\uB2C8\uB2E4.",
                 "COMMENT_REPLY",
                 post.getPostId(),
                 post.getPostId(),
@@ -537,6 +546,10 @@ public class CommunityService {
             return "/users/" + notification.getActorUserId();
         }
         return "/community";
+    }
+
+    private String actorName(User actor) {
+        return firstText(actor == null ? null : actor.getNickname(), "sceniK user");
     }
 
     private String requireText(String value, String message) {

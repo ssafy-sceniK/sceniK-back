@@ -255,10 +255,41 @@
     INSERT INTO notifications (
       notification_id, user_id, title, message, target_type, target_id, post_id, comment_id, actor_user_id, route_id, place_id
     )
-    VALUES (
+    SELECT
       #{notificationId}, #{userId}, #{title}, #{message}, #{targetType}, #{targetId}, #{postId}, #{commentId}, #{actorUserId}, #{routeId}, #{placeId}
+    WHERE NOT EXISTS (
+      SELECT 1 FROM notifications
+      WHERE user_id = #{userId}
+        AND target_type = #{targetType}
+        AND target_id = #{targetId}
+        AND post_id = #{postId}
+        AND actor_user_id = #{actorUserId}
+        AND (comment_id = #{commentId} OR (comment_id IS NULL AND #{commentId} IS NULL))
     )
   </insert>
+
+  <delete id="deletePostLikeNotification">
+    DELETE FROM notifications
+    WHERE target_type = 'POST_LIKE'
+      AND actor_user_id = #{actorUserId}
+      AND user_id = #{recipientUserId}
+      AND post_id = #{postId}
+  </delete>
+
+  <delete id="deleteNotificationsByCommentThread">
+    DELETE FROM notifications
+    WHERE post_id = #{postId}
+      AND target_type IN ('POST_COMMENT', 'COMMENT_REPLY')
+      AND (
+        comment_id = #{commentId}
+        OR comment_id IN (
+          SELECT c.comment_id
+          FROM comments c
+          WHERE c.post_id = #{postId}
+            AND c.parent_comment_id = #{commentId}
+        )
+      )
+  </delete>
 
   <select id="findNotificationsByUserId" resultMap="NotificationResultMap">
     SELECT * FROM notifications

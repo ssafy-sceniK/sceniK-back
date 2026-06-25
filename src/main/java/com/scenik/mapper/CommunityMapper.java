@@ -43,6 +43,8 @@ public interface CommunityMapper {
     int insertReport(@Param("reportId") String reportId, @Param("userId") Long userId, @Param("postId") String postId, @Param("reason") String reason);
 
     int insertNotification(@Param("notificationId") String notificationId, @Param("userId") Long userId, @Param("title") String title, @Param("message") String message, @Param("targetType") String targetType, @Param("targetId") String targetId, @Param("postId") String postId, @Param("commentId") String commentId, @Param("actorUserId") Long actorUserId, @Param("routeId") String routeId, @Param("placeId") String placeId);
+    int deletePostLikeNotification(@Param("actorUserId") Long actorUserId, @Param("recipientUserId") Long recipientUserId, @Param("postId") String postId);
+    int deleteNotificationsByCommentThread(@Param("postId") String postId, @Param("commentId") String commentId);
     List<Notification> findNotificationsByUserId(@Param("userId") Long userId);
     Notification findNotificationById(@Param("userId") Long userId, @Param("notificationId") String notificationId);
     int countNotificationsByUserId(@Param("userId") Long userId);

@@ -61,7 +61,7 @@ public class AiRouteService {
             @Value("${scenik.ai.gms.read-timeout-ms:5000}") int readTimeoutMs,
             @Value("${scenik.ai.route.min-places-per-day:2}") int defaultMinPlacesPerDay,
             @Value("${scenik.ai.route.preferred-places-per-day:3}") int defaultPreferredPlacesPerDay,
-            @Value("${scenik.ai.route.max-places-per-day:5}") int defaultMaxPlacesPerDay
+            @Value("${scenik.ai.route.max-places-per-day:6}") int defaultMaxPlacesPerDay
     ) {
         this.aiRouteMapper = aiRouteMapper;
         this.objectMapper = objectMapper;
@@ -139,6 +139,7 @@ public class AiRouteService {
         List<CandidatePlace> routeCandidates = candidates;
         List<RouteDayDto> days = generateAiDays(request, routeCandidates, dayCount, stopPolicy)
                 .orElseGet(() -> buildDeterministicDays(routeCandidates, dayCount, style, request.hotelAddress(), stopPolicy));
+        days = regroupDailyRoutesByArea(days, stopPolicy);
         days = optimizeDailyRoutes(days, request);
         List<CandidatePlaceDto> candidateDtos = candidates.stream().map(CandidatePlaceDto::from).toList();
         List<RouteStopDto> flatPlaces = days.stream().flatMap(day -> day.places().stream()).toList();
@@ -229,6 +230,7 @@ public class AiRouteService {
         routeContext.put("budget", request.budget());
         routeContext.put("hotelAddress", request.hotelAddress());
         routeContext.put("candidatePlaces", candidates.stream().map(this::promptCandidate).toList());
+        routeContext.put("areaClusters", areaClusterSummary(candidates));
         routeContext.put("visitWorthyCategories", List.of("촬영지", "관광지", "궁궐", "전통마을", "거리", "카페", "공원", "문화시설"));
         routeContext.put("lowerPriorityCategories", List.of("학교", "호텔", "일반 상점", "업무시설"));
 
@@ -245,10 +247,13 @@ public class AiRouteService {
                 - candidatePlaces에 있더라도 routeContext.regions 밖의 장소, 주소, 동선을 임의로 추가하지 마세요.
                 - 선택하지 않은 지역의 장소는 사용하지 마세요.
                 - 선택한 travelStyles 중 하나라도 만족하는 장소를 우선 배치하고, 부족하면 같은 지역 후보 중 동선이 자연스러운 장소를 사용하세요.
+                - candidatePlaces의 areaCluster와 areaClusterLabel을 참고해 같은 생활권 장소를 같은 day에 우선 묶으세요.
+                - 서로 다른 생활권을 한 day에 섞지 마세요. 예: 종로/중구, 성동/성수, 강남/청담/압구정, 송파/잠실, 마포/홍대/연남, 영등포/여의도는 각각 한 day 안에서 묶는 것이 좋습니다.
                 - 정확히 durationDays 개의 day를 생성하세요. 2박 3일이면 반드시 3일차까지 생성하세요.
                 - 각 day는 최소 minPlacesPerDay개 이상의 장소를 포함하세요.
                 - 가능한 한 preferredPlacesPerDay에 가깝게 장소를 배치하세요.
                 - 하루 장소 수는 maxPlacesPerDay를 넘기지 말고, 이동수단·동행유형·예산 조건상 무리한 과밀 일정을 만들지 마세요.
+                - 첫날과 마지막날은 체크인·체크아웃·역/공항 이동을 고려해 중간 날짜보다 짧게 구성하세요.
                 - 매일 같은 시간표를 반복하지 말고 오전, 점심 전후, 오후, 저녁 흐름이 자연스럽게 보이도록 시간을 다르게 배치하세요.
                 - visitWorthyCategories에 가까운 장소를 우선하고, 학교/호텔/일반 상점은 콘텐츠 연결성이 강하거나 대체 후보가 없을 때만 사용하세요.
                 - recommendReason은 장소별로 한 문장만 작성하고, contentId나 DB 검증 정책을 쓰지 마세요.
@@ -289,6 +294,9 @@ public class AiRouteService {
         item.put("relatedContentTitle", place.getRelatedContentTitle());
         item.put("sceneDescription", place.getSceneDescription());
         item.put("verified", Boolean.TRUE.equals(place.getVerified()));
+        AreaCluster areaCluster = areaCluster(place);
+        item.put("areaCluster", areaCluster.id());
+        item.put("areaClusterLabel", areaCluster.label());
         return item;
     }
 
@@ -420,10 +428,184 @@ public class AiRouteService {
         return days;
     }
 
+    private List<RouteDayDto> regroupDailyRoutesByArea(List<RouteDayDto> days, StopPolicy stopPolicy) {
+        if (days == null || days.size() < 2) {
+            return days;
+        }
+        List<RouteStopDto> stops = days.stream()
+                .flatMap(day -> day.places() == null ? List.<RouteStopDto>of().stream() : day.places().stream())
+                .toList();
+        if (stops.isEmpty()) {
+            return days;
+        }
+
+        List<AreaStopGroup> areaGroups = areaStopGroups(stops).stream()
+                .sorted(Comparator.comparingInt((AreaStopGroup group) -> group.stops().size()).reversed())
+                .toList();
+        int[] dayTargets = dayStopTargets(stops.size(), days.size(), stopPolicy);
+        List<List<RouteStopDto>> groupedDays = new ArrayList<>();
+        for (int index = 0; index < days.size(); index++) {
+            groupedDays.add(new ArrayList<>());
+        }
+
+        for (AreaStopGroup areaGroup : areaGroups) {
+            List<RouteStopDto> areaStops = optimizeSameAreaStops(areaGroup.stops());
+            int offset = 0;
+            while (offset < areaStops.size()) {
+                int remaining = areaStops.size() - offset;
+                int dayIndex = bestDayForArea(areaGroup.areaId(), remaining, groupedDays, dayTargets);
+                List<RouteStopDto> dayStops = groupedDays.get(dayIndex);
+                int available = Math.max(1, dayTargets[Math.min(dayIndex, dayTargets.length - 1)] - dayStops.size());
+                int take = Math.min(remaining, available);
+                dayStops.addAll(areaStops.subList(offset, offset + take));
+                offset += take;
+            }
+        }
+
+        List<RouteDayDto> regrouped = new ArrayList<>();
+        for (int index = 0; index < days.size(); index++) {
+            List<RouteStopDto> dayStops = groupedDays.get(index);
+            if (dayStops.isEmpty()) {
+                dayStops = List.of();
+            }
+            regrouped.add(new RouteDayDto(index + 1, estimateTravelTime(dayStops), rebuildStopsAfterAreaGrouping(dayStops, index)));
+        }
+        logAreaGroupingSummary(regrouped);
+        return regrouped;
+    }
+
+    private int bestDayForArea(String areaId, int remainingAreaStopCount, List<List<RouteStopDto>> groupedDays, int[] dayTargets) {
+        int bestEmptyFit = -1;
+        int bestEmptyFitTarget = Integer.MAX_VALUE;
+        int bestEmpty = -1;
+        int bestEmptyTarget = -1;
+        int sameAreaDay = -1;
+        int sameAreaCapacity = -1;
+        int fallbackDay = 0;
+        int fallbackCapacity = Integer.MIN_VALUE;
+
+        for (int index = 0; index < groupedDays.size(); index++) {
+            List<RouteStopDto> dayStops = groupedDays.get(index);
+            int target = dayTargets[Math.min(index, dayTargets.length - 1)];
+            int capacity = target - dayStops.size();
+            if (dayStops.isEmpty()) {
+                if (target >= remainingAreaStopCount && target < bestEmptyFitTarget) {
+                    bestEmptyFit = index;
+                    bestEmptyFitTarget = target;
+                }
+                if (target > bestEmptyTarget) {
+                    bestEmpty = index;
+                    bestEmptyTarget = target;
+                }
+            } else if (dayStops.stream().allMatch(stop -> areaCluster(stop).id().equals(areaId)) && capacity > sameAreaCapacity) {
+                sameAreaDay = index;
+                sameAreaCapacity = capacity;
+            }
+            if (capacity > fallbackCapacity) {
+                fallbackDay = index;
+                fallbackCapacity = capacity;
+            }
+        }
+        if (bestEmptyFit >= 0) return bestEmptyFit;
+        if (bestEmpty >= 0) return bestEmpty;
+        if (sameAreaDay >= 0) return sameAreaDay;
+        return fallbackDay;
+    }
+
+    private List<AreaStopGroup> areaStopGroups(List<RouteStopDto> stops) {
+        LinkedHashMap<String, List<RouteStopDto>> byArea = new LinkedHashMap<>();
+        for (RouteStopDto stop : stops) {
+            byArea.computeIfAbsent(areaCluster(stop).id(), key -> new ArrayList<>()).add(stop);
+        }
+        return byArea.entrySet().stream()
+                .map(entry -> new AreaStopGroup(entry.getKey(), areaCluster(entry.getValue().get(0)).label(), entry.getValue()))
+                .toList();
+    }
+
+    private List<RouteStopDto> rebuildStopsAfterAreaGrouping(List<RouteStopDto> stops, int dayIndex) {
+        List<RouteStopDto> rebuilt = new ArrayList<>();
+        for (int index = 0; index < stops.size(); index++) {
+            RouteStopDto stop = stops.get(index);
+            rebuilt.add(new RouteStopDto(
+                    stop.routePlaceId(),
+                    stop.placeId(),
+                    stop.name(),
+                    stop.placeName(),
+                    dayIndex + 1,
+                    index + 1,
+                    stop.address(),
+                    stop.latitude(),
+                    stop.longitude(),
+                    stop.thumbnailUrl(),
+                    stop.category(),
+                    stop.recommendedTime(),
+                    stop.recommendReason(),
+                    stop.reason(),
+                    stop.estimatedStayMinutes(),
+                    stop.estimatedTravelMinutes(),
+                    stop.travelTip()
+            ));
+        }
+        return rebuilt;
+    }
+
+    private int[] dayStopTargets(int totalStopCount, int dayCount, StopPolicy stopPolicy) {
+        int[] targets = new int[dayCount];
+        if (dayCount <= 0) {
+            return targets;
+        }
+        if (dayCount == 1) {
+            targets[0] = Math.min(totalStopCount, stopPolicy.maxPlacesPerDay());
+            return targets;
+        }
+        if (dayCount == 2 || totalStopCount < 11) {
+            int base = totalStopCount / dayCount;
+            int remainder = totalStopCount % dayCount;
+            for (int index = 0; index < dayCount; index++) {
+                targets[index] = base + (index < remainder ? 1 : 0);
+            }
+            return targets;
+        }
+
+        int edgeCap = Math.min(4, stopPolicy.maxPlacesPerDay());
+        int middleCap = stopPolicy.maxPlacesPerDay();
+        int remaining = totalStopCount;
+        targets[0] = Math.min(edgeCap, Math.max(3, remaining / dayCount));
+        remaining -= targets[0];
+        targets[dayCount - 1] = Math.min(edgeCap, Math.max(3, remaining / dayCount));
+        remaining -= targets[dayCount - 1];
+        int middleDays = dayCount - 2;
+        for (int index = 1; index < dayCount - 1; index++) {
+            int daysLeft = dayCount - 1 - index;
+            int target = daysLeft <= 0 ? remaining : (int) Math.ceil(remaining / (double) daysLeft);
+            targets[index] = Math.min(middleCap, Math.max(stopPolicy.preferredPlacesPerDay(), target));
+            remaining -= targets[index];
+        }
+        int index = 1;
+        while (remaining > 0 && dayCount > 2) {
+            if (targets[index] < middleCap) {
+                targets[index]++;
+                remaining--;
+            }
+            index++;
+            if (index >= dayCount - 1) {
+                index = 1;
+                if (targets[index] >= middleCap && remaining > 0) {
+                    break;
+                }
+            }
+        }
+        if (remaining > 0) {
+            targets[dayCount - 1] += remaining;
+        }
+        return targets;
+    }
+
     private List<RouteDayDto> optimizeDailyRoutes(List<RouteDayDto> days, AiRouteRequest request) {
         if (days == null || days.isEmpty()) {
             return days;
         }
+        int mixedDayCount = 0;
         List<RouteDayDto> optimizedDays = new ArrayList<>();
         for (int dayIndex = 0; dayIndex < days.size(); dayIndex++) {
             RouteDayDto day = days.get(dayIndex);
@@ -443,12 +625,58 @@ public class AiRouteService {
                     roundDistance(afterKm),
                     rebuiltStops.size()
             );
+            List<AreaCluster> dayAreas = dayAreaClusters(rebuiltStops);
+            boolean mixedArea = dayAreas.size() > 1;
+            if (mixedArea) {
+                mixedDayCount++;
+            }
+            boolean edgeOverloaded = isEdgeDay(dayIndex, days.size()) && rebuiltStops.size() > 4;
+            log.info(
+                    "AI route area quality day={} areaClusters={} totalDistanceKm={} mixedArea={} stopCount={} edgeDayOverloaded={}",
+                    dayIndex + 1,
+                    dayAreas.stream().map(AreaCluster::label).toList(),
+                    roundDistance(afterKm),
+                    mixedArea,
+                    rebuiltStops.size(),
+                    edgeOverloaded
+            );
             optimizedDays.add(new RouteDayDto(day.dayNumber(), estimateTravelTime(rebuiltStops), rebuiltStops));
         }
+        log.info("AI route area quality summary mixedDayCount={} dayCount={}", mixedDayCount, days.size());
         return optimizedDays;
     }
 
     private List<RouteStopDto> optimizeStopOrder(List<RouteStopDto> stops) {
+        if (stops.size() < 3 || stops.stream().anyMatch(stop -> !hasCoordinates(stop))) {
+            return stops;
+        }
+        List<AreaStopGroup> areaGroups = areaStopGroups(stops);
+        if (areaGroups.size() > 1) {
+            return optimizeMixedAreaStopOrder(areaGroups);
+        }
+        return optimizeSameAreaStops(stops);
+    }
+
+    private List<RouteStopDto> optimizeMixedAreaStopOrder(List<AreaStopGroup> areaGroups) {
+        List<AreaStopGroup> remaining = new ArrayList<>(areaGroups);
+        List<AreaStopGroup> orderedGroups = new ArrayList<>();
+        AreaStopGroup current = remaining.remove(0);
+        orderedGroups.add(current);
+        while (!remaining.isEmpty()) {
+            AreaStopGroup currentGroup = current;
+            AreaStopGroup next = remaining.stream()
+                    .min(Comparator.comparingDouble(group -> distanceKm(currentGroup.centroidStop(), group.centroidStop())))
+                    .orElseThrow();
+            orderedGroups.add(next);
+            remaining.remove(next);
+            current = next;
+        }
+        return orderedGroups.stream()
+                .flatMap(group -> optimizeSameAreaStops(group.stops()).stream())
+                .toList();
+    }
+
+    private List<RouteStopDto> optimizeSameAreaStops(List<RouteStopDto> stops) {
         if (stops.size() < 3 || stops.stream().anyMatch(stop -> !hasCoordinates(stop))) {
             return stops;
         }
@@ -558,6 +786,114 @@ public class AiRouteService {
 
     private double roundDistance(double value) {
         return Math.round(value * 10.0) / 10.0;
+    }
+
+    private void logAreaGroupingSummary(List<RouteDayDto> days) {
+        for (RouteDayDto day : days) {
+            List<RouteStopDto> stops = day.places() == null ? List.of() : day.places();
+            List<AreaCluster> areas = dayAreaClusters(stops);
+            log.info(
+                    "AI route area grouping day={} areaClusters={} stopCount={} mixedArea={}",
+                    day.dayNumber(),
+                    areas.stream().map(AreaCluster::label).toList(),
+                    stops.size(),
+                    areas.size() > 1
+            );
+        }
+    }
+
+    private List<AreaCluster> dayAreaClusters(List<RouteStopDto> stops) {
+        LinkedHashMap<String, AreaCluster> areas = new LinkedHashMap<>();
+        for (RouteStopDto stop : stops) {
+            AreaCluster area = areaCluster(stop);
+            areas.putIfAbsent(area.id(), area);
+        }
+        return new ArrayList<>(areas.values());
+    }
+
+    private boolean isEdgeDay(int dayIndex, int dayCount) {
+        return dayCount > 1 && (dayIndex == 0 || dayIndex == dayCount - 1);
+    }
+
+    private List<Map<String, Object>> areaClusterSummary(List<CandidatePlace> candidates) {
+        Map<String, Long> counts = candidates.stream()
+                .collect(Collectors.groupingBy(place -> areaCluster(place).id(), LinkedHashMap::new, Collectors.counting()));
+        Map<String, AreaCluster> clusters = candidates.stream()
+                .map(this::areaCluster)
+                .collect(Collectors.toMap(AreaCluster::id, cluster -> cluster, (left, right) -> left, LinkedHashMap::new));
+        List<Map<String, Object>> summary = new ArrayList<>();
+        for (Map.Entry<String, Long> entry : counts.entrySet()) {
+            AreaCluster cluster = clusters.get(entry.getKey());
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("areaCluster", cluster.id());
+            item.put("areaClusterLabel", cluster.label());
+            item.put("candidateCount", entry.getValue());
+            summary.add(item);
+        }
+        return summary;
+    }
+
+    private AreaCluster areaCluster(CandidatePlace place) {
+        return areaCluster(firstText(place.getRegion(), ""), firstText(place.getAddress(), ""), firstText(place.getName(), ""));
+    }
+
+    private AreaCluster areaCluster(RouteStopDto stop) {
+        return areaCluster("", firstText(stop.address(), ""), firstText(stop.placeName(), firstText(stop.name(), "")));
+    }
+
+    private AreaCluster areaCluster(String region, String address, String name) {
+        String text = (firstText(region, "") + " " + firstText(address, "") + " " + firstText(name, "")).replaceAll("\\s+", "");
+        if (containsAny(text, List.of("종로구", "중구", "광화문", "명동", "을지로", "인사동", "북촌", "서촌", "경복궁", "창덕궁", "덕수궁", "청계천"))) {
+            return new AreaCluster("seoul-jongno-jung", "종로/중구");
+        }
+        if (containsAny(text, List.of("성동구", "성수", "뚝섬", "서울숲", "광진구", "건대", "자양", "화양"))) {
+            return new AreaCluster("seoul-seongsu-geondae", "성동/성수/건대");
+        }
+        if (containsAny(text, List.of("강남구", "청담", "압구정", "삼성", "코엑스", "신사", "논현", "역삼", "도산대로", "가로수길"))) {
+            return new AreaCluster("seoul-gangnam-cheongdam", "강남/청담/압구정");
+        }
+        if (containsAny(text, List.of("서초구", "양재", "반포", "서래", "교대", "고속터미널"))) {
+            return new AreaCluster("seoul-seocho-yangjae", "서초/양재");
+        }
+        if (containsAny(text, List.of("송파구", "잠실", "석촌", "롯데월드", "올림픽공원", "방이"))) {
+            return new AreaCluster("seoul-songpa-jamsil", "송파/잠실");
+        }
+        if (containsAny(text, List.of("마포구", "홍대", "연남", "합정", "상수", "망원", "공덕", "상암"))) {
+            return new AreaCluster("seoul-mapo-hongdae", "마포/홍대/연남");
+        }
+        if (containsAny(text, List.of("영등포구", "여의도", "문래", "당산"))) {
+            return new AreaCluster("seoul-yeongdeungpo-yeouido", "영등포/여의도");
+        }
+        if (containsAny(text, List.of("용산구", "이태원", "한남", "해방촌", "후암", "용리단길"))) {
+            return new AreaCluster("seoul-yongsan", "용산/한남");
+        }
+        if (containsAny(text, List.of("서대문구", "신촌", "이대", "연희"))) {
+            return new AreaCluster("seoul-seodaemun-sinchon", "서대문/신촌");
+        }
+        if (containsAny(text, List.of("강서구", "마곡", "김포공항"))) {
+            return new AreaCluster("seoul-gangseo-magok", "강서/마곡");
+        }
+
+        String district = districtFromAddress(address);
+        String normalizedRegion = normalizeRegion(region);
+        if (!district.isBlank()) {
+            String prefix = normalizedRegion.isBlank() ? "area" : normalizedRegion;
+            return new AreaCluster(prefix + "-" + district, district);
+        }
+        String fallback = normalizedRegion.isBlank() ? "기타 권역" : normalizedRegion;
+        return new AreaCluster("area-" + fallback, fallback);
+    }
+
+    private String districtFromAddress(String address) {
+        if (address == null || address.isBlank()) {
+            return "";
+        }
+        for (String part : address.split("\\s+")) {
+            if (part.endsWith("구") || part.endsWith("군") || part.endsWith("시")) {
+                return part;
+            }
+        }
+        return "";
     }
 
     private List<String> normalizeContentIds(AiRouteRequest request) {
@@ -1029,6 +1365,47 @@ public class AiRouteService {
     }
 
     private record StopPolicy(int minPlacesPerDay, int preferredPlacesPerDay, int maxPlacesPerDay) {
+    }
+
+    private record AreaCluster(String id, String label) {
+    }
+
+    private record AreaStopGroup(String areaId, String areaLabel, List<RouteStopDto> stops) {
+        RouteStopDto centroidStop() {
+            if (stops == null || stops.isEmpty()) {
+                return null;
+            }
+            double latitude = stops.stream()
+                    .filter(stop -> stop.latitude() != null)
+                    .mapToDouble(RouteStopDto::latitude)
+                    .average()
+                    .orElse(stops.get(0).latitude() == null ? 0.0 : stops.get(0).latitude());
+            double longitude = stops.stream()
+                    .filter(stop -> stop.longitude() != null)
+                    .mapToDouble(RouteStopDto::longitude)
+                    .average()
+                    .orElse(stops.get(0).longitude() == null ? 0.0 : stops.get(0).longitude());
+            RouteStopDto first = stops.get(0);
+            return new RouteStopDto(
+                    null,
+                    first.placeId(),
+                    first.name(),
+                    first.placeName(),
+                    first.dayNumber(),
+                    first.visitOrder(),
+                    first.address(),
+                    latitude,
+                    longitude,
+                    first.thumbnailUrl(),
+                    first.category(),
+                    first.recommendedTime(),
+                    first.recommendReason(),
+                    first.reason(),
+                    first.estimatedStayMinutes(),
+                    first.estimatedTravelMinutes(),
+                    first.travelTip()
+            );
+        }
     }
 
     private enum TransportProfile {

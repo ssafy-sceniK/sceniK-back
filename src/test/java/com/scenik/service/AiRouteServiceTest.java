@@ -15,6 +15,8 @@ import com.scenik.dto.RouteDtos.AiRouteRequest;
 import com.scenik.dto.RouteDtos.RouteStopDto;
 import com.scenik.mapper.AiRouteMapper;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,7 +41,7 @@ class AiRouteServiceTest {
                 100,
                 2,
                 3,
-                5
+                6
         );
     }
 
@@ -233,6 +235,62 @@ class AiRouteServiceTest {
         assertThat(route.days().get(0).places().get(1).estimatedTravelMinutes()).isPositive();
     }
 
+    @Test
+    void routeDaysAreGroupedByAreaBeforeDistanceOptimization() {
+        List<String> contentIds = List.of("C_DRAMA_040");
+        AiRouteRequest request = new AiRouteRequest(
+                null,
+                contentIds,
+                "서울",
+                List.of("서울"),
+                4,
+                null,
+                null,
+                null,
+                "car",
+                List.of("CAR"),
+                List.of(2),
+                "friends",
+                "active",
+                List.of("active"),
+                null,
+                900000,
+                "standard",
+                null
+        );
+        List<CandidatePlace> places = List.of(
+                place("P_JJ_1", "C_DRAMA_040", "Drama", "서울", "서울 종로구 종로 1", 37.570, 126.980),
+                place("P_JJ_2", "C_DRAMA_040", "Drama", "서울", "서울 종로구 인사동 2", 37.571, 126.981),
+                place("P_JJ_3", "C_DRAMA_040", "Drama", "서울", "서울 종로구 세종대로 3", 37.572, 126.982),
+                place("P_GN_1", "C_DRAMA_040", "Drama", "서울", "서울 강남구 도산대로 1", 37.520, 127.040),
+                place("P_GN_2", "C_DRAMA_040", "Drama", "서울", "서울 강남구 청담동 2", 37.521, 127.041),
+                place("P_GN_3", "C_DRAMA_040", "Drama", "서울", "서울 강남구 압구정로 3", 37.522, 127.042),
+                place("P_GN_4", "C_DRAMA_040", "Drama", "서울", "서울 강남구 삼성동 4", 37.523, 127.043),
+                place("P_GN_5", "C_DRAMA_040", "Drama", "서울", "서울 강남구 역삼동 5", 37.524, 127.044),
+                place("P_GN_6", "C_DRAMA_040", "Drama", "서울", "서울 강남구 신사동 6", 37.525, 127.045),
+                place("P_SD_1", "C_DRAMA_040", "Drama", "서울", "서울 성동구 성수동 1", 37.545, 127.055),
+                place("P_SD_2", "C_DRAMA_040", "Drama", "서울", "서울 성동구 서울숲 2", 37.546, 127.056),
+                place("P_SD_3", "C_DRAMA_040", "Drama", "서울", "서울 성동구 뚝섬로 3", 37.547, 127.057),
+                place("P_SD_4", "C_DRAMA_040", "Drama", "서울", "서울 성동구 왕십리로 4", 37.548, 127.058),
+                place("P_SD_5", "C_DRAMA_040", "Drama", "서울", "서울 성동구 성수이로 5", 37.549, 127.059),
+                place("P_SP_1", "C_DRAMA_040", "Drama", "서울", "서울 송파구 잠실동 1", 37.510, 127.100),
+                place("P_SP_2", "C_DRAMA_040", "Drama", "서울", "서울 송파구 석촌동 2", 37.511, 127.101),
+                place("P_SP_3", "C_DRAMA_040", "Drama", "서울", "서울 송파구 올림픽로 3", 37.512, 127.102),
+                place("P_SP_4", "C_DRAMA_040", "Drama", "서울", "서울 송파구 방이동 4", 37.513, 127.103)
+        );
+
+        when(aiRouteMapper.findCandidatePlaces(eq(contentIds), isNull(), anyInt())).thenReturn(places);
+
+        AiRouteDto route = aiRouteService.generateRoute(request);
+
+        assertThat(route.days()).hasSize(4);
+        assertThat(route.days().get(0).places()).hasSizeLessThanOrEqualTo(4);
+        assertThat(route.days().get(1).places()).hasSizeGreaterThanOrEqualTo(5);
+        assertThat(route.days().get(2).places()).hasSizeGreaterThanOrEqualTo(5);
+        assertThat(route.days().get(3).places()).hasSizeLessThanOrEqualTo(4);
+        route.days().forEach(day -> assertThat(districts(day.places())).hasSize(1));
+    }
+
 
     @Test
     void routeStopDtoFromRoutePlaceIncludesCategory() {
@@ -273,5 +331,18 @@ class AiRouteServiceTest {
         place.setLatitude(latitude);
         place.setLongitude(longitude);
         return place;
+    }
+
+    private CandidatePlace place(String placeId, String contentId, String contentTitle, String region, String address, double latitude, double longitude) {
+        CandidatePlace place = place(placeId, contentId, contentTitle, region, latitude, longitude);
+        place.setAddress(address);
+        return place;
+    }
+
+    private Set<String> districts(List<RouteStopDto> places) {
+        return places.stream()
+                .map(RouteStopDto::address)
+                .map(address -> address.split("\\s+")[1])
+                .collect(Collectors.toSet());
     }
 }
